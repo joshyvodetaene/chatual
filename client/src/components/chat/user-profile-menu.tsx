@@ -48,7 +48,7 @@ export function UserProfileMenu({
 
   const reportUserMutation = useMutation({
     mutationFn: async (data: { reportedUserId: string; reason: string; description: string }) => {
-      return await apiRequest('/api/reports', 'POST', {
+      return await apiRequest('POST', '/api/reports', {
         ...data,
         reporterId: currentUser.id,
       });

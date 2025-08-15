@@ -56,10 +56,11 @@ export default function UserProfilePage() {
     if (!currentUserData?.user.id || !profileData?.user.id) return;
 
     try {
-      const response = await apiRequest('/api/private-chat/create', 'POST', {
+      const response = await apiRequest('POST', '/api/private-chat/create', {
         user1Id: currentUserData.user.id,
         user2Id: profileData.user.id,
       });
+      await response.json(); // Parse the response
       
       // Navigate back to chat
       window.location.href = '/';

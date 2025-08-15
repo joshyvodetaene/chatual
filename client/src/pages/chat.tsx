@@ -168,13 +168,14 @@ export default function ChatPage() {
     }
     
     try {
-      const response = await apiRequest('/api/private-chat/create', 'POST', {
+      const response = await apiRequest('POST', '/api/private-chat/create', {
         user1Id: currentUser.id,
         user2Id: userId,
-      }) as unknown as { room: Room };
+      });
+      const data = await response.json() as { room: Room };
       
-      if (response.room) {
-        setActiveRoom(response.room);
+      if (data.room) {
+        setActiveRoom(data.room);
         // Refresh private rooms list
         queryClient.invalidateQueries({ queryKey: ['/api/chat-data', currentUser.id] });
       }
