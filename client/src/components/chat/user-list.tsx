@@ -100,8 +100,15 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
     return colors[hash % colors.length];
   };
 
-  // Filter out blocked users from members list
-  const filteredMembers = room.members.filter(member => !blockedUserIds.has(member.id));
+  // Filter out blocked users and ensure unique members
+  const uniqueMembers = room.members.reduce((acc, member) => {
+    if (!acc.find(m => m.id === member.id) && !blockedUserIds.has(member.id)) {
+      acc.push(member);
+    }
+    return acc;
+  }, [] as User[]);
+  
+  const filteredMembers = uniqueMembers;
   const onlineMembers = filteredMembers.filter(member => onlineUsers.has(member.id));
   const offlineMembers = filteredMembers.filter(member => !onlineUsers.has(member.id));
 
