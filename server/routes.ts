@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { insertUserSchema, insertRoomSchema, insertMessageSchema, registerUserSchema, loginSchema, insertUserPhotoSchema } from "@shared/schema";
+import { insertUserSchema, insertRoomSchema, insertMessageSchema, registerUserSchema, loginSchema, insertUserPhotoSchema, updateUserProfileSchema, insertBlockedUserSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
 interface WebSocketClient extends WebSocket {
@@ -418,6 +418,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ messages });
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch messages' });
+    }
+  });
+
+  // Profile settings routes
+  app.get('/api/users/:userId/profile-settings', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const profileSettings = await storage.getUserProfileSettings(userId);
+      res.json(profileSettings);
+    } catch (error) {
+      console.error('Get profile settings error:', error);
+      res.status(500).json({ error: 'Failed to fetch profile settings' });
+    }
+  });
+
+  app.put('/api/users/:userId/profile', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const profileData = updateUserProfileSchema.parse(req.body);
+      
+      const updatedUser = await storage.updateUserProfile(userId, profileData);
+      res.json({ user: updatedUser });
+    } catch (error) {
+      console.error('Update profile error:', error);
+      res.status(400).json({ error: 'Failed to update profile' });
+    }
+  });
+
+  // Blocked users routes
+  app.post('/api/users/:userId/blocked-users', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { blockedId, reason } = req.body;
+      
+      if (!blockedId) {
+        return res.status(400).json({ error: 'Blocked user ID is required' });
+      }
+      
+      if (userId === blockedId) {
+        return res.status(400).json({ error: 'Cannot block yourself' });
+      }
+      
+      // Check if already blocked
+      const isAlreadyBlocked = await storage.isUserBlocked(userId, blockedId);
+      if (isAlreadyBlocked) {
+        return res.status(400).json({ error: 'User is already blocked' });
+      }
+      
+      const blockData = insertBlockedUserSchema.parse({
+        blockerId: userId,
+        blockedId,
+        reason: reason || null,
+      });
+      
+      const blockedUser = await storage.blockUser(blockData);
+      res.json({ blockedUser });
+    } catch (error) {
+      console.error('Block user error:', error);
+      res.status(400).json({ error: 'Failed to block user' });
+    }
+  });
+
+  app.delete('/api/users/:userId/blocked-users/:blockedId', async (req, res) => {
+    try {
+      const { userId, blockedId } = req.params;
+      
+      await storage.unblockUser(userId, blockedId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Unblock user error:', error);
+      res.status(400).json({ error: 'Failed to unblock user' });
+    }
+  });
+
+  app.get('/api/users/:userId/blocked-users', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const blockedUsers = await storage.getBlockedUsers(userId);
+      res.json({ blockedUsers });
+    } catch (error) {
+      console.error('Get blocked users error:', error);
+      res.status(500).json({ error: 'Failed to fetch blocked users' });
     }
   });
 

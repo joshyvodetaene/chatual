@@ -21,14 +21,20 @@ import {
   type UserPhoto,
   type InsertUserPhoto,
   type UserWithPhotos,
+  type BlockedUser,
+  type InsertBlockedUser,
+  type BlockedUserWithDetails,
+  type UpdateUserProfile,
+  type UserProfileSettings,
   users,
   rooms,
   messages,
   roomMembers,
-  userPhotos
+  userPhotos,
+  blockedUsers
 } from "@shared/schema";
 import { randomUUID } from "crypto";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { IStorage } from "./storage";
 
@@ -57,6 +63,9 @@ export class SQLiteStorage implements IStorage {
         location TEXT NOT NULL,
         latitude TEXT,
         longitude TEXT,
+        gender_preference TEXT NOT NULL DEFAULT 'all',
+        age_min INTEGER DEFAULT 18,
+        age_max INTEGER DEFAULT 99,
         role TEXT NOT NULL DEFAULT 'user',
         avatar TEXT,
         is_online INTEGER DEFAULT 0,
@@ -98,6 +107,14 @@ export class SQLiteStorage implements IStorage {
         message_type TEXT NOT NULL DEFAULT 'text'
       );
 
+      CREATE TABLE IF NOT EXISTS blocked_users (
+        id TEXT PRIMARY KEY,
+        blocker_id TEXT NOT NULL REFERENCES users(id),
+        blocked_id TEXT NOT NULL REFERENCES users(id),
+        blocked_at INTEGER DEFAULT (strftime('%s', 'now')),
+        reason TEXT
+      );
+
       CREATE TABLE IF NOT EXISTS user_photos (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL REFERENCES users(id),
@@ -106,6 +123,26 @@ export class SQLiteStorage implements IStorage {
         is_primary INTEGER DEFAULT 0,
         uploaded_at INTEGER DEFAULT (strftime('%s', 'now'))
       );
+
+      -- Add missing columns to users table if they don't exist
+      PRAGMA table_info(users);
+    `);
+    
+    // Check and add missing columns
+    const userTableInfo = this.sqlite.pragma('table_info(users)');
+    const existingColumns = userTableInfo.map((col: any) => col.name);
+    
+    if (!existingColumns.includes('gender_preference')) {
+      this.sqlite.exec(`ALTER TABLE users ADD COLUMN gender_preference TEXT NOT NULL DEFAULT 'all';`);
+    }
+    if (!existingColumns.includes('age_min')) {
+      this.sqlite.exec(`ALTER TABLE users ADD COLUMN age_min INTEGER DEFAULT 18;`);
+    }
+    if (!existingColumns.includes('age_max')) {
+      this.sqlite.exec(`ALTER TABLE users ADD COLUMN age_max INTEGER DEFAULT 99;`);
+    }
+    
+    this.sqlite.exec(`
     `);
   }
 
@@ -576,5 +613,115 @@ export class SQLiteStorage implements IStorage {
       rooms: publicRooms,
       privateRooms,
     };
+  }
+
+  // Profile settings methods
+  async updateUserProfile(userId: string, profileData: UpdateUserProfile): Promise<User> {
+    let latitude = profileData.latitude;
+    let longitude = profileData.longitude;
+
+    // Update coordinates if location changed
+    if (profileData.location) {
+      try {
+        const coordinates = await GeocodingService.getCoordinates(profileData.location);
+        latitude = coordinates.latitude.toString();
+        longitude = coordinates.longitude.toString();
+      } catch (error) {
+        console.error('Failed to geocode location:', error);
+        // Continue with the update even if geocoding fails
+      }
+    }
+
+    const [updatedUser] = this.db
+      .update(users)
+      .set({
+        displayName: profileData.displayName,
+        location: profileData.location,
+        latitude,
+        longitude,
+        genderPreference: profileData.genderPreference,
+        ageMin: profileData.ageMin,
+        ageMax: profileData.ageMax,
+      })
+      .where(eq(users.id, userId))
+      .returning()
+      .all();
+
+    return updatedUser;
+  }
+
+  async getUserProfileSettings(userId: string): Promise<UserProfileSettings> {
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const photos = await this.getUserPhotos(userId);
+    const primaryPhoto = photos.find(photo => photo.isPrimary);
+    const blockedUsers = await this.getBlockedUsers(userId);
+
+    return {
+      user,
+      photos,
+      primaryPhoto,
+      blockedUsers,
+    };
+  }
+
+  // Blocked users methods
+  async blockUser(blockData: InsertBlockedUser): Promise<BlockedUser> {
+    const id = randomUUID();
+    const [blockedUser] = this.db
+      .insert(blockedUsers)
+      .values({
+        id,
+        ...blockData,
+      })
+      .returning()
+      .all();
+
+    return blockedUser;
+  }
+
+  async unblockUser(blockerId: string, blockedId: string): Promise<void> {
+    this.db
+      .delete(blockedUsers)
+      .where(and(
+        eq(blockedUsers.blockerId, blockerId),
+        eq(blockedUsers.blockedId, blockedId)
+      ))
+      .run();
+  }
+
+  async getBlockedUsers(userId: string): Promise<BlockedUserWithDetails[]> {
+    const blockedUsersWithDetails = this.db
+      .select({
+        id: blockedUsers.id,
+        blockerId: blockedUsers.blockerId,
+        blockedId: blockedUsers.blockedId,
+        blockedAt: blockedUsers.blockedAt,
+        reason: blockedUsers.reason,
+        blockedUser: users,
+      })
+      .from(blockedUsers)
+      .innerJoin(users, eq(blockedUsers.blockedId, users.id))
+      .where(eq(blockedUsers.blockerId, userId))
+      .all();
+
+    return blockedUsersWithDetails;
+  }
+
+  async isUserBlocked(blockerId: string, blockedId: string): Promise<boolean> {
+    const result = this.db
+      .select()
+      .from(blockedUsers)
+      .where(and(
+        eq(blockedUsers.blockerId, blockerId),
+        eq(blockedUsers.blockedId, blockedId)
+      ))
+      .limit(1)
+      .all();
+
+    return result.length > 0;
   }
 }

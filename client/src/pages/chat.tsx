@@ -11,6 +11,7 @@ import CreateRoomModal from '@/components/chat/create-room-modal';
 import AuthScreen from '@/components/auth/auth-screen';
 import { Button } from '@/components/ui/button';
 import { Hash, Users, Search, Settings, LogOut } from 'lucide-react';
+import { Link } from 'wouter';
 
 export default function ChatPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -180,9 +181,11 @@ export default function ChatPage() {
             <Button variant="ghost" size="sm" data-testid="button-search">
               <Search className="w-4 h-4" />
             </Button>
-            <Button variant="ghost" size="sm" data-testid="button-settings">
-              <Settings className="w-4 h-4" />
-            </Button>
+            <Link href="/settings">
+              <Button variant="ghost" size="sm" data-testid="button-settings">
+                <Settings className="w-4 h-4" />
+              </Button>
+            </Link>
             <Button 
               variant="ghost" 
               size="sm" 

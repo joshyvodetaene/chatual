@@ -12,6 +12,9 @@ export const users = sqliteTable("users", {
   location: text("location").notNull(),
   latitude: text("latitude"),
   longitude: text("longitude"),
+  genderPreference: text("gender_preference").notNull().default("all"), // "male", "female", "all"
+  ageMin: integer("age_min").default(18),
+  ageMax: integer("age_max").default(99),
   role: text("role").notNull().default("user"),
   avatar: text("avatar"),
   isOnline: integer("is_online", { mode: "boolean" }).default(false),
@@ -53,6 +56,15 @@ export const roomMembers = sqliteTable("room_members", {
   roomId: text("room_id").notNull().references(() => rooms.id),
   userId: text("user_id").notNull().references(() => users.id),
   joinedAt: integer("joined_at", { mode: "timestamp" }).default(sql`(strftime('%s', 'now'))`),
+});
+
+// Blocked users table
+export const blockedUsers = sqliteTable("blocked_users", {
+  id: text("id").primaryKey(),
+  blockerId: text("blocker_id").notNull().references(() => users.id),
+  blockedId: text("blocked_id").notNull().references(() => users.id),
+  blockedAt: integer("blocked_at", { mode: "timestamp" }).default(sql`(strftime('%s', 'now'))`),
+  reason: text("reason"), // Optional reason for blocking
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -97,6 +109,24 @@ export const insertRoomMemberSchema = createInsertSchema(roomMembers).omit({
   joinedAt: true,
 });
 
+export const insertBlockedUserSchema = createInsertSchema(blockedUsers).omit({
+  id: true,
+  blockedAt: true,
+});
+
+export const updateUserProfileSchema = z.object({
+  displayName: z.string().min(1, "Display name is required"),
+  location: z.string().min(1, "Location is required"),
+  latitude: z.string().optional(),
+  longitude: z.string().optional(),
+  genderPreference: z.enum(["male", "female", "all"]),
+  ageMin: z.number().min(18).max(99),
+  ageMax: z.number().min(18).max(99),
+}).refine((data) => data.ageMin <= data.ageMax, {
+  message: "Minimum age must be less than or equal to maximum age",
+  path: ["ageMax"],
+});
+
 export type User = typeof users.$inferSelect;
 export type Room = typeof rooms.$inferSelect;
 export type Message = typeof messages.$inferSelect;
@@ -110,6 +140,9 @@ export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type InsertRoomMember = z.infer<typeof insertRoomMemberSchema>;
 export type UserPhoto = typeof userPhotos.$inferSelect;
 export type InsertUserPhoto = z.infer<typeof insertUserPhotoSchema>;
+export type BlockedUser = typeof blockedUsers.$inferSelect;
+export type InsertBlockedUser = z.infer<typeof insertBlockedUserSchema>;
+export type UpdateUserProfile = z.infer<typeof updateUserProfileSchema>;
 
 export type MessageWithUser = Message & {
   user: User;
@@ -140,4 +173,15 @@ export type RoomWithMembers = Room & {
 export type PrivateChatData = {
   rooms: Room[];
   privateRooms: PrivateRoom[];
+};
+
+export type BlockedUserWithDetails = BlockedUser & {
+  blockedUser: User;
+};
+
+export type UserProfileSettings = {
+  user: User;
+  photos: UserPhoto[];
+  primaryPhoto?: UserPhoto;
+  blockedUsers: BlockedUserWithDetails[];
 };

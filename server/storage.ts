@@ -16,7 +16,12 @@ import {
   type PrivateChatData,
   type UserPhoto,
   type InsertUserPhoto,
-  type UserWithPhotos
+  type UserWithPhotos,
+  type BlockedUser,
+  type InsertBlockedUser,
+  type BlockedUserWithDetails,
+  type UpdateUserProfile,
+  type UserProfileSettings
 } from "@shared/schema";
 import { SQLiteStorage } from "./sqlite-storage";
 import { randomUUID } from "crypto";
@@ -62,6 +67,16 @@ export interface IStorage {
   getUserWithPhotos(userId: string): Promise<UserWithPhotos | undefined>;
   deleteUserPhoto(photoId: string, userId: string): Promise<void>;
   setPrimaryPhoto(photoId: string, userId: string): Promise<void>;
+
+  // Profile settings methods
+  updateUserProfile(userId: string, profileData: UpdateUserProfile): Promise<User>;
+  getUserProfileSettings(userId: string): Promise<UserProfileSettings>;
+  
+  // Blocked users methods
+  blockUser(blockData: InsertBlockedUser): Promise<BlockedUser>;
+  unblockUser(blockerId: string, blockedId: string): Promise<void>;
+  getBlockedUsers(userId: string): Promise<BlockedUserWithDetails[]>;
+  isUserBlocked(blockerId: string, blockedId: string): Promise<boolean>;
 }
 
 export const storage = new SQLiteStorage();
