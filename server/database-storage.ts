@@ -272,12 +272,13 @@ export class DatabaseStorage implements IStorage {
       const otherUserId = room.memberIds?.find(id => id !== userId);
       if (otherUserId) {
         const otherUser = await this.getUser(otherUserId);
-        if (otherUser) {
+        const currentUser = await this.getUser(userId);
+        if (otherUser && currentUser) {
           privateRoomsWithOtherUser.push({
             id: room.id,
-            participant1Id: room.memberIds![0],
-            participant2Id: room.memberIds![1],
-            participant1: room.memberIds![0] === userId ? (await this.getUser(room.memberIds![1]))! : (await this.getUser(room.memberIds![0]))!,
+            participant1Id: userId,
+            participant2Id: otherUserId,
+            participant1: currentUser,
             participant2: otherUser
           });
         }
