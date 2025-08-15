@@ -111,19 +111,46 @@ export class SQLiteStorage implements IStorage {
       console.log('Master admin user created: administrator');
     }
     
-    // Check if default room exists
+    // Check if default rooms exist
     const existingRooms = this.db.select().from(rooms).all();
     
     if (existingRooms.length === 0) {
-      const defaultRoom = {
-        id: randomUUID(),
-        name: "general",
-        description: "General discussion room",
-        isPrivate: false,
-        createdBy: adminUser?.id || null,
-      };
+      const defaultRooms = [
+        {
+          id: randomUUID(),
+          name: "flirt",
+          description: "Flirtatious conversations and connections",
+          isPrivate: false,
+          createdBy: adminUser?.id || null,
+        },
+        {
+          id: randomUUID(),
+          name: "Sub & dom",
+          description: "Discussions about power dynamics",
+          isPrivate: false,
+          createdBy: adminUser?.id || null,
+        },
+        {
+          id: randomUUID(),
+          name: "whispering",
+          description: "Intimate and quiet conversations",
+          isPrivate: false,
+          createdBy: adminUser?.id || null,
+        },
+        {
+          id: randomUUID(),
+          name: "shades of senses",
+          description: "Sensory experiences and discussions",
+          isPrivate: false,
+          createdBy: adminUser?.id || null,
+        },
+      ];
       
-      this.db.insert(rooms).values(defaultRoom).run();
+      for (const room of defaultRooms) {
+        this.db.insert(rooms).values(room).run();
+      }
+      
+      console.log('Default chatrooms created: flirt, Sub & dom, whispering, shades of senses');
     }
   }
 
