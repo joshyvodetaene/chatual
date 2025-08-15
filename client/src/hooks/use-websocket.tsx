@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { User, MessageWithUser } from '@shared/schema';
 
 export interface WebSocketMessage {
@@ -79,7 +79,7 @@ export function useWebSocket(userId?: string) {
     };
   }, [userId]);
 
-  const joinRoom = (roomId: string) => {
+  const joinRoom = useCallback((roomId: string) => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN && userId) {
       ws.current.send(JSON.stringify({
         type: 'join',
@@ -87,25 +87,25 @@ export function useWebSocket(userId?: string) {
         roomId,
       }));
     }
-  };
+  }, [userId]);
 
-  const sendMessage = (content: string) => {
+  const sendMessage = useCallback((content: string) => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify({
         type: 'message',
         content,
       }));
     }
-  };
+  }, []);
 
-  const sendTyping = (isTyping: boolean) => {
+  const sendTyping = useCallback((isTyping: boolean) => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify({
         type: 'typing',
         isTyping,
       }));
     }
-  };
+  }, []);
 
   return {
     isConnected,

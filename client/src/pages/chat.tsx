@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { User, Room, RoomWithMembers, MessageWithUser, PrivateRoom, PrivateChatData } from '@shared/schema';
 import { useWebSocket } from '@/hooks/use-websocket';
@@ -22,6 +22,7 @@ export default function ChatPage() {
   const [showUserList, setShowUserList] = useState(true);
   const [showCreateRoom, setShowCreateRoom] = useState(false);
   const [privateRooms, setPrivateRooms] = useState<PrivateRoom[]>([]);
+  const currentJoinedRoom = useRef<string | null>(null);
 
   const { 
     isConnected, 
@@ -64,12 +65,14 @@ export default function ChatPage() {
   const { data: chatData } = useQuery<PrivateChatData>({
     queryKey: ['/api/chat-data', currentUser?.id],
     enabled: !!currentUser?.id,
-    onSuccess: (data) => {
-      if (data) {
-        setPrivateRooms(data.privateRooms || []);
-      }
-    },
   });
+
+  // Handle chat data changes
+  useEffect(() => {
+    if (chatData) {
+      setPrivateRooms(chatData.privateRooms || []);
+    }
+  }, [chatData]);
 
   const { data: activeRoomData } = useQuery<{ room: RoomWithMembers }>({
     queryKey: ['/api/rooms', activeRoom?.id],
@@ -90,7 +93,8 @@ export default function ChatPage() {
 
   // Join room when active room changes
   useEffect(() => {
-    if (activeRoom?.id && currentUser?.id) {
+    if (activeRoom?.id && currentUser?.id && currentJoinedRoom.current !== activeRoom.id) {
+      currentJoinedRoom.current = activeRoom.id;
       joinRoom(activeRoom.id);
       
       // Join room on server

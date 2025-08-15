@@ -55,7 +55,7 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
             <div className="space-y-2">
               {onlineMembers.map((member) => (
                 <div
-                  key={member.id}
+                  key={`online-${member.id}`}
                   className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
                   onClick={() => member.id !== currentUser?.id && onStartPrivateChat(member.id)}
                   data-testid={`online-user-${member.id}`}
@@ -100,7 +100,7 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
             <div className="space-y-2">
               {offlineMembers.map((member) => (
                 <div
-                  key={member.id}
+                  key={`offline-${member.id}`}
                   className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors opacity-60"
                   onClick={() => member.id !== currentUser?.id && onStartPrivateChat(member.id)}
                   data-testid={`offline-user-${member.id}`}
