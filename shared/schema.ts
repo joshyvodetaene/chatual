@@ -1,69 +1,70 @@
 import { sql } from "drizzle-orm";
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { pgTable, text, integer, boolean, timestamp, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = sqliteTable("users", {
-  id: text("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  displayName: text("display_name").notNull(),
-  password: text("password").notNull(),
-  gender: text("gender").notNull(),
-  location: text("location").notNull(),
-  latitude: text("latitude"),
-  longitude: text("longitude"),
-  genderPreference: text("gender_preference").notNull().default("all"), // "male", "female", "all"
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  username: varchar("username").notNull().unique(),
+  displayName: varchar("display_name").notNull(),
+  password: varchar("password").notNull(),
+  gender: varchar("gender").notNull(),
+  location: varchar("location").notNull(),
+  latitude: varchar("latitude"),
+  longitude: varchar("longitude"),
+  genderPreference: varchar("gender_preference").notNull().default("all"), // "male", "female", "all"
   ageMin: integer("age_min").default(18),
   ageMax: integer("age_max").default(99),
-  role: text("role").notNull().default("user"),
-  avatar: text("avatar"),
-  isOnline: integer("is_online", { mode: "boolean" }).default(false),
-  lastSeen: integer("last_seen", { mode: "timestamp" }).default(sql`(strftime('%s', 'now'))`),
+  role: varchar("role").notNull().default("user"),
+  avatar: varchar("avatar"),
+  isOnline: boolean("is_online").default(false),
+  lastSeen: timestamp("last_seen").defaultNow(),
 });
 
-export const rooms = sqliteTable("rooms", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
+export const rooms = pgTable("rooms", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
   description: text("description"),
-  isPrivate: integer("is_private", { mode: "boolean" }).default(false),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(strftime('%s', 'now'))`),
-  createdBy: text("created_by").references(() => users.id),
+  isPrivate: boolean("is_private").default(false),
+  memberIds: varchar("member_ids").array(), // Array of user IDs
+  createdAt: timestamp("created_at").defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
 });
 
-export const messages = sqliteTable("messages", {
-  id: text("id").primaryKey(),
+export const messages = pgTable("messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   content: text("content").notNull(),
-  userId: text("user_id").notNull().references(() => users.id),
-  roomId: text("room_id").notNull().references(() => rooms.id),
-  timestamp: integer("timestamp", { mode: "timestamp" }).default(sql`(strftime('%s', 'now'))`),
-  photoUrl: text("photo_url"),
-  photoFileName: text("photo_file_name"),
-  messageType: text("message_type").notNull().default("text"), // "text", "photo"
+  userId: varchar("user_id").notNull().references(() => users.id),
+  roomId: varchar("room_id").notNull().references(() => rooms.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  photoUrl: varchar("photo_url"),
+  photoFileName: varchar("photo_file_name"),
+  messageType: varchar("message_type").notNull().default("text"), // "text", "photo"
 });
 
 // User profile photos table
-export const userPhotos = sqliteTable("user_photos", {
-  id: text("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => users.id),
-  photoUrl: text("photo_url").notNull(),
-  fileName: text("file_name").notNull(),
-  isPrimary: integer("is_primary", { mode: "boolean" }).default(false),
-  uploadedAt: integer("uploaded_at", { mode: "timestamp" }).default(sql`(strftime('%s', 'now'))`),
+export const userPhotos = pgTable("user_photos", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  photoUrl: varchar("photo_url").notNull(),
+  fileName: varchar("file_name").notNull(),
+  isPrimary: boolean("is_primary").default(false),
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
 });
 
-export const roomMembers = sqliteTable("room_members", {
-  id: text("id").primaryKey(),
-  roomId: text("room_id").notNull().references(() => rooms.id),
-  userId: text("user_id").notNull().references(() => users.id),
-  joinedAt: integer("joined_at", { mode: "timestamp" }).default(sql`(strftime('%s', 'now'))`),
+export const roomMembers = pgTable("room_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  roomId: varchar("room_id").notNull().references(() => rooms.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  joinedAt: timestamp("joined_at").defaultNow(),
 });
 
 // Blocked users table
-export const blockedUsers = sqliteTable("blocked_users", {
-  id: text("id").primaryKey(),
-  blockerId: text("blocker_id").notNull().references(() => users.id),
-  blockedId: text("blocked_id").notNull().references(() => users.id),
-  blockedAt: integer("blocked_at", { mode: "timestamp" }).default(sql`(strftime('%s', 'now'))`),
+export const blockedUsers = pgTable("blocked_users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  blockerId: varchar("blocker_id").notNull().references(() => users.id),
+  blockedId: varchar("blocked_id").notNull().references(() => users.id),
+  blockedAt: timestamp("blocked_at").defaultNow(),
   reason: text("reason"), // Optional reason for blocking
 });
 

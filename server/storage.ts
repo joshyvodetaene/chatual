@@ -23,7 +23,7 @@ import {
   type UpdateUserProfile,
   type UserProfileSettings
 } from "@shared/schema";
-import { SQLiteStorage } from "./sqlite-storage";
+import { DatabaseStorage } from "./database-storage";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -79,4 +79,4 @@ export interface IStorage {
   isUserBlocked(blockerId: string, blockedId: string): Promise<boolean>;
 }
 
-export const storage = new SQLiteStorage();
+export const storage = new DatabaseStorage();
