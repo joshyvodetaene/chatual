@@ -108,11 +108,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           case 'message':
             if (ws.userId && ws.roomId) {
+              // Normalize photo URL if this is a photo message
+              let normalizedPhotoUrl = message.photoUrl;
+              if (message.photoUrl && message.messageType === 'photo') {
+                const objectStorageService = new ObjectStorageService();
+                normalizedPhotoUrl = objectStorageService.normalizePhotoPath(message.photoUrl);
+              }
+              
               const newMessage = await storage.createMessage({
                 content: message.content,
                 userId: ws.userId,
                 roomId: ws.roomId,
-                photoUrl: message.photoUrl,
+                photoUrl: normalizedPhotoUrl,
                 photoFileName: message.photoFileName,
                 messageType: message.messageType || 'text',
               });
