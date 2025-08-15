@@ -27,6 +27,7 @@ export default function ChatPage() {
     isConnected, 
     messages, 
     onlineUsers, 
+    roomOnlineUsers,
     typingUsers,
     joinRoom, 
     sendMessage, 
@@ -218,7 +219,7 @@ export default function ChatPage() {
       {showUserList && activeRoomData?.room && (
         <UserList
           room={activeRoomData.room}
-          onlineUsers={onlineUsers}
+          onlineUsers={roomOnlineUsers}
           currentUser={currentUser}
           onStartPrivateChat={handleStartPrivateChat}
         />

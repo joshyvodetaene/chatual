@@ -38,9 +38,9 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
   return (
     <div className="w-64 bg-white border-l border-gray-200 flex flex-col" data-testid="user-list">
       <div className="p-4 border-b border-gray-200">
-        <h3 className="text-sm font-semibold text-gray-900">Room Members</h3>
-        <p className="text-xs text-gray-500 mt-1" data-testid="total-members">
-          {room.memberCount} members
+        <h3 className="text-sm font-semibold text-gray-900">Online in Room</h3>
+        <p className="text-xs text-gray-500 mt-1" data-testid="online-count">
+          {onlineMembers.length} online • {room.memberCount} total
         </p>
       </div>
       

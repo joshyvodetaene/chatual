@@ -33,6 +33,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     maxPayload: 16 * 1024,
   });
   const clients = new Map<string, WebSocketClient>();
+  const roomUsers = new Map<string, Set<string>>(); // Track online users per room
   
   console.log('WebSocket server initialized on path /ws');
 
@@ -45,6 +46,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   }
 
+  // Helper functions for room user management
+  function addUserToRoom(roomId: string, userId: string) {
+    if (!roomUsers.has(roomId)) {
+      roomUsers.set(roomId, new Set());
+    }
+    roomUsers.get(roomId)!.add(userId);
+    
+    // Broadcast updated online users for this room
+    broadcastToRoom(roomId, {
+      type: 'room_online_users',
+      roomId,
+      onlineUsers: Array.from(roomUsers.get(roomId) || [])
+    });
+  }
+
+  function removeUserFromRoom(roomId: string, userId: string) {
+    if (roomUsers.has(roomId)) {
+      roomUsers.get(roomId)!.delete(userId);
+      
+      // Broadcast updated online users for this room
+      broadcastToRoom(roomId, {
+        type: 'room_online_users',
+        roomId,
+        onlineUsers: Array.from(roomUsers.get(roomId) || [])
+      });
+    }
+  }
+
   // WebSocket connection handling
   wss.on('connection', (ws: WebSocketClient) => {
     console.log('WebSocket client connected');
@@ -55,12 +84,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         switch (message.type) {
           case 'join':
+            // Remove user from previous room if any
+            if (ws.roomId && ws.userId) {
+              removeUserFromRoom(ws.roomId, ws.userId);
+            }
+            
             ws.userId = message.userId;
             ws.roomId = message.roomId;
             clients.set(message.userId, ws);
             
             // Update user online status
             await storage.updateUserOnlineStatus(message.userId, true);
+            
+            // Add user to new room
+            addUserToRoom(message.roomId, message.userId);
             
             // Broadcast user joined
             broadcastToRoom(message.roomId, {
@@ -104,17 +141,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     ws.on('close', async () => {
-      if (ws.userId) {
-        // Update user offline status
+      if (ws.userId && ws.roomId) {
+        // Remove user from room and update online status
+        removeUserFromRoom(ws.roomId, ws.userId);
         await storage.updateUserOnlineStatus(ws.userId, false);
         
         // Broadcast user left
-        if (ws.roomId) {
-          broadcastToRoom(ws.roomId, {
-            type: 'user_left',
-            userId: ws.userId,
-          });
-        }
+        broadcastToRoom(ws.roomId, {
+          type: 'user_left',
+          userId: ws.userId,
+        });
         
         clients.delete(ws.userId);
       }

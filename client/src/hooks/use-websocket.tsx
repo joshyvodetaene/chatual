@@ -11,6 +11,7 @@ export function useWebSocket(userId?: string) {
   const [isConnected, setIsConnected] = useState(false);
   const [messages, setMessages] = useState<MessageWithUser[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const [roomOnlineUsers, setRoomOnlineUsers] = useState<Set<string>>(new Set());
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -48,6 +49,9 @@ export function useWebSocket(userId?: string) {
             newSet.delete(message.userId);
             return newSet;
           });
+          break;
+        case 'room_online_users':
+          setRoomOnlineUsers(new Set(message.onlineUsers));
           break;
         case 'user_typing':
           setTypingUsers(prev => {
@@ -107,6 +111,7 @@ export function useWebSocket(userId?: string) {
     isConnected,
     messages,
     onlineUsers,
+    roomOnlineUsers,
     typingUsers,
     joinRoom,
     sendMessage,
