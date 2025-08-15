@@ -17,6 +17,13 @@ export function usePaginatedMessages({
   const [cursors, setCursors] = useState<{ nextCursor?: string; prevCursor?: string }>({});
   const [hasMorePages, setHasMorePages] = useState(true);
 
+  // Clear messages when switching rooms
+  useEffect(() => {
+    setAllMessages([]);
+    setCursors({});
+    setHasMorePages(true);
+  }, [roomId]);
+
   // Query for initial messages
   const { 
     data: initialData, 
