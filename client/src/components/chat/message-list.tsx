@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { MessageWithUser, User, RoomWithMembers } from '@shared/schema';
 import { UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import PhotoMessage from './photo-message';
 
 interface MessageListProps {
   messages: MessageWithUser[];
@@ -65,6 +66,18 @@ export default function MessageList({
       {messages.map((message) => {
         const isOwnMessage = message.userId === currentUser.id;
         
+        // Handle photo messages
+        if (message.messageType === 'photo') {
+          return (
+            <PhotoMessage
+              key={message.id}
+              message={message}
+              isOwn={isOwnMessage}
+            />
+          );
+        }
+        
+        // Handle text messages
         return (
           <div
             key={message.id}

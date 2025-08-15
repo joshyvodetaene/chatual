@@ -33,6 +33,19 @@ export const messages = sqliteTable("messages", {
   userId: text("user_id").notNull().references(() => users.id),
   roomId: text("room_id").notNull().references(() => rooms.id),
   timestamp: integer("timestamp", { mode: "timestamp" }).default(sql`(strftime('%s', 'now'))`),
+  photoUrl: text("photo_url"),
+  photoFileName: text("photo_file_name"),
+  messageType: text("message_type").notNull().default("text"), // "text", "photo"
+});
+
+// User profile photos table
+export const userPhotos = sqliteTable("user_photos", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id),
+  photoUrl: text("photo_url").notNull(),
+  fileName: text("file_name").notNull(),
+  isPrimary: integer("is_primary", { mode: "boolean" }).default(false),
+  uploadedAt: integer("uploaded_at", { mode: "timestamp" }).default(sql`(strftime('%s', 'now'))`),
 });
 
 export const roomMembers = sqliteTable("room_members", {
@@ -74,6 +87,11 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
   timestamp: true,
 });
 
+export const insertUserPhotoSchema = createInsertSchema(userPhotos).omit({
+  id: true,
+  uploadedAt: true,
+});
+
 export const insertRoomMemberSchema = createInsertSchema(roomMembers).omit({
   id: true,
   joinedAt: true,
@@ -90,6 +108,8 @@ export type LoginUser = z.infer<typeof loginSchema>;
 export type InsertRoom = z.infer<typeof insertRoomSchema>;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type InsertRoomMember = z.infer<typeof insertRoomMemberSchema>;
+export type UserPhoto = typeof userPhotos.$inferSelect;
+export type InsertUserPhoto = z.infer<typeof insertUserPhotoSchema>;
 
 export type MessageWithUser = Message & {
   user: User;
@@ -97,6 +117,11 @@ export type MessageWithUser = Message & {
 
 export type UserWithDistance = User & {
   distance?: number;
+};
+
+export type UserWithPhotos = User & {
+  photos: UserPhoto[];
+  primaryPhoto?: UserPhoto;
 };
 
 export type PrivateRoom = {

@@ -18,10 +18,14 @@ import {
   type UserWithDistance,
   type PrivateRoom,
   type PrivateChatData,
+  type UserPhoto,
+  type InsertUserPhoto,
+  type UserWithPhotos,
   users,
   rooms,
   messages,
-  roomMembers
+  roomMembers,
+  userPhotos
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { eq, desc } from "drizzle-orm";
@@ -81,6 +85,26 @@ export class SQLiteStorage implements IStorage {
         room_id TEXT NOT NULL REFERENCES rooms(id),
         user_id TEXT NOT NULL REFERENCES users(id),
         joined_at INTEGER DEFAULT (strftime('%s', 'now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        content TEXT NOT NULL,
+        user_id TEXT NOT NULL REFERENCES users(id),
+        room_id TEXT NOT NULL REFERENCES rooms(id),
+        timestamp INTEGER DEFAULT (strftime('%s', 'now')),
+        photo_url TEXT,
+        photo_file_name TEXT,
+        message_type TEXT NOT NULL DEFAULT 'text'
+      );
+
+      CREATE TABLE IF NOT EXISTS user_photos (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id),
+        photo_url TEXT NOT NULL,
+        file_name TEXT NOT NULL,
+        is_primary INTEGER DEFAULT 0,
+        uploaded_at INTEGER DEFAULT (strftime('%s', 'now'))
       );
     `);
   }
@@ -359,14 +383,94 @@ export class SQLiteStorage implements IStorage {
 
   async createMessage(insertMessage: InsertMessage): Promise<Message> {
     const id = randomUUID();
-    const message: Message = { 
-      ...insertMessage, 
+    const message: Message = {
       id,
+      content: insertMessage.content,
+      userId: insertMessage.userId,
+      roomId: insertMessage.roomId,
       timestamp: new Date(),
+      photoUrl: insertMessage.photoUrl || null,
+      photoFileName: insertMessage.photoFileName || null,
+      messageType: insertMessage.messageType || "text",
     };
     
     this.db.insert(messages).values(message).run();
     return message;
+  }
+
+  // Photo management methods
+  async addUserPhoto(photoData: InsertUserPhoto): Promise<UserPhoto> {
+    const id = randomUUID();
+    const photo: UserPhoto = {
+      id,
+      userId: photoData.userId,
+      photoUrl: photoData.photoUrl,
+      fileName: photoData.fileName,
+      isPrimary: photoData.isPrimary || false,
+      uploadedAt: new Date(),
+    };
+    
+    // If this is being set as primary, unset any existing primary photos
+    if (photo.isPrimary) {
+      this.db
+        .update(userPhotos)
+        .set({ isPrimary: false })
+        .where(eq(userPhotos.userId, photo.userId))
+        .run();
+    }
+    
+    this.db.insert(userPhotos).values(photo).run();
+    return photo;
+  }
+
+  async getUserPhotos(userId: string): Promise<UserPhoto[]> {
+    return this.db
+      .select()
+      .from(userPhotos)
+      .where(eq(userPhotos.userId, userId))
+      .orderBy(sql`${userPhotos.isPrimary} DESC, ${userPhotos.uploadedAt} DESC`)
+      .all();
+  }
+
+  async getUserWithPhotos(userId: string): Promise<UserWithPhotos | undefined> {
+    const user = await this.getUser(userId);
+    if (!user) return undefined;
+    
+    const photos = await this.getUserPhotos(userId);
+    const primaryPhoto = photos.find(p => p.isPrimary);
+    
+    return {
+      ...user,
+      photos,
+      primaryPhoto,
+    };
+  }
+
+  async deleteUserPhoto(photoId: string, userId: string): Promise<void> {
+    this.db
+      .delete(userPhotos)
+      .where(
+        sql`${userPhotos.id} = ${photoId} AND ${userPhotos.userId} = ${userId}`
+      )
+      .run();
+  }
+
+  async setPrimaryPhoto(photoId: string, userId: string): Promise<void> {
+    // First, unset all primary photos for this user
+    this.db
+      .update(userPhotos)
+      .set({ isPrimary: false })
+      .where(eq(userPhotos.userId, userId))
+      .run();
+    
+    // Then set the specified photo as primary
+    this.db
+      .update(userPhotos)
+      .set({ isPrimary: true })
+      .where(
+        sql`${userPhotos.id} = ${photoId} AND ${userPhotos.userId} = ${userId}`
+      )
+      .run();
   }
 
   async getRoomMessages(roomId: string, limit: number = 50): Promise<MessageWithUser[]> {

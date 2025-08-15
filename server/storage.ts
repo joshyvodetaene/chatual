@@ -13,7 +13,10 @@ import {
   type LoginUser,
   type UserWithDistance,
   type PrivateRoom,
-  type PrivateChatData
+  type PrivateChatData,
+  type UserPhoto,
+  type InsertUserPhoto,
+  type UserWithPhotos
 } from "@shared/schema";
 import { SQLiteStorage } from "./sqlite-storage";
 import { randomUUID } from "crypto";
@@ -52,6 +55,13 @@ export interface IStorage {
   // Message methods
   createMessage(message: InsertMessage): Promise<Message>;
   getRoomMessages(roomId: string, limit?: number): Promise<MessageWithUser[]>;
+
+  // Photo methods
+  addUserPhoto(photoData: InsertUserPhoto): Promise<UserPhoto>;
+  getUserPhotos(userId: string): Promise<UserPhoto[]>;
+  getUserWithPhotos(userId: string): Promise<UserWithPhotos | undefined>;
+  deleteUserPhoto(photoId: string, userId: string): Promise<void>;
+  setPrimaryPhoto(photoId: string, userId: string): Promise<void>;
 }
 
 export const storage = new SQLiteStorage();

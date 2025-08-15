@@ -1,10 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Paperclip, Smile, Send } from 'lucide-react';
+import { Paperclip, Smile, Send, Image } from 'lucide-react';
+import { PhotoUploader } from './photo-uploader';
+import { apiRequest } from '@/lib/queryClient';
+import type { UploadResult } from '@uppy/core';
+import { useToast } from '@/hooks/use-toast';
 
 interface MessageInputProps {
-  onSendMessage: (content: string) => void;
+  onSendMessage: (content: string, photoUrl?: string, photoFileName?: string) => void;
   onTyping: (isTyping: boolean) => void;
   disabled?: boolean;
 }
@@ -18,6 +22,7 @@ export default function MessageInput({
   const [isTyping, setIsTyping] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const { toast } = useToast();
 
   const handleSendMessage = () => {
     if (message.trim() && !disabled) {

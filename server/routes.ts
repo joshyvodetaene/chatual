@@ -2,7 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { insertUserSchema, insertRoomSchema, insertMessageSchema, registerUserSchema, loginSchema } from "@shared/schema";
+import { insertUserSchema, insertRoomSchema, insertMessageSchema, registerUserSchema, loginSchema, insertUserPhotoSchema } from "@shared/schema";
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
 interface WebSocketClient extends WebSocket {
   userId?: string;
@@ -238,6 +239,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(chatData);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch chat data' });
+    }
+  });
+
+  // Photo upload routes
+  app.post('/api/photos/upload-url', async (req, res) => {
+    try {
+      const { fileName } = req.body;
+      
+      if (!fileName) {
+        return res.status(400).json({ error: 'File name is required' });
+      }
+      
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getPhotoUploadURL(fileName);
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error('Photo upload URL error:', error);
+      res.status(400).json({ error: 'Failed to get upload URL' });
+    }
+  });
+
+  // Serve photos
+  app.get('/photos/:photoPath(*)', async (req, res) => {
+    const photoPath = '/' + req.params.photoPath;
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const photoFile = await objectStorageService.getPhotoFile(photoPath);
+      objectStorageService.downloadObject(photoFile, res);
+    } catch (error) {
+      console.error('Error serving photo:', error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
+    }
+  });
+
+  // User photo management routes
+  app.post('/api/users/:userId/photos', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { photoUrl, fileName, isPrimary } = req.body;
+      
+      if (!photoUrl || !fileName) {
+        return res.status(400).json({ error: 'Photo URL and filename are required' });
+      }
+      
+      const objectStorageService = new ObjectStorageService();
+      const normalizedPath = objectStorageService.normalizePhotoPath(photoUrl);
+      
+      const photoData = {
+        userId,
+        photoUrl: normalizedPath,
+        fileName,
+        isPrimary: isPrimary || false,
+      };
+      
+      const photo = await storage.addUserPhoto(photoData);
+      res.json({ photo });
+    } catch (error) {
+      console.error('Add user photo error:', error);
+      res.status(400).json({ error: 'Failed to add photo' });
+    }
+  });
+
+  app.get('/api/users/:userId/photos', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const photos = await storage.getUserPhotos(userId);
+      res.json({ photos });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch user photos' });
+    }
+  });
+
+  app.delete('/api/users/:userId/photos/:photoId', async (req, res) => {
+    try {
+      const { userId, photoId } = req.params;
+      await storage.deleteUserPhoto(photoId, userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: 'Failed to delete photo' });
+    }
+  });
+
+  app.put('/api/users/:userId/photos/:photoId/primary', async (req, res) => {
+    try {
+      const { userId, photoId } = req.params;
+      await storage.setPrimaryPhoto(photoId, userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: 'Failed to set primary photo' });
     }
   });
 
