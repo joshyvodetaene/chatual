@@ -3,11 +3,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { Camera, Trash2, Star, StarOff, Plus } from 'lucide-react';
+import { Camera, Trash2, Star, StarOff, Plus, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import type { UserPhoto } from '@shared/schema';
-import type { UploadResult } from '@uppy/core';
 
 interface PhotoManagerProps {
   userId: string;
@@ -85,10 +84,9 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
 
     try {
       // Get upload URL
-      const response = await apiRequest('POST', '/api/photos/upload-url', { 
+      const data = await apiRequest('/api/photos/upload-url', 'POST', { 
         fileName: file.name 
       });
-      const data = await response.json();
       
       setUploadingPhotos(prev => [...prev, 'uploading']);
       
@@ -106,7 +104,7 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
       }
 
       // Save photo metadata
-      await apiRequest('POST', `/api/users/${userId}/photos`, {
+      await apiRequest(`/api/users/${userId}/photos`, 'POST', {
         photoUrl: data.uploadURL,
         fileName: file.name,
         isPrimary: photos.length === 0,
@@ -114,7 +112,7 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
 
       toast({
         title: "Success",
-        description: "Photo uploaded successfully",
+        description: "Profile photo uploaded successfully",
       });
       
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/profile-settings`] });
@@ -140,22 +138,52 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
 
   return (
     <div className="space-y-6" data-testid="photo-manager">
-      {/* Upload Button */}
-      <div className="flex justify-center">
+      {/* Upload Buttons */}
+      <div className="flex justify-center gap-4">
+        {/* Primary Upload Button */}
         <div className="relative">
           <input
             type="file"
             accept="image/*"
             onChange={handleFileSelect}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-            data-testid="photo-input"
+            id="profile-photo-upload"
+            data-testid="profile-photo-input"
           />
-          <Button className="border-2 border-dashed border-gray-300 hover:border-primary p-8 rounded-lg transition-colors bg-transparent">
-            <div className="text-center">
-              <Plus className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-              <p className="text-sm text-gray-600">Add New Photo</p>
-              <p className="text-xs text-gray-400">Click to upload image</p>
-            </div>
+          <Button 
+            asChild
+            className="bg-primary text-white hover:bg-primary/90 px-6 py-3"
+            data-testid="upload-profile-photo-button"
+          >
+            <label htmlFor="profile-photo-upload" className="cursor-pointer">
+              <Upload className="w-5 h-5 mr-2" />
+              Upload Profile Photo
+            </label>
+          </Button>
+        </div>
+        
+        {/* Alternative dashed button */}
+        <div className="relative">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileSelect}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+            id="add-photo-upload"
+            data-testid="add-photo-input"
+          />
+          <Button 
+            variant="outline"
+            className="border-2 border-dashed border-gray-300 hover:border-primary p-6 rounded-lg transition-colors bg-transparent hover:bg-primary/5"
+            data-testid="add-photo-button"
+            asChild
+          >
+            <label htmlFor="add-photo-upload" className="cursor-pointer">
+              <div className="text-center">
+                <Plus className="w-6 h-6 mx-auto mb-1 text-gray-500" />
+                <p className="text-sm text-gray-700">Add Photo</p>
+              </div>
+            </label>
           </Button>
         </div>
       </div>
