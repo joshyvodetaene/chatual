@@ -10,6 +10,7 @@ export const users = sqliteTable("users", {
   password: text("password").notNull(),
   gender: text("gender").notNull(),
   location: text("location").notNull(),
+  role: text("role").notNull().default("user"),
   avatar: text("avatar"),
   isOnline: integer("is_online", { mode: "boolean" }).default(false),
   lastSeen: integer("last_seen", { mode: "timestamp" }).default(sql`(strftime('%s', 'now'))`),

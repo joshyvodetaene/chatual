@@ -34,7 +34,7 @@ export class SQLiteStorage implements IStorage {
     this.db = drizzle(this.sqlite);
     
     this.initializeDatabase();
-    this.createDefaultData();
+    this.createDefaultData().catch(console.error);
   }
 
   private initializeDatabase() {
@@ -47,6 +47,7 @@ export class SQLiteStorage implements IStorage {
         password TEXT NOT NULL,
         gender TEXT NOT NULL,
         location TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'user',
         avatar TEXT,
         is_online INTEGER DEFAULT 0,
         last_seen INTEGER DEFAULT (strftime('%s', 'now'))
@@ -78,7 +79,32 @@ export class SQLiteStorage implements IStorage {
     `);
   }
 
-  private createDefaultData() {
+  private async createDefaultData() {
+    // Check if admin user exists
+    const adminUser = await this.getUserByUsername('administrator');
+    
+    if (!adminUser) {
+      // Create master admin user
+      const hashedPassword = await bcrypt.hash('12345678', 10);
+      const adminUserId = randomUUID();
+      
+      const masterAdmin = {
+        id: adminUserId,
+        username: 'administrator',
+        displayName: 'Administrator',
+        password: hashedPassword,
+        gender: 'male',
+        location: 'System',
+        role: 'admin',
+        avatar: null,
+        isOnline: false,
+        lastSeen: new Date(),
+      };
+      
+      this.db.insert(users).values(masterAdmin).run();
+      console.log('Master admin user created: administrator');
+    }
+    
     // Check if default room exists
     const existingRooms = this.db.select().from(rooms).all();
     
@@ -88,7 +114,7 @@ export class SQLiteStorage implements IStorage {
         name: "general",
         description: "General discussion room",
         isPrivate: false,
-        createdBy: null,
+        createdBy: adminUser?.id || null,
       };
       
       this.db.insert(rooms).values(defaultRoom).run();
@@ -110,6 +136,7 @@ export class SQLiteStorage implements IStorage {
     const user: User = { 
       ...insertUser, 
       id,
+      role: insertUser.role || 'user',
       avatar: insertUser.avatar || null,
       isOnline: false,
       lastSeen: new Date(),
@@ -130,6 +157,7 @@ export class SQLiteStorage implements IStorage {
       password: hashedPassword,
       gender: registerData.gender,
       location: registerData.location,
+      role: 'user', // All new registrations are regular users
       avatar: registerData.avatar || null,
       isOnline: false,
       lastSeen: new Date(),
