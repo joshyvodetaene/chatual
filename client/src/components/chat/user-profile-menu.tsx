@@ -73,7 +73,7 @@ export function UserProfileMenu({
 
   const blockUserMutation = useMutation({
     mutationFn: async (data: { blockedId: string; reason?: string }) => {
-      return await apiRequest(`/api/users/${currentUser.id}/blocked-users`, 'POST', data);
+      return await apiRequest('POST', `/api/users/${currentUser.id}/blocked-users`, data);
     },
     onSuccess: () => {
       toast({

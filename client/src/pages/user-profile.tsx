@@ -31,7 +31,7 @@ export default function UserProfilePage() {
 
   const blockUserMutation = useMutation({
     mutationFn: async (blockedId: string) => {
-      return await apiRequest(`/api/users/${currentUserData?.user.id}/blocked-users`, 'POST', {
+      return await apiRequest('POST', `/api/users/${currentUserData?.user.id}/blocked-users`, {
         blockedId,
         reason: 'Blocked from profile view',
       });

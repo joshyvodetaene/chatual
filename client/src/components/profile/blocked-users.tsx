@@ -26,9 +26,8 @@ export default function BlockedUsers({ userId, blockedUsers }: BlockedUsersProps
 
   const blockUserMutation = useMutation({
     mutationFn: async ({ blockedId, reason }: { blockedId: string; reason?: string }) => {
-      return await apiRequest(`/api/users/${userId}/blocked-users`, {
-        method: 'POST',
-        body: { blockedId, reason },
+      return await apiRequest('POST', `/api/users/${userId}/blocked-users`, {
+        blockedId, reason,
       });
     },
     onSuccess: () => {
@@ -52,9 +51,7 @@ export default function BlockedUsers({ userId, blockedUsers }: BlockedUsersProps
 
   const unblockUserMutation = useMutation({
     mutationFn: async (blockedId: string) => {
-      return await apiRequest(`/api/users/${userId}/blocked-users/${blockedId}`, {
-        method: 'DELETE',
-      });
+      return await apiRequest('DELETE', `/api/users/${userId}/blocked-users/${blockedId}`);
     },
     onSuccess: () => {
       toast({
