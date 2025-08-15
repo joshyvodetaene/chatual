@@ -231,12 +231,17 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     });
   }, [processQueue]);
 
-  const sendMessage = useCallback((content: string) => {
+  const sendMessage = useCallback((content: string, photoUrl?: string, photoFileName?: string) => {
+    const messageType = photoUrl ? 'photo' : 'text';
+    
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       try {
         ws.current.send(JSON.stringify({
           type: 'message',
           content,
+          photoUrl,
+          photoFileName,
+          messageType,
         }));
       } catch (error) {
         console.error('Failed to send message:', error);

@@ -112,6 +112,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 content: message.content,
                 userId: ws.userId,
                 roomId: ws.roomId,
+                photoUrl: message.photoUrl,
+                photoFileName: message.photoFileName,
+                messageType: message.messageType || 'text',
               });
               
               const user = await storage.getUser(ws.userId);

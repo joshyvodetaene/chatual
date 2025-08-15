@@ -69,7 +69,7 @@ export default function PhotoMessage({ message, isOwn }: PhotoMessageProps) {
           "px-3 pb-2 text-xs",
           isOwn ? "text-white text-opacity-70" : "text-gray-500"
         )}>
-          {message.timestamp ? new Date(message.timestamp).toLocaleTimeString([], { 
+          {message.createdAt ? new Date(message.createdAt).toLocaleTimeString([], { 
             hour: '2-digit', 
             minute: '2-digit' 
           }) : ''}

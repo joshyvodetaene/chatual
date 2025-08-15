@@ -152,8 +152,8 @@ export default function ChatPage() {
     setActiveRoom(room);
   };
 
-  const handleSendMessage = (content: string) => {
-    sendMessage(content);
+  const handleSendMessage = (content: string, photoUrl?: string, photoFileName?: string) => {
+    sendMessage(content, photoUrl, photoFileName);
   };
 
   const handleStartPrivateChat = async (userId: string) => {

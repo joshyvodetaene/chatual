@@ -92,6 +92,58 @@ export default function MessageInput({
     }
   };
 
+  // Handle photo upload
+  const handleGetUploadParameters = async () => {
+    try {
+      const response = await apiRequest('POST', '/api/photos/upload-url', { fileName: 'message-photo.jpg' });
+      const data = await response.json();
+      return {
+        method: 'PUT' as const,
+        url: data.uploadURL,
+      };
+    } catch (error) {
+      console.error('Error getting upload parameters:', error);
+      toast({
+        title: "Upload Error",
+        description: "Failed to get upload parameters. Please try again.",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const handlePhotoUploadComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+    try {
+      if (result.successful && result.successful.length > 0) {
+        const uploadedFile = result.successful[0];
+        const photoUrl = uploadedFile.uploadURL;
+        const photoFileName = uploadedFile.name;
+        
+        // Send the photo as a message
+        onSendMessage(message.trim() || '', photoUrl, photoFileName);
+        setMessage('');
+        handleStopTyping();
+        
+        // Reset textarea height
+        if (textareaRef.current) {
+          textareaRef.current.style.height = 'auto';
+        }
+        
+        toast({
+          title: "Photo Sent",
+          description: "Your photo has been shared successfully.",
+        });
+      }
+    } catch (error) {
+      console.error('Error handling photo upload:', error);
+      toast({
+        title: "Upload Error",
+        description: "Failed to send photo. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Handle emoji selection
   const handleEmojiSelect = (emoji: string) => {
     if (textareaRef.current) {
@@ -151,14 +203,15 @@ export default function MessageInput({
   return (
     <div className="border-t border-gray-200 bg-white p-4" data-testid="message-input">
       <div className="flex items-end space-x-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={disabled}
-          data-testid="button-attach-file"
+        <PhotoUploader
+          maxNumberOfFiles={1}
+          maxFileSize={10485760} // 10MB
+          onGetUploadParameters={handleGetUploadParameters}
+          onComplete={handlePhotoUploadComplete}
+          buttonClassName="p-2 hover:bg-gray-100 rounded-lg transition-colors"
         >
-          <Paperclip className="w-4 h-4 text-gray-500" />
-        </Button>
+          <Image className="w-4 h-4 text-gray-500" />
+        </PhotoUploader>
         
         <div className="flex-1">
           <div className="relative">
