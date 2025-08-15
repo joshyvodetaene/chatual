@@ -11,6 +11,7 @@ import CreateRoomModal from '@/components/chat/create-room-modal';
 import AuthScreen from '@/components/auth/auth-screen';
 import { Button } from '@/components/ui/button';
 import { Hash, Users, Search, Settings, LogOut, Shield } from 'lucide-react';
+import { BackButton } from '@/components/ui/back-button';
 import { Link } from 'wouter';
 
 export default function ChatPage() {
@@ -174,6 +175,7 @@ export default function ChatPage() {
       <div className="flex-1 flex flex-col">
         {/* Chat Header */}
         <div className="h-16 border-b border-gray-200 bg-white flex items-center justify-between px-6">
+          <BackButton className="mr-4" />
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-primary text-white rounded-lg flex items-center justify-center">
               <Hash className="w-4 h-4" />

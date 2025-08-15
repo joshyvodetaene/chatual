@@ -9,6 +9,7 @@ import ReportsManagement from '@/components/admin/reports-management';
 import UserModerationPanel from '@/components/admin/user-moderation-panel';
 import BannedUsersPanel from '@/components/admin/banned-users-panel';
 import type { AdminDashboardStats, ModerationData } from '@shared/schema';
+import { BackButton } from '@/components/ui/back-button';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -46,6 +47,7 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900" data-testid="admin-dashboard">
       <div className="container mx-auto p-6">
+        <BackButton className="mb-4" />
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center space-x-3 mb-4">

@@ -12,6 +12,7 @@ import PhotoManager from '@/components/profile/photo-manager';
 import LocationSettings from '@/components/profile/location-settings';
 import BlockedUsers from '@/components/profile/blocked-users';
 import ContactFilters from '@/components/profile/contact-filters';
+import { BackButton } from '@/components/ui/back-button';
 
 export default function ProfileSettings() {
   // Get current user from localStorage (same as chat page)
@@ -71,6 +72,7 @@ export default function ProfileSettings() {
 
   return (
     <div className="flex-1 p-6 max-w-4xl mx-auto" data-testid="profile-settings">
+      <BackButton className="mb-4" />
       <div className="mb-6">
         <div className="flex items-center space-x-3 mb-2">
           <Settings className="w-6 h-6 text-primary" />
