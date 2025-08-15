@@ -11,7 +11,9 @@ import {
   type RoomWithMembers,
   type RegisterUser,
   type LoginUser,
-  type UserWithDistance
+  type UserWithDistance,
+  type PrivateRoom,
+  type PrivateChatData
 } from "@shared/schema";
 import { SQLiteStorage } from "./sqlite-storage";
 import { randomUUID } from "crypto";
@@ -40,6 +42,12 @@ export interface IStorage {
   getRoomMembers(roomId: string): Promise<User[]>;
   getUserRooms(userId: string): Promise<Room[]>;
   isUserInRoom(roomId: string, userId: string): Promise<boolean>;
+
+  // Private room methods
+  createPrivateRoom(user1Id: string, user2Id: string): Promise<Room>;
+  getPrivateRoom(user1Id: string, user2Id: string): Promise<Room | undefined>;
+  getPrivateRooms(userId: string): Promise<PrivateRoom[]>;
+  getRoomsAndPrivateRooms(userId: string): Promise<PrivateChatData>;
 
   // Message methods
   createMessage(message: InsertMessage): Promise<Message>;

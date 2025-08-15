@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { User, Room, RoomWithMembers, MessageWithUser } from '@shared/schema';
+import { User, Room, RoomWithMembers, MessageWithUser, PrivateRoom, PrivateChatData } from '@shared/schema';
 import { useWebSocket } from '@/hooks/use-websocket';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import Sidebar from '@/components/chat/sidebar';
 import MessageList from '@/components/chat/message-list';
 import MessageInput from '@/components/chat/message-input';
@@ -20,6 +20,7 @@ export default function ChatPage() {
   const [activeRoom, setActiveRoom] = useState<Room | null>(null);
   const [showUserList, setShowUserList] = useState(true);
   const [showCreateRoom, setShowCreateRoom] = useState(false);
+  const [privateRooms, setPrivateRooms] = useState<PrivateRoom[]>([]);
 
   const { 
     isConnected, 
@@ -56,6 +57,16 @@ export default function ChatPage() {
   const { data: roomsData } = useQuery<{ rooms: Room[] }>({
     queryKey: ['/api/rooms'],
     enabled: !!currentUser,
+  });
+
+  const { data: chatData } = useQuery<PrivateChatData>({
+    queryKey: ['/api/chat-data', currentUser?.id],
+    enabled: !!currentUser?.id,
+    onSuccess: (data) => {
+      if (data) {
+        setPrivateRooms(data.privateRooms || []);
+      }
+    },
   });
 
   const { data: activeRoomData } = useQuery<{ room: RoomWithMembers }>({
@@ -104,6 +115,25 @@ export default function ChatPage() {
     sendMessage(content);
   };
 
+  const handleStartPrivateChat = async (userId: string) => {
+    if (!currentUser?.id) return;
+    
+    try {
+      const response = await apiRequest('POST', '/api/private-chat/create', {
+        user1Id: currentUser.id,
+        user2Id: userId,
+      });
+      
+      if (response.room) {
+        setActiveRoom(response.room);
+        // Refresh private rooms list
+        queryClient.invalidateQueries(['/api/chat-data', currentUser.id]);
+      }
+    } catch (error) {
+      console.error('Failed to create private chat:', error);
+    }
+  };
+
   if (!currentUser) {
     return <AuthScreen onAuthSuccess={handleAuthSuccess} />;
   }
@@ -114,9 +144,11 @@ export default function ChatPage() {
       <Sidebar
         currentUser={currentUser}
         rooms={roomsData?.rooms || []}
+        privateRooms={privateRooms}
         activeRoom={activeRoom}
         onRoomSelect={handleRoomSelect}
         onCreateRoom={() => setShowCreateRoom(true)}
+        onStartPrivateChat={handleStartPrivateChat}
       />
 
       {/* Main Chat Area */}
@@ -185,6 +217,7 @@ export default function ChatPage() {
           room={activeRoomData.room}
           onlineUsers={onlineUsers}
           currentUser={currentUser}
+          onStartPrivateChat={handleStartPrivateChat}
         />
       )}
 

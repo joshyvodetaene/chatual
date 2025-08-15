@@ -99,7 +99,20 @@ export type UserWithDistance = User & {
   distance?: number;
 };
 
+export type PrivateRoom = {
+  id: string;
+  participant1Id: string;
+  participant2Id: string;
+  participant1: User;
+  participant2: User;
+};
+
 export type RoomWithMembers = Room & {
   memberCount: number;
   members: User[];
+};
+
+export type PrivateChatData = {
+  rooms: Room[];
+  privateRooms: PrivateRoom[];
 };

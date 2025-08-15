@@ -6,9 +6,10 @@ interface UserListProps {
   room: RoomWithMembers;
   onlineUsers: Set<string>;
   currentUser?: User;
+  onStartPrivateChat: (userId: string) => void;
 }
 
-export default function UserList({ room, onlineUsers, currentUser }: UserListProps) {
+export default function UserList({ room, onlineUsers, currentUser, onStartPrivateChat }: UserListProps) {
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -56,6 +57,7 @@ export default function UserList({ room, onlineUsers, currentUser }: UserListPro
                 <div
                   key={member.id}
                   className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                  onClick={() => member.id !== currentUser?.id && onStartPrivateChat(member.id)}
                   data-testid={`online-user-${member.id}`}
                 >
                   <div className="relative">
@@ -100,6 +102,7 @@ export default function UserList({ room, onlineUsers, currentUser }: UserListPro
                 <div
                   key={member.id}
                   className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors opacity-60"
+                  onClick={() => member.id !== currentUser?.id && onStartPrivateChat(member.id)}
                   data-testid={`offline-user-${member.id}`}
                 >
                   <div className="relative">

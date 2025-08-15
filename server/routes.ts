@@ -200,6 +200,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Private chat routes
+  app.post('/api/private-chat/create', async (req, res) => {
+    try {
+      const { user1Id, user2Id } = req.body;
+      
+      if (!user1Id || !user2Id) {
+        return res.status(400).json({ error: 'Both user IDs are required' });
+      }
+      
+      if (user1Id === user2Id) {
+        return res.status(400).json({ error: 'Cannot create private chat with yourself' });
+      }
+      
+      const room = await storage.createPrivateRoom(user1Id, user2Id);
+      res.json({ room });
+    } catch (error) {
+      console.error('Private chat creation error:', error);
+      res.status(400).json({ error: 'Failed to create private chat' });
+    }
+  });
+
+  app.get('/api/private-chat/:userId', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const privateRooms = await storage.getPrivateRooms(userId);
+      res.json({ privateRooms });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch private chats' });
+    }
+  });
+
+  app.get('/api/chat-data/:userId', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const chatData = await storage.getRoomsAndPrivateRooms(userId);
+      res.json(chatData);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch chat data' });
+    }
+  });
+
   // Room routes
   app.get('/api/rooms', async (req, res) => {
     try {
@@ -237,6 +278,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { userId } = req.body;
       const roomId = req.params.id;
       
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' });
+      }
+      
+      // Check if user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Check if room exists
+      const room = await storage.getRoom(roomId);
+      if (!room) {
+        return res.status(404).json({ error: 'Room not found' });
+      }
+      
       const isAlreadyMember = await storage.isUserInRoom(roomId, userId);
       if (!isAlreadyMember) {
         await storage.addRoomMember({ roomId, userId });
@@ -244,6 +301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ success: true });
     } catch (error) {
+      console.error('Room join error:', error);
       res.status(400).json({ error: 'Failed to join room' });
     }
   });

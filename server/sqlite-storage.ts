@@ -16,6 +16,8 @@ import {
   type RegisterUser,
   type LoginUser,
   type UserWithDistance,
+  type PrivateRoom,
+  type PrivateChatData,
   users,
   rooms,
   messages,
@@ -384,5 +386,91 @@ export class SQLiteStorage implements IStorage {
       ...item.message,
       user: item.user
     })).reverse();
+  }
+
+  async createPrivateRoom(user1Id: string, user2Id: string): Promise<Room> {
+    // Create a unique room name for the private chat
+    const sortedIds = [user1Id, user2Id].sort();
+    const roomName = `private_${sortedIds[0]}_${sortedIds[1]}`;
+    
+    // Check if private room already exists
+    const existingRoom = await this.getPrivateRoom(user1Id, user2Id);
+    if (existingRoom) {
+      return existingRoom;
+    }
+    
+    const room: Room = {
+      id: randomUUID(),
+      name: roomName,
+      description: "Private chat",
+      isPrivate: true,
+      createdBy: user1Id,
+      createdAt: new Date(),
+    };
+    
+    this.db.insert(rooms).values(room).run();
+    
+    // Add both users as members
+    await this.addRoomMember({ roomId: room.id, userId: user1Id });
+    await this.addRoomMember({ roomId: room.id, userId: user2Id });
+    
+    return room;
+  }
+
+  async getPrivateRoom(user1Id: string, user2Id: string): Promise<Room | undefined> {
+    const sortedIds = [user1Id, user2Id].sort();
+    const roomName = `private_${sortedIds[0]}_${sortedIds[1]}`;
+    
+    const result = this.db.select().from(rooms).where(eq(rooms.name, roomName)).get();
+    return result || undefined;
+  }
+
+  async getPrivateRooms(userId: string): Promise<PrivateRoom[]> {
+    // Get all private rooms where the user is a member
+    const privateRoomData = this.db
+      .select({
+        room: rooms,
+      })
+      .from(rooms)
+      .innerJoin(roomMembers, eq(rooms.id, roomMembers.roomId))
+      .where(
+        sql`${rooms.isPrivate} = 1 AND ${roomMembers.userId} = ${userId}`
+      )
+      .all();
+    
+    const privateRooms: PrivateRoom[] = [];
+    
+    for (const { room } of privateRoomData) {
+      // Get the other participant
+      const members = await this.getRoomMembers(room.id);
+      const otherParticipant = members.find(member => member.id !== userId);
+      
+      if (otherParticipant) {
+        const currentParticipant = members.find(member => member.id === userId)!;
+        
+        privateRooms.push({
+          id: room.id,
+          participant1Id: currentParticipant.id,
+          participant2Id: otherParticipant.id,
+          participant1: currentParticipant,
+          participant2: otherParticipant,
+        });
+      }
+    }
+    
+    return privateRooms;
+  }
+
+  async getRoomsAndPrivateRooms(userId: string): Promise<PrivateChatData> {
+    // Get public rooms
+    const publicRooms = this.db.select().from(rooms).where(eq(rooms.isPrivate, false)).all();
+    
+    // Get private rooms
+    const privateRooms = await this.getPrivateRooms(userId);
+    
+    return {
+      rooms: publicRooms,
+      privateRooms,
+    };
   }
 }
