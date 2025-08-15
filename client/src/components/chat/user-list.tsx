@@ -1,12 +1,14 @@
-import { RoomWithMembers } from '@shared/schema';
+import { RoomWithMembers, User } from '@shared/schema';
 import { cn } from '@/lib/utils';
+import UserDistance from './user-distance';
 
 interface UserListProps {
   room: RoomWithMembers;
   onlineUsers: Set<string>;
+  currentUser?: User;
 }
 
-export default function UserList({ room, onlineUsers }: UserListProps) {
+export default function UserList({ room, onlineUsers, currentUser }: UserListProps) {
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -69,7 +71,16 @@ export default function UserList({ room, onlineUsers }: UserListProps) {
                     <p className="text-sm font-medium text-gray-900 truncate">
                       {member.displayName}
                     </p>
-                    <p className="text-xs text-gray-500">Member</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-gray-500">Member</p>
+                      {currentUser && (
+                        <UserDistance 
+                          currentUserId={currentUser.id} 
+                          targetUserId={member.id}
+                          className="text-xs"
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -101,7 +112,16 @@ export default function UserList({ room, onlineUsers }: UserListProps) {
                     <p className="text-sm font-medium text-gray-700 truncate">
                       {member.displayName}
                     </p>
-                    <p className="text-xs text-gray-400">Last seen recently</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-gray-400">Last seen recently</p>
+                      {currentUser && (
+                        <UserDistance 
+                          currentUserId={currentUser.id} 
+                          targetUserId={member.id}
+                          className="text-xs opacity-60"
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}

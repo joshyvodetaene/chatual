@@ -190,6 +190,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/users/with-distance/:userId', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const users = await storage.getUsersWithDistance(userId);
+      res.json({ users });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch users with distance' });
+    }
+  });
+
   // Room routes
   app.get('/api/rooms', async (req, res) => {
     try {

@@ -10,6 +10,8 @@ export const users = sqliteTable("users", {
   password: text("password").notNull(),
   gender: text("gender").notNull(),
   location: text("location").notNull(),
+  latitude: text("latitude"),
+  longitude: text("longitude"),
   role: text("role").notNull().default("user"),
   avatar: text("avatar"),
   isOnline: integer("is_online", { mode: "boolean" }).default(false),
@@ -91,6 +93,10 @@ export type InsertRoomMember = z.infer<typeof insertRoomMemberSchema>;
 
 export type MessageWithUser = Message & {
   user: User;
+};
+
+export type UserWithDistance = User & {
+  distance?: number;
 };
 
 export type RoomWithMembers = Room & {

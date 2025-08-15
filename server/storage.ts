@@ -10,7 +10,8 @@ import {
   type MessageWithUser,
   type RoomWithMembers,
   type RegisterUser,
-  type LoginUser
+  type LoginUser,
+  type UserWithDistance
 } from "@shared/schema";
 import { SQLiteStorage } from "./sqlite-storage";
 import { randomUUID } from "crypto";
@@ -25,6 +26,7 @@ export interface IStorage {
   isUsernameAvailable(username: string): Promise<boolean>;
   updateUserOnlineStatus(userId: string, isOnline: boolean): Promise<void>;
   getOnlineUsers(): Promise<User[]>;
+  getUsersWithDistance(currentUserId: string): Promise<UserWithDistance[]>;
 
   // Room methods
   createRoom(room: InsertRoom): Promise<Room>;

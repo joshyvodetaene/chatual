@@ -184,6 +184,7 @@ export default function ChatPage() {
         <UserList
           room={activeRoomData.room}
           onlineUsers={onlineUsers}
+          currentUser={currentUser}
         />
       )}
 

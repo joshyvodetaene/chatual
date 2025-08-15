@@ -1,6 +1,7 @@
 import { drizzle, BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import BetterSQLite3 from "better-sqlite3";
 import bcrypt from "bcryptjs";
+import { GeocodingService } from "./geocoding-service";
 import { 
   type User, 
   type Room, 
@@ -14,6 +15,7 @@ import {
   type RoomWithMembers,
   type RegisterUser,
   type LoginUser,
+  type UserWithDistance,
   users,
   rooms,
   messages,
@@ -47,6 +49,8 @@ export class SQLiteStorage implements IStorage {
         password TEXT NOT NULL,
         gender TEXT NOT NULL,
         location TEXT NOT NULL,
+        latitude TEXT,
+        longitude TEXT,
         role TEXT NOT NULL DEFAULT 'user',
         avatar TEXT,
         is_online INTEGER DEFAULT 0,
@@ -95,6 +99,8 @@ export class SQLiteStorage implements IStorage {
         password: hashedPassword,
         gender: 'male',
         location: 'System',
+        latitude: null,
+        longitude: null,
         role: 'admin',
         avatar: null,
         isOnline: false,
@@ -137,6 +143,8 @@ export class SQLiteStorage implements IStorage {
       ...insertUser, 
       id,
       role: insertUser.role || 'user',
+      latitude: insertUser.latitude || null,
+      longitude: insertUser.longitude || null,
       avatar: insertUser.avatar || null,
       isOnline: false,
       lastSeen: new Date(),
@@ -150,6 +158,9 @@ export class SQLiteStorage implements IStorage {
     const id = randomUUID();
     const hashedPassword = await bcrypt.hash(registerData.password, 10);
     
+    // Geocode the location
+    const geoResult = await GeocodingService.geocodeLocation(registerData.location);
+    
     const user: User = {
       id,
       username: registerData.username,
@@ -157,6 +168,8 @@ export class SQLiteStorage implements IStorage {
       password: hashedPassword,
       gender: registerData.gender,
       location: registerData.location,
+      latitude: geoResult.success ? geoResult.latitude.toString() : null,
+      longitude: geoResult.success ? geoResult.longitude.toString() : null,
       role: 'user', // All new registrations are regular users
       avatar: registerData.avatar || null,
       isOnline: false,
@@ -192,6 +205,32 @@ export class SQLiteStorage implements IStorage {
 
   async getOnlineUsers(): Promise<User[]> {
     return this.db.select().from(users).where(eq(users.isOnline, true)).all();
+  }
+
+  async getUsersWithDistance(currentUserId: string): Promise<UserWithDistance[]> {
+    const currentUser = await this.getUser(currentUserId);
+    if (!currentUser || !currentUser.latitude || !currentUser.longitude) {
+      return [];
+    }
+
+    const allUsers = this.db.select().from(users).where(eq(users.isOnline, true)).all();
+    
+    return allUsers
+      .filter(user => user.id !== currentUserId && user.latitude && user.longitude)
+      .map(user => {
+        const distance = GeocodingService.calculateDistance(
+          parseFloat(currentUser.latitude!),
+          parseFloat(currentUser.longitude!),
+          parseFloat(user.latitude!),
+          parseFloat(user.longitude!)
+        );
+        
+        return {
+          ...user,
+          distance
+        };
+      })
+      .sort((a, b) => (a.distance || 0) - (b.distance || 0));
   }
 
   async createRoom(insertRoom: InsertRoom): Promise<Room> {
