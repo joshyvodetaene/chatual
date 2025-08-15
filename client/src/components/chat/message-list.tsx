@@ -4,6 +4,7 @@ import { UserPlus, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import PhotoMessage from './photo-message';
 import { Button } from '@/components/ui/button';
+import { UserProfileMenu } from './user-profile-menu';
 
 interface MessageListProps {
   messages: MessageWithUser[];
@@ -14,6 +15,7 @@ interface MessageListProps {
   isLoadingMore?: boolean;
   hasMoreMessages?: boolean;
   onLoadMore?: () => void;
+  onStartPrivateChat?: (userId: string) => void;
 }
 
 export default function MessageList({
@@ -25,6 +27,7 @@ export default function MessageList({
   isLoadingMore = false,
   hasMoreMessages = false,
   onLoadMore,
+  onStartPrivateChat,
 }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesStartRef = useRef<HTMLDivElement>(null);
@@ -168,24 +171,37 @@ export default function MessageList({
             )}
             data-testid={`message-${message.id}`}
           >
-            <div className={cn(
-              "w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium flex-shrink-0",
-              isOwnMessage ? "bg-primary" : getAvatarColor(message.user.displayName)
-            )}>
-              {getInitials(message.user.displayName)}
-            </div>
+            <UserProfileMenu
+              user={message.user}
+              currentUser={currentUser}
+              onStartPrivateChat={onStartPrivateChat}
+              disabled={isOwnMessage}
+            >
+              <div className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium flex-shrink-0 cursor-pointer",
+                isOwnMessage ? "bg-primary" : getAvatarColor(message.user.displayName)
+              )}>
+                {getInitials(message.user.displayName)}
+              </div>
+            </UserProfileMenu>
             <div className={cn("flex-1", isOwnMessage && "text-right")}>
               <div className={cn(
                 "flex items-baseline space-x-2 mb-1",
                 isOwnMessage && "justify-end"
               )}>
                 {!isOwnMessage && (
-                  <span className="text-sm font-semibold text-gray-900">
-                    {message.user.displayName}
-                  </span>
+                  <UserProfileMenu
+                    user={message.user}
+                    currentUser={currentUser}
+                    onStartPrivateChat={onStartPrivateChat}
+                  >
+                    <span className="text-sm font-semibold text-gray-900 cursor-pointer hover:text-primary transition-colors">
+                      {message.user.displayName}
+                    </span>
+                  </UserProfileMenu>
                 )}
                 <span className="text-xs text-gray-500" data-testid={`message-time-${message.id}`}>
-                  {formatTime(message.timestamp!)}
+                  {formatTime(message.createdAt!)}
                 </span>
                 {isOwnMessage && (
                   <span className="text-sm font-semibold text-gray-900">You</span>
@@ -228,17 +244,29 @@ export default function MessageList({
 
         return (
           <div key={userId} className="flex items-start space-x-3" data-testid="typing-indicator">
-            <div className={cn(
-              "w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium flex-shrink-0",
-              getAvatarColor(typingUser.displayName)
-            )}>
-              {getInitials(typingUser.displayName)}
-            </div>
+            <UserProfileMenu
+              user={typingUser}
+              currentUser={currentUser}
+              onStartPrivateChat={onStartPrivateChat}
+            >
+              <div className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium flex-shrink-0 cursor-pointer",
+                getAvatarColor(typingUser.displayName)
+              )}>
+                {getInitials(typingUser.displayName)}
+              </div>
+            </UserProfileMenu>
             <div className="flex-1">
               <div className="flex items-baseline space-x-2 mb-1">
-                <span className="text-sm font-semibold text-gray-900">
-                  {typingUser.displayName}
-                </span>
+                <UserProfileMenu
+                  user={typingUser}
+                  currentUser={currentUser}
+                  onStartPrivateChat={onStartPrivateChat}
+                >
+                  <span className="text-sm font-semibold text-gray-900 cursor-pointer hover:text-primary transition-colors">
+                    {typingUser.displayName}
+                  </span>
+                </UserProfileMenu>
                 <span className="text-xs text-gray-500">typing...</span>
               </div>
               <div className="bg-white p-3 rounded-2xl rounded-tl-md border border-gray-200 w-16 h-8 flex items-center justify-center">

@@ -275,6 +275,7 @@ export default function ChatPage() {
           isLoadingMore={isLoadingMore}
           hasMoreMessages={hasMoreMessages}
           onLoadMore={loadMoreMessages}
+          onStartPrivateChat={handleStartPrivateChat}
         />
 
         {/* Message Input */}

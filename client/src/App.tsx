@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import ChatPage from "@/pages/chat";
 import ProfileSettings from "@/pages/profile-settings";
 import AdminDashboard from "@/pages/admin-dashboard";
+import UserProfilePage from "@/pages/user-profile";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -14,6 +15,7 @@ function Router() {
       <Route path="/" component={ChatPage} />
       <Route path="/settings" component={ProfileSettings} />
       <Route path="/admin" component={AdminDashboard} />
+      <Route path="/profile/:userId" component={UserProfilePage} />
       <Route component={NotFound} />
     </Switch>
   );
