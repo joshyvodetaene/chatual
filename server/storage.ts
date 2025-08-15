@@ -63,6 +63,7 @@ export interface IStorage {
   createPrivateRoom(user1Id: string, user2Id: string): Promise<Room>;
   getPrivateRoom(user1Id: string, user2Id: string): Promise<Room | undefined>;
   getPrivateRooms(userId: string): Promise<PrivateRoom[]>;
+  deletePrivateRoom(roomId: string, userId: string): Promise<boolean>;
   getRoomsAndPrivateRooms(userId: string): Promise<PrivateChatData>;
 
   // Message methods

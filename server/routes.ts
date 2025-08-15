@@ -278,6 +278,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/private-chat/:roomId', async (req, res) => {
+    try {
+      const { roomId } = req.params;
+      const { userId } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' });
+      }
+      
+      const success = await storage.deletePrivateRoom(roomId, userId);
+      if (success) {
+        res.json({ success: true, message: 'Private chat deleted' });
+      } else {
+        res.status(403).json({ error: 'Not authorized to delete this chat' });
+      }
+    } catch (error) {
+      console.error('Delete private chat error:', error);
+      res.status(500).json({ error: 'Failed to delete private chat' });
+    }
+  });
+
   app.get('/api/chat-data/:userId', async (req, res) => {
     try {
       const { userId } = req.params;

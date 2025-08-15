@@ -288,6 +288,32 @@ export class DatabaseStorage implements IStorage {
     return privateRoomsWithOtherUser;
   }
 
+  async deletePrivateRoom(roomId: string, userId: string): Promise<boolean> {
+    // First verify that this is a private room and the user is a member
+    const room = await db
+      .select()
+      .from(rooms)
+      .where(and(
+        eq(rooms.id, roomId),
+        eq(rooms.isPrivate, true)
+      ));
+    
+    if (!room.length || !room[0].memberIds?.includes(userId)) {
+      return false; // User not authorized to delete this room
+    }
+
+    // Delete all messages in this room first
+    await db.delete(messages).where(eq(messages.roomId, roomId));
+    
+    // Delete all room members
+    await db.delete(roomMembers).where(eq(roomMembers.roomId, roomId));
+    
+    // Delete the room itself
+    await db.delete(rooms).where(eq(rooms.id, roomId));
+    
+    return true;
+  }
+
   async getRoomsAndPrivateRooms(userId: string): Promise<PrivateChatData> {
     const allRooms = await this.getRooms();
     const publicRooms = allRooms.filter(room => !room.isPrivate);
