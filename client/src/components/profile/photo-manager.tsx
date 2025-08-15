@@ -8,8 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import type { UserPhoto } from '@shared/schema';
 import type { UploadResult } from '@uppy/core';
-// Using built-in file input for now
-// import { ObjectUploader } from '@/components/chat/object-uploader';
+import { PhotoUploader } from '@/components/chat/photo-uploader';
 
 interface PhotoManagerProps {
   userId: string;
@@ -24,11 +23,7 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
 
   const setPrimaryMutation = useMutation({
     mutationFn: async (photoId: string) => {
-      await apiRequest(`/api/users/${userId}/photos/${photoId}/primary`, {
-        method: 'PUT',
-        body: JSON.stringify({}),
-        headers: { 'Content-Type': 'application/json' },
-      });
+      await apiRequest('PUT', `/api/users/${userId}/photos/${photoId}/primary`, {});
     },
     onSuccess: () => {
       toast({
@@ -48,11 +43,7 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
 
   const deletePhotoMutation = useMutation({
     mutationFn: async (photoId: string) => {
-      await apiRequest(`/api/users/${userId}/photos/${photoId}`, {
-        method: 'DELETE',
-        body: JSON.stringify({}),
-        headers: { 'Content-Type': 'application/json' },
-      });
+      await apiRequest('DELETE', `/api/users/${userId}/photos/${photoId}`);
     },
     onSuccess: () => {
       toast({
@@ -70,16 +61,15 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
     },
   });
 
-  const handlePhotoUpload = async () => {
+  const handleGetUploadParameters = async () => {
     try {
-      const response = await apiRequest('/api/photos/upload-url', {
-        method: 'POST',
-        body: JSON.stringify({ fileName: `photo-${Date.now()}.jpg` }),
-        headers: { 'Content-Type': 'application/json' },
-      }) as any;
+      const response = await apiRequest('POST', '/api/photos/upload-url', { 
+        fileName: `photo-${Date.now()}.jpg` 
+      });
+      const data = await response.json();
       return {
         method: 'PUT' as const,
-        url: response.uploadURL,
+        url: data.uploadURL,
       };
     } catch (error) {
       toast({
@@ -95,16 +85,14 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
     try {
       const uploadedFile = result.successful?.[0];
       if (uploadedFile?.uploadURL) {
-        setUploadingPhotos(prev => [...prev, uploadedFile.uploadURL]);
+        if (uploadedFile.uploadURL) {
+          setUploadingPhotos(prev => [...prev, uploadedFile.uploadURL]);
+        }
         
-        await apiRequest(`/api/users/${userId}/photos`, {
-          method: 'POST',
-          body: JSON.stringify({
-            photoUrl: uploadedFile.uploadURL,
-            fileName: uploadedFile.name,
-            isPrimary: photos.length === 0, // First photo becomes primary
-          }),
-          headers: { 'Content-Type': 'application/json' },
+        await apiRequest('POST', `/api/users/${userId}/photos`, {
+          photoUrl: uploadedFile.uploadURL,
+          fileName: uploadedFile.name,
+          isPrimary: photos.length === 0, // First photo becomes primary
         });
 
         toast({
@@ -133,13 +121,19 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
     <div className="space-y-6" data-testid="photo-manager">
       {/* Upload Button */}
       <div className="flex justify-center">
-        <Button className="border-2 border-dashed border-gray-300 hover:border-primary p-8 rounded-lg transition-colors">
+        <PhotoUploader
+          maxNumberOfFiles={1}
+          maxFileSize={10485760} // 10MB
+          onGetUploadParameters={handleGetUploadParameters}
+          onComplete={handlePhotoUploadComplete}
+          buttonClassName="border-2 border-dashed border-gray-300 hover:border-primary p-8 rounded-lg transition-colors bg-transparent"
+        >
           <div className="text-center">
             <Plus className="w-8 h-8 mx-auto mb-2 text-gray-400" />
             <p className="text-sm text-gray-600">Add New Photo</p>
-            <p className="text-xs text-gray-400">Feature coming soon</p>
+            <p className="text-xs text-gray-400">Click to upload image</p>
           </div>
-        </Button>
+        </PhotoUploader>
       </div>
 
       {/* Photos Grid */}
