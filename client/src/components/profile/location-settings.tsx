@@ -35,11 +35,7 @@ export default function LocationSettings({ user }: LocationSettingsProps) {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: UpdateUserProfile) => {
-      return await apiRequest(`/api/users/${user.id}/profile`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return await apiRequest('PUT', `/api/users/${user.id}/profile`, data);
     },
     onSuccess: (data) => {
       toast({
