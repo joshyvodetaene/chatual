@@ -17,6 +17,8 @@ export const users = pgTable("users", {
   ageMax: integer("age_max").default(99),
   role: varchar("role").notNull().default("user"),
   avatar: varchar("avatar"),
+  bio: text("bio"),
+  dateOfBirth: varchar("date_of_birth"),
   isOnline: boolean("is_online").default(false),
   lastSeen: timestamp("last_seen").defaultNow(),
   isBanned: boolean("is_banned").default(false),
