@@ -66,13 +66,13 @@ export default function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormPr
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-md mx-auto bg-card/80 backdrop-blur-sm border-primary/20 shadow-2xl red-glow">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <LogIn className="w-5 h-5" />
+        <CardTitle className="flex items-center gap-2 text-white text-xl">
+          <LogIn className="w-6 h-6 text-primary" />
           Welcome Back
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-gray-300">
           Sign in to your Chatual account
         </CardDescription>
       </CardHeader>
@@ -118,7 +118,7 @@ export default function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormPr
 
             <Button
               type="submit"
-              className="w-full"
+              className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-3 red-glow transition-all duration-300 hover:shadow-lg"
               disabled={loginMutation.isPending}
               data-testid="button-login"
             >
@@ -128,11 +128,11 @@ export default function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormPr
         </Form>
 
         <div className="mt-4 text-center">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-300">
             Don't have an account?{' '}
             <button
               onClick={onSwitchToRegister}
-              className="text-primary hover:underline"
+              className="text-primary hover:text-primary/80 font-semibold underline transition-colors"
               data-testid="button-switch-to-register"
             >
               Create one

@@ -48,9 +48,9 @@ export default function Sidebar({
   };
 
   return (
-    <div className="w-80 bg-white border-r border-gray-200 flex flex-col" data-testid="sidebar">
+    <div className="w-80 bg-sidebar border-r border-border flex flex-col" data-testid="sidebar">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 bg-primary text-white">
+      <div className="p-4 border-b border-border bg-primary text-white red-glow">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
@@ -71,7 +71,7 @@ export default function Sidebar({
       </div>
 
       {/* User Profile */}
-      <div className="p-4 border-b border-gray-200 bg-gray-50">
+      <div className="p-4 border-b border-border bg-muted">
         <div className="flex items-center space-x-3">
           <div className={cn(
             "w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium",
@@ -215,6 +215,7 @@ export default function Sidebar({
                         name: privateRoom.participant2.displayName,
                         description: 'Private chat',
                         isPrivate: true,
+                        memberIds: null,
                         createdBy: privateRoom.participant1Id,
                         createdAt: new Date(),
                       };

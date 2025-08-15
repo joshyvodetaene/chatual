@@ -188,7 +188,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="h-screen flex overflow-hidden bg-chat-bg" data-testid="chat-application">
+    <div className="h-screen flex overflow-hidden bg-background sensual-gradient" data-testid="chat-application">
       {/* Sidebar */}
       <Sidebar
         currentUser={currentUser}
@@ -203,17 +203,17 @@ export default function ChatPage() {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
         {/* Chat Header */}
-        <div className="h-16 border-b border-gray-200 bg-white flex items-center justify-between px-6">
+        <div className="h-16 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-6 red-glow">
           <BackButton className="mr-4" />
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-primary text-white rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-primary text-white rounded-lg flex items-center justify-center red-glow">
               <Hash className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900" data-testid="room-name">
+              <h2 className="text-lg font-semibold text-white" data-testid="room-name">
                 {activeRoom?.name || 'Select a room'}
               </h2>
-              <p className="text-xs text-gray-500" data-testid="room-member-count">
+              <p className="text-xs text-gray-400" data-testid="room-member-count">
                 {activeRoomData?.room?.memberCount || 0} members
               </p>
             </div>
@@ -224,20 +224,21 @@ export default function ChatPage() {
               size="sm"
               onClick={() => setShowUserList(!showUserList)}
               data-testid="button-toggle-user-list"
+              className="text-gray-300 hover:text-white hover:bg-primary/20"
             >
               <Users className="w-4 h-4" />
             </Button>
-            <Button variant="ghost" size="sm" data-testid="button-search">
+            <Button variant="ghost" size="sm" data-testid="button-search" className="text-gray-300 hover:text-white hover:bg-primary/20">
               <Search className="w-4 h-4" />
             </Button>
             <Link href="/settings">
-              <Button variant="ghost" size="sm" data-testid="button-settings">
+              <Button variant="ghost" size="sm" data-testid="button-settings" className="text-gray-300 hover:text-white hover:bg-primary/20">
                 <Settings className="w-4 h-4" />
               </Button>
             </Link>
             {currentUser?.role === 'admin' && (
               <Link href="/admin">
-                <Button variant="ghost" size="sm" data-testid="button-admin">
+                <Button variant="ghost" size="sm" data-testid="button-admin" className="text-gray-300 hover:text-white hover:bg-primary/20">
                   <Shield className="w-4 h-4" />
                 </Button>
               </Link>
@@ -248,6 +249,7 @@ export default function ChatPage() {
               onClick={handleLogout}
               disabled={logoutMutation.isPending}
               data-testid="button-logout"
+              className="text-gray-300 hover:text-primary hover:bg-primary/20 transition-colors"
             >
               <LogOut className="w-4 h-4" />
             </Button>

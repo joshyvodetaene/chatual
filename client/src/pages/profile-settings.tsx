@@ -71,14 +71,14 @@ export default function ProfileSettings() {
   }
 
   return (
-    <div className="flex-1 p-6 max-w-4xl mx-auto" data-testid="profile-settings">
+    <div className="flex-1 p-6 max-w-4xl mx-auto bg-background sensual-gradient min-h-screen" data-testid="profile-settings">
       <BackButton className="mb-4" />
       <div className="mb-6">
         <div className="flex items-center space-x-3 mb-2">
           <Settings className="w-6 h-6 text-primary" />
-          <h1 className="text-2xl font-bold text-gray-900">Profile Settings</h1>
+          <h1 className="text-2xl font-bold text-white text-glow">Profile Settings</h1>
         </div>
-        <p className="text-gray-600">Manage your account settings and preferences</p>
+        <p className="text-gray-300">Manage your account settings and preferences</p>
       </div>
 
       <Tabs defaultValue="photos" className="w-full">

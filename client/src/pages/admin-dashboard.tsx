@@ -45,7 +45,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900" data-testid="admin-dashboard">
+    <div className="min-h-screen bg-background sensual-gradient" data-testid="admin-dashboard">
       <div className="container mx-auto p-6">
         <BackButton className="mb-4" />
         {/* Header */}

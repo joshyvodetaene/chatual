@@ -132,10 +132,10 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-md mx-auto bg-card/80 backdrop-blur-sm border-primary/20 shadow-2xl red-glow">
       <CardHeader>
-        <CardTitle>Join Chatual</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-white text-xl">Join Chatual</CardTitle>
+        <CardDescription className="text-gray-300">
           Create your account to start chatting
         </CardDescription>
       </CardHeader>
@@ -270,7 +270,7 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
 
             <Button
               type="submit"
-              className="w-full"
+              className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-3 red-glow transition-all duration-300 hover:shadow-lg"
               disabled={
                 registerMutation.isPending || 
                 (usernameCheck && !usernameCheck.available) ||
@@ -284,11 +284,11 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
         </Form>
 
         <div className="mt-4 text-center">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-300">
             Already have an account?{' '}
             <button
               onClick={onSwitchToLogin}
-              className="text-primary hover:underline"
+              className="text-primary hover:text-primary/80 font-semibold underline transition-colors"
               data-testid="button-switch-to-login"
             >
               Sign in
