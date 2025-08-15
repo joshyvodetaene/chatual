@@ -81,13 +81,21 @@ export default function Sidebar({
       {/* Benutzer-Profil Bereich */}
       <div className="p-4 border-b border-border bg-muted">
         <div className="flex items-center space-x-3">
-          {/* Benutzer-Avatar mit Initialen */}
-          <div className={cn(
-            "w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium",
-            getAvatarColor(currentUser.displayName)
-          )}>
-            {getInitials(currentUser.displayName)}
-          </div>
+          {/* Benutzer-Avatar */}
+          {currentUser.primaryPhoto?.photoUrl ? (
+            <img 
+              src={currentUser.primaryPhoto.photoUrl}
+              alt={`${currentUser.displayName} profile`}
+              className="w-10 h-10 rounded-full object-cover border-2 border-white"
+            />
+          ) : (
+            <div className={cn(
+              "w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium",
+              getAvatarColor(currentUser.displayName)
+            )}>
+              {getInitials(currentUser.displayName)}
+            </div>
+          )}
           {/* Benutzer-Informationen */}
           <div className="flex-1 min-w-0">
             {/* Anzeigename */}
@@ -254,12 +262,20 @@ export default function Sidebar({
                   >
                     <div className="relative">
                       {/* Avatar des Chat-Partners */}
-                      <div className={cn(
-                        "w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium",
-                        getAvatarColor(privateRoom.participant2.displayName)
-                      )}>
-                        {getInitials(privateRoom.participant2.displayName)}
-                      </div>
+                      {privateRoom.participant2.primaryPhoto?.photoUrl ? (
+                        <img 
+                          src={privateRoom.participant2.primaryPhoto.photoUrl}
+                          alt={`${privateRoom.participant2.displayName} profile`}
+                          className="w-8 h-8 rounded-full object-cover border-2 border-white"
+                        />
+                      ) : (
+                        <div className={cn(
+                          "w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium",
+                          getAvatarColor(privateRoom.participant2.displayName)
+                        )}>
+                          {getInitials(privateRoom.participant2.displayName)}
+                        </div>
+                      )}
                       {/* Online-Status-Indikator */}
                       <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-accent border-2 border-white rounded-full"></div>
                     </div>
