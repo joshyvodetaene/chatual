@@ -84,9 +84,10 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
 
     try {
       // Get upload URL
-      const data = await apiRequest('POST', '/api/photos/upload-url', { 
+      const response = await apiRequest('POST', '/api/photos/upload-url', { 
         fileName: file.name 
       });
+      const data = await response.json();
       
       setUploadingPhotos(prev => [...prev, 'uploading']);
       
