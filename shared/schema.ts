@@ -289,3 +289,17 @@ export type AdminDashboardStats = {
   recentWarnings: number;
   activeUsers: number;
 };
+
+export type PaginationParams = {
+  limit?: number;
+  before?: string; // cursor for pagination
+  after?: string; // cursor for pagination
+};
+
+export type PaginatedResponse<T> = {
+  items: T[];
+  hasMore: boolean;
+  nextCursor?: string;
+  prevCursor?: string;
+  totalCount?: number;
+};

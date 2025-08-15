@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { User, Room, RoomWithMembers, MessageWithUser, PrivateRoom, PrivateChatData, BlockedUserWithDetails } from '@shared/schema';
 import { useWebSocket } from '@/hooks/use-websocket';
+import { usePaginatedMessages } from '@/hooks/use-paginated-messages';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import Sidebar from '@/components/chat/sidebar';
 import MessageList from '@/components/chat/message-list';
@@ -12,6 +13,7 @@ import AuthScreen from '@/components/auth/auth-screen';
 import { Button } from '@/components/ui/button';
 import { Hash, Users, Search, Settings, LogOut, Shield } from 'lucide-react';
 import { BackButton } from '@/components/ui/back-button';
+import { ConnectionStatusIndicator } from '@/components/chat/connection-status';
 import { Link } from 'wouter';
 
 export default function ChatPage() {
@@ -26,15 +28,22 @@ export default function ChatPage() {
   const currentJoinedRoom = useRef<string | null>(null);
 
   const { 
-    isConnected, 
+    isConnected,
+    connectionStatus,
+    lastError,
     messages, 
     onlineUsers, 
     roomOnlineUsers,
     typingUsers,
+    queuedCount,
+    failedCount,
+    isProcessingQueue,
     joinRoom, 
     sendMessage, 
     sendTyping,
-    setMessages 
+    setMessages,
+    reconnect,
+    clearFailedMessages
   } = useWebSocket(currentUser?.id);
 
   const logoutMutation = useMutation({
@@ -85,17 +94,37 @@ export default function ChatPage() {
     enabled: !!activeRoom?.id,
   });
 
-  const { data: messagesData } = useQuery<{ messages: MessageWithUser[] }>({
-    queryKey: ['/api/rooms', activeRoom?.id, 'messages'],
-    enabled: !!activeRoom?.id,
+  // Use paginated messages for the active room
+  const {
+    messages: paginatedMessages,
+    isLoading: messagesLoading,
+    isLoadingMore,
+    hasMoreMessages,
+    loadMoreMessages,
+    addMessage,
+    setMessages: setPaginatedMessages
+  } = usePaginatedMessages({
+    roomId: activeRoom?.id,
+    enabled: !!activeRoom?.id
   });
 
-  // Load messages when room changes
+  // Sync paginated messages with WebSocket messages
   useEffect(() => {
-    if (messagesData?.messages) {
-      setMessages(messagesData.messages);
+    if (paginatedMessages.length > 0 && paginatedMessages !== messages) {
+      setMessages(paginatedMessages);
     }
-  }, [messagesData, setMessages]);
+  }, [paginatedMessages, messages, setMessages]);
+
+  // Handle new messages from WebSocket
+  useEffect(() => {
+    // When we receive a new message via WebSocket, add it to paginated messages too
+    if (messages.length > paginatedMessages.length) {
+      const newMessage = messages[messages.length - 1];
+      if (newMessage && !paginatedMessages.find(m => m.id === newMessage.id)) {
+        addMessage(newMessage);
+      }
+    }
+  }, [messages, paginatedMessages, addMessage]);
 
   // Join room when active room changes
   useEffect(() => {
@@ -225,12 +254,27 @@ export default function ChatPage() {
           </div>
         </div>
 
+        {/* Connection Status Indicator */}
+        <ConnectionStatusIndicator
+          connectionStatus={connectionStatus}
+          lastError={lastError}
+          queuedCount={queuedCount}
+          failedCount={failedCount}
+          isProcessingQueue={isProcessingQueue}
+          onReconnect={reconnect}
+          onClearFailed={clearFailedMessages}
+        />
+
         {/* Messages */}
         <MessageList
-          messages={messages}
+          messages={paginatedMessages}
           currentUser={currentUser}
           typingUsers={typingUsers}
           activeRoomData={activeRoomData?.room}
+          isLoading={messagesLoading}
+          isLoadingMore={isLoadingMore}
+          hasMoreMessages={hasMoreMessages}
+          onLoadMore={loadMoreMessages}
         />
 
         {/* Message Input */}

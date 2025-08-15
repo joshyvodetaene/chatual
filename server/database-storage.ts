@@ -33,6 +33,8 @@ import {
   type WarnUser,
   type BanUser,
   type AdminDashboardStats,
+  type PaginationParams,
+  type PaginatedResponse,
   users,
   rooms,
   messages,
@@ -43,7 +45,7 @@ import {
   userModerationActions
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, ne, sql } from "drizzle-orm";
+import { eq, and, or, desc, ne, sql, gt, lt } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 import type { IStorage } from "./storage";
@@ -289,7 +291,26 @@ export class DatabaseStorage implements IStorage {
     return newMessage;
   }
 
-  async getRoomMessages(roomId: string, limit: number = 50): Promise<MessageWithUser[]> {
+  async getRoomMessages(roomId: string, pagination: PaginationParams = {}): Promise<PaginatedResponse<MessageWithUser>> {
+    const { limit = 50, before, after } = pagination;
+    
+    // Build base condition
+    let whereCondition = eq(messages.roomId, roomId);
+    
+    // Add cursor-based pagination conditions
+    if (before) {
+      whereCondition = and(
+        eq(messages.roomId, roomId),
+        gt(messages.createdAt, new Date(before))
+      );
+    } else if (after) {
+      whereCondition = and(
+        eq(messages.roomId, roomId),
+        lt(messages.createdAt, new Date(after))
+      );
+    }
+    
+    // Get one extra message to check if there are more
     const roomMessages = await db
       .select({
         message: messages,
@@ -297,14 +318,28 @@ export class DatabaseStorage implements IStorage {
       })
       .from(messages)
       .innerJoin(users, eq(messages.userId, users.id))
-      .where(eq(messages.roomId, roomId))
+      .where(whereCondition)
       .orderBy(desc(messages.createdAt))
-      .limit(limit);
+      .limit(limit + 1);
 
-    return roomMessages.map(({ message, user }) => ({
+    const hasMore = roomMessages.length > limit;
+    const items = roomMessages.slice(0, limit);
+    
+    const messagesWithUser = items.map(({ message, user }) => ({
       ...message,
       user
     })).reverse(); // Reverse to show oldest first
+    
+    // Generate cursors
+    const nextCursor = hasMore && items.length > 0 ? items[items.length - 1].message.createdAt?.toISOString() : undefined;
+    const prevCursor = items.length > 0 ? items[0].message.createdAt?.toISOString() : undefined;
+    
+    return {
+      items: messagesWithUser,
+      hasMore,
+      nextCursor,
+      prevCursor
+    };
   }
 
   // Photo methods

@@ -27,7 +27,9 @@ import {
   type CreateReport,
   type UpdateReportStatus,
   type ReportWithDetails,
-  type ModerationData
+  type ModerationData,
+  type PaginationParams,
+  type PaginatedResponse
 } from "@shared/schema";
 import { DatabaseStorage } from "./database-storage";
 import { randomUUID } from "crypto";
@@ -65,7 +67,7 @@ export interface IStorage {
 
   // Message methods
   createMessage(message: InsertMessage): Promise<Message>;
-  getRoomMessages(roomId: string, limit?: number): Promise<MessageWithUser[]>;
+  getRoomMessages(roomId: string, pagination?: PaginationParams): Promise<PaginatedResponse<MessageWithUser>>;
 
   // Photo methods
   addUserPhoto(photoData: InsertUserPhoto): Promise<UserPhoto>;

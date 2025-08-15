@@ -1,14 +1,19 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { MessageWithUser, User, RoomWithMembers } from '@shared/schema';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import PhotoMessage from './photo-message';
+import { Button } from '@/components/ui/button';
 
 interface MessageListProps {
   messages: MessageWithUser[];
   currentUser: User;
   typingUsers: Set<string>;
   activeRoomData?: RoomWithMembers;
+  isLoading?: boolean;
+  isLoadingMore?: boolean;
+  hasMoreMessages?: boolean;
+  onLoadMore?: () => void;
 }
 
 export default function MessageList({
@@ -16,12 +21,53 @@ export default function MessageList({
   currentUser,
   typingUsers,
   activeRoomData,
+  isLoading = false,
+  isLoadingMore = false,
+  hasMoreMessages = false,
+  onLoadMore,
 }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesStartRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true);
+
+  // Auto-scroll to bottom only for new messages, not when loading older ones
+  useEffect(() => {
+    if (shouldScrollToBottom && messages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, shouldScrollToBottom]);
+
+  // Handle infinite scroll for loading older messages
+  const handleScroll = useCallback(() => {
+    if (!containerRef.current || !onLoadMore || isLoadingMore || !hasMoreMessages) return;
+    
+    const container = containerRef.current;
+    const scrollTop = container.scrollTop;
+    const threshold = 100; // Load more when 100px from top
+    
+    if (scrollTop <= threshold) {
+      setShouldScrollToBottom(false); // Don't auto-scroll when loading older messages
+      onLoadMore();
+    }
+    
+    // Re-enable auto-scroll when user scrolls near the bottom
+    const scrollHeight = container.scrollHeight;
+    const clientHeight = container.clientHeight;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    
+    if (distanceFromBottom < 200) {
+      setShouldScrollToBottom(true);
+    }
+  }, [onLoadMore, isLoadingMore, hasMoreMessages]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    const container = containerRef.current;
+    if (!container) return;
+    
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
 
   const getInitials = (name: string) => {
     return name
@@ -62,7 +108,42 @@ export default function MessageList({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4" data-testid="message-list">
+    <div 
+      ref={containerRef}
+      className="flex-1 overflow-y-auto p-4 space-y-4" 
+      data-testid="message-list"
+    >
+      {/* Loading indicator for initial load */}
+      {isLoading && messages.length === 0 && (
+        <div className="flex justify-center items-center h-32">
+          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+          <span className="ml-2 text-gray-500">Loading messages...</span>
+        </div>
+      )}
+      
+      {/* Load more indicator */}
+      {isLoadingMore && (
+        <div className="flex justify-center items-center py-4" ref={messagesStartRef}>
+          <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+          <span className="ml-2 text-gray-500 text-sm">Loading more messages...</span>
+        </div>
+      )}
+      
+      {/* Load more button (shown when not auto-loading) */}
+      {!isLoadingMore && hasMoreMessages && messages.length > 0 && onLoadMore && (
+        <div className="flex justify-center py-4">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={onLoadMore}
+            className="text-gray-500 hover:text-gray-700"
+            data-testid="button-load-more-messages"
+          >
+            Load older messages
+          </Button>
+        </div>
+      )}
+      
       {messages.map((message) => {
         const isOwnMessage = message.userId === currentUser.id;
         

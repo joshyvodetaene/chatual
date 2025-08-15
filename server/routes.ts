@@ -450,8 +450,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Message routes
   app.get('/api/rooms/:id/messages', async (req, res) => {
     try {
-      const messages = await storage.getRoomMessages(req.params.id);
-      res.json({ messages });
+      const { limit, before, after } = req.query;
+      const pagination = {
+        limit: limit ? parseInt(limit as string) : undefined,
+        before: before as string,
+        after: after as string,
+      };
+      
+      const result = await storage.getRoomMessages(req.params.id, pagination);
+      res.json(result);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch messages' });
     }
