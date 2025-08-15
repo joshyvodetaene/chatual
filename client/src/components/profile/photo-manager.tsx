@@ -84,7 +84,7 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
 
     try {
       // Get upload URL
-      const data = await apiRequest('/api/photos/upload-url', 'POST', { 
+      const data = await apiRequest('POST', '/api/photos/upload-url', { 
         fileName: file.name 
       });
       
@@ -104,7 +104,7 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
       }
 
       // Save photo metadata
-      await apiRequest(`/api/users/${userId}/photos`, 'POST', {
+      await apiRequest('POST', `/api/users/${userId}/photos`, {
         photoUrl: data.uploadURL,
         fileName: file.name,
         isPrimary: photos.length === 0,
