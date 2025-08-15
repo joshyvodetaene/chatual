@@ -15,9 +15,12 @@ export default function PhotoMessage({ message, isOwn }: PhotoMessageProps) {
     return null;
   }
 
+  // Construct proper photo URL for display
   const photoSrc = message.photoUrl.startsWith('http') 
     ? message.photoUrl 
-    : `/photos${message.photoUrl}`;
+    : message.photoUrl.startsWith('/photos/') 
+    ? message.photoUrl  // Already has /photos/ prefix
+    : `/photos${message.photoUrl}`; // Add /photos/ prefix if missing
 
   return (
     <div className={cn(
@@ -52,7 +55,10 @@ export default function PhotoMessage({ message, isOwn }: PhotoMessageProps) {
           </div>
         ) : (
           <div className="w-64 h-48 bg-gray-100 flex items-center justify-center">
-            <span className="text-gray-500 text-sm">Failed to load image</span>
+            <div className="text-center px-4">
+              <span className="text-gray-500 text-sm block mb-1">Failed to load image</span>
+              <span className="text-gray-400 text-xs">{message.photoFileName || 'Photo'}</span>
+            </div>
           </div>
         )}
         

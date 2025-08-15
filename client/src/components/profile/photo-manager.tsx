@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Camera, Trash2, Star, StarOff, Plus, Upload } from 'lucide-react';
+import { ObjectUploader } from '@/components/ObjectUploader';
+import type { UploadResult } from '@uppy/core';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import type { UserPhoto } from '@shared/schema';
@@ -134,7 +136,12 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
 
 
   const getPhotoSrc = (photo: UserPhoto) => {
-    return photo.photoUrl.startsWith('http') ? photo.photoUrl : `/photos${photo.photoUrl}`;
+    // Construct proper photo URL for display
+    return photo.photoUrl.startsWith('http') 
+      ? photo.photoUrl 
+      : photo.photoUrl.startsWith('/photos/') 
+      ? photo.photoUrl  // Already has /photos/ prefix
+      : `/photos${photo.photoUrl}`; // Add /photos/ prefix if missing
   };
 
   return (

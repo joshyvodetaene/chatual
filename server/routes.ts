@@ -311,10 +311,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const photoPath = '/' + req.params.photoPath;
     const objectStorageService = new ObjectStorageService();
     try {
+      console.log('Serving photo:', photoPath);
       const photoFile = await objectStorageService.getPhotoFile(photoPath);
       objectStorageService.downloadObject(photoFile, res);
     } catch (error) {
-      console.error('Error serving photo:', error);
+      console.error('Error serving photo:', photoPath, error);
       if (error instanceof ObjectNotFoundError) {
         return res.sendStatus(404);
       }

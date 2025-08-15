@@ -119,6 +119,8 @@ export default function MessageInput({
         const photoUrl = uploadedFile.uploadURL;
         const photoFileName = uploadedFile.name;
         
+        console.log('Photo upload completed:', { photoUrl, photoFileName });
+        
         // Send the photo as a message
         onSendMessage(message.trim() || '', photoUrl, photoFileName);
         setMessage('');
@@ -132,6 +134,13 @@ export default function MessageInput({
         toast({
           title: "Photo Sent",
           description: "Your photo has been shared successfully.",
+        });
+      } else {
+        console.error('Photo upload failed:', result);
+        toast({
+          title: "Upload Error",
+          description: "Failed to upload photo. Please try again.",
+          variant: "destructive",
         });
       }
     } catch (error) {

@@ -129,22 +129,28 @@ export class ObjectStorageService {
       return rawPath;
     }
   
-    // Extract the path from the URL by removing query parameters and domain
-    const url = new URL(rawPath);
-    const rawObjectPath = url.pathname;
+    try {
+      // Extract the path from the URL by removing query parameters and domain
+      const url = new URL(rawPath);
+      const rawObjectPath = url.pathname;
   
-    let privateObjectDir = this.getPrivateObjectDir();
-    if (!privateObjectDir.endsWith("/")) {
-      privateObjectDir = `${privateObjectDir}/`;
+      let privateObjectDir = this.getPrivateObjectDir();
+      if (!privateObjectDir.endsWith("/")) {
+        privateObjectDir = `${privateObjectDir}/`;
+      }
+  
+      if (!rawObjectPath.startsWith(privateObjectDir)) {
+        return rawObjectPath;
+      }
+  
+      // Extract the photo path
+      const photoPath = rawObjectPath.slice(privateObjectDir.length);
+      // Ensure the path starts with /photos/ for proper routing
+      return photoPath.startsWith('photos/') ? `/${photoPath}` : `/photos/${photoPath}`;
+    } catch (error) {
+      console.error('Error normalizing photo path:', error);
+      return rawPath;
     }
-  
-    if (!rawObjectPath.startsWith(privateObjectDir)) {
-      return rawObjectPath;
-    }
-  
-    // Extract the photo path
-    const photoPath = rawObjectPath.slice(privateObjectDir.length);
-    return `/${photoPath}`;
   }
 }
 
