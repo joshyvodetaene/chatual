@@ -165,7 +165,6 @@ export default function Sidebar({
               {/* Liste aller verfügbaren Räume */}
               <div className="space-y-1">
                 {rooms.map((room) => (
-                  {/* Einzelner Raum-Listeneintrag */}
                   <div
                     key={room.id}
                     className={cn(
@@ -185,7 +184,6 @@ export default function Sidebar({
                         : "bg-gray-100"
                     )}>
                       {room.isPrivate ? (
-                        /* Schloss-Icon für private Räume */
                         <Lock className={cn(
                           "w-3 h-3",
                           activeRoom?.id === room.id ? "text-white" : "text-gray-500"
@@ -231,7 +229,6 @@ export default function Sidebar({
               {/* Liste aller privaten Chats */}
               <div className="space-y-1">
                 {privateRooms.map((privateRoom) => (
-                  {/* Einzelner privater Chat-Eintrag */}
                   <div
                     key={privateRoom.id}
                     className={cn(
