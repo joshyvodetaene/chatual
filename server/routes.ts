@@ -308,7 +308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Serve photos
   app.get('/photos/:photoPath(*)', async (req, res) => {
-    const photoPath = '/' + req.params.photoPath;
+    const photoPath = '/photos/' + req.params.photoPath;
     const objectStorageService = new ObjectStorageService();
     try {
       console.log('Serving photo:', photoPath);
