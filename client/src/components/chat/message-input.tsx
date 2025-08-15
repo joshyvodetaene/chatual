@@ -117,9 +117,27 @@ export default function MessageInput({
       if (result.successful && result.successful.length > 0) {
         const uploadedFile = result.successful[0];
         const photoUrl = uploadedFile.uploadURL;
-        const photoFileName = uploadedFile.name;
         
-        console.log('Photo upload completed:', { photoUrl, photoFileName });
+        if (!photoUrl) {
+          throw new Error('No upload URL received');
+        }
+        
+        // Extract actual filename from the storage URL
+        const extractFilenameFromUrl = (url: string): string => {
+          try {
+            const urlObj = new URL(url);
+            const pathname = urlObj.pathname;
+            const parts = pathname.split('/');
+            const filename = parts[parts.length - 1];
+            return filename && filename.length > 0 ? filename : 'photo.jpg';
+          } catch {
+            return 'photo.jpg';
+          }
+        };
+        
+        const photoFileName = extractFilenameFromUrl(photoUrl);
+        
+        console.log('Photo upload completed:', { photoUrl, photoFileName, originalName: uploadedFile.name });
         
         // Send the photo as a message
         onSendMessage(message.trim() || '', photoUrl, photoFileName);

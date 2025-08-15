@@ -106,10 +106,25 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
         throw new Error('Upload failed');
       }
 
+      // Extract actual filename from the storage URL
+      const extractFilenameFromUrl = (url: string): string => {
+        try {
+          const urlObj = new URL(url);
+          const pathname = urlObj.pathname;
+          const parts = pathname.split('/');
+          const filename = parts[parts.length - 1];
+          return filename && filename.length > 0 ? filename : 'photo.jpg';
+        } catch {
+          return 'photo.jpg';
+        }
+      };
+      
+      const actualFileName = extractFilenameFromUrl(data.uploadURL);
+
       // Save photo metadata
       await apiRequest('POST', `/api/users/${userId}/photos`, {
         photoUrl: data.uploadURL,
-        fileName: file.name,
+        fileName: actualFileName,
         isPrimary: photos.length === 0,
       });
 
