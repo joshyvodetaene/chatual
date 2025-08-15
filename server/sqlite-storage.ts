@@ -1,5 +1,6 @@
 import { drizzle, BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import BetterSQLite3 from "better-sqlite3";
+import bcrypt from "bcryptjs";
 import { 
   type User, 
   type Room, 
@@ -11,6 +12,8 @@ import {
   type InsertRoomMember,
   type MessageWithUser,
   type RoomWithMembers,
+  type RegisterUser,
+  type LoginUser,
   users,
   rooms,
   messages,
@@ -41,6 +44,9 @@ export class SQLiteStorage implements IStorage {
         id TEXT PRIMARY KEY,
         username TEXT UNIQUE NOT NULL,
         display_name TEXT NOT NULL,
+        password TEXT NOT NULL,
+        gender TEXT NOT NULL,
+        location TEXT NOT NULL,
         avatar TEXT,
         is_online INTEGER DEFAULT 0,
         last_seen INTEGER DEFAULT (strftime('%s', 'now'))
@@ -111,6 +117,41 @@ export class SQLiteStorage implements IStorage {
     
     this.db.insert(users).values(user).run();
     return user;
+  }
+
+  async registerUser(registerData: RegisterUser): Promise<User> {
+    const id = randomUUID();
+    const hashedPassword = await bcrypt.hash(registerData.password, 10);
+    
+    const user: User = {
+      id,
+      username: registerData.username,
+      displayName: registerData.displayName,
+      password: hashedPassword,
+      gender: registerData.gender,
+      location: registerData.location,
+      avatar: registerData.avatar || null,
+      isOnline: false,
+      lastSeen: new Date(),
+    };
+    
+    this.db.insert(users).values(user).run();
+    return user;
+  }
+
+  async authenticateUser(credentials: LoginUser): Promise<User | null> {
+    const user = await this.getUserByUsername(credentials.username);
+    if (!user) return null;
+    
+    const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
+    if (!isPasswordValid) return null;
+    
+    return user;
+  }
+
+  async isUsernameAvailable(username: string): Promise<boolean> {
+    const user = await this.getUserByUsername(username);
+    return !user;
   }
 
   async updateUserOnlineStatus(userId: string, isOnline: boolean): Promise<void> {

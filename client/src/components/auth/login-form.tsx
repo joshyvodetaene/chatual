@@ -1,0 +1,145 @@
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation } from '@tanstack/react-query';
+import { LoginUser, loginSchema } from '@shared/schema';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { LogIn } from 'lucide-react';
+
+interface LoginFormProps {
+  onSuccess: (user: any) => void;
+  onSwitchToRegister: () => void;
+}
+
+export default function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
+  const { toast } = useToast();
+
+  const form = useForm<LoginUser>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      username: '',
+      password: '',
+    },
+  });
+
+  const loginMutation = useMutation({
+    mutationFn: async (data: LoginUser) => {
+      return await apiRequest('POST', '/api/auth/login', data);
+    },
+    onSuccess: async (response) => {
+      const data = await response.json();
+      toast({
+        title: 'Login successful',
+        description: `Welcome back, ${data.user.displayName}!`,
+      });
+      onSuccess(data.user);
+    },
+    onError: async (error: any) => {
+      const errorData = await error.response?.json?.();
+      toast({
+        title: 'Login failed',
+        description: errorData?.error || 'Please check your credentials.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const onSubmit = (data: LoginUser) => {
+    loginMutation.mutate(data);
+  };
+
+  return (
+    <Card className="w-full max-w-md mx-auto">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <LogIn className="w-5 h-5" />
+          Welcome Back
+        </CardTitle>
+        <CardDescription>
+          Sign in to your Chatual account
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="username"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nickname</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Enter your nickname"
+                      {...field}
+                      data-testid="input-login-username"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="password"
+                      placeholder="Enter your password"
+                      {...field}
+                      data-testid="input-login-password"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loginMutation.isPending}
+              data-testid="button-login"
+            >
+              {loginMutation.isPending ? 'Signing In...' : 'Sign In'}
+            </Button>
+          </form>
+        </Form>
+
+        <div className="mt-4 text-center">
+          <p className="text-sm text-gray-600">
+            Don't have an account?{' '}
+            <button
+              onClick={onSwitchToRegister}
+              className="text-primary hover:underline"
+              data-testid="button-switch-to-register"
+            >
+              Create one
+            </button>
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

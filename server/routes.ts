@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { insertUserSchema, insertRoomSchema, insertMessageSchema } from "@shared/schema";
+import { insertUserSchema, insertRoomSchema, insertMessageSchema, registerUserSchema, loginSchema } from "@shared/schema";
 
 interface WebSocketClient extends WebSocket {
   userId?: string;
@@ -121,21 +121,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Auth routes
-  app.post('/api/auth/login', async (req, res) => {
+  app.post('/api/auth/register', async (req, res) => {
     try {
-      const { username, displayName } = req.body;
+      const userData = registerUserSchema.parse(req.body);
       
-      let user = await storage.getUserByUsername(username);
-      if (!user) {
-        user = await storage.createUser({
-          username,
-          displayName,
-        });
+      // Check if username is available
+      const isAvailable = await storage.isUsernameAvailable(userData.username);
+      if (!isAvailable) {
+        return res.status(400).json({ error: 'Username is already taken' });
       }
       
-      res.json({ user });
+      const user = await storage.registerUser(userData);
+      
+      // Don't send password in response
+      const { password, ...userWithoutPassword } = user;
+      res.json({ user: userWithoutPassword });
+    } catch (error) {
+      res.status(400).json({ error: 'Registration failed' });
+    }
+  });
+
+  app.post('/api/auth/login', async (req, res) => {
+    try {
+      const credentials = loginSchema.parse(req.body);
+      
+      const user = await storage.authenticateUser(credentials);
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid username or password' });
+      }
+      
+      // Don't send password in response
+      const { password, ...userWithoutPassword } = user;
+      res.json({ user: userWithoutPassword });
     } catch (error) {
       res.status(400).json({ error: 'Login failed' });
+    }
+  });
+
+  app.post('/api/auth/logout', async (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (userId) {
+        await storage.updateUserOnlineStatus(userId, false);
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: 'Logout failed' });
+    }
+  });
+
+  app.get('/api/auth/check-username/:username', async (req, res) => {
+    try {
+      const { username } = req.params;
+      const isAvailable = await storage.isUsernameAvailable(username);
+      res.json({ available: isAvailable });
+    } catch (error) {
+      res.status(400).json({ error: 'Username check failed' });
     }
   });
 

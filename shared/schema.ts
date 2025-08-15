@@ -7,6 +7,9 @@ export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   username: text("username").notNull().unique(),
   displayName: text("display_name").notNull(),
+  password: text("password").notNull(),
+  gender: text("gender").notNull(),
+  location: text("location").notNull(),
   avatar: text("avatar"),
   isOnline: integer("is_online", { mode: "boolean" }).default(false),
   lastSeen: integer("last_seen", { mode: "timestamp" }).default(sql`(strftime('%s', 'now'))`),
@@ -42,6 +45,22 @@ export const insertUserSchema = createInsertSchema(users).omit({
   lastSeen: true,
 });
 
+export const registerUserSchema = createInsertSchema(users).omit({
+  id: true,
+  isOnline: true,
+  lastSeen: true,
+}).extend({
+  confirmPassword: z.string().min(6),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+export const loginSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required"),
+});
+
 export const insertRoomSchema = createInsertSchema(rooms).omit({
   id: true,
   createdAt: true,
@@ -63,6 +82,8 @@ export type Message = typeof messages.$inferSelect;
 export type RoomMember = typeof roomMembers.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type RegisterUser = z.infer<typeof registerUserSchema>;
+export type LoginUser = z.infer<typeof loginSchema>;
 export type InsertRoom = z.infer<typeof insertRoomSchema>;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type InsertRoomMember = z.infer<typeof insertRoomMemberSchema>;

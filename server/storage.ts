@@ -8,7 +8,9 @@ import {
   type InsertMessage, 
   type InsertRoomMember,
   type MessageWithUser,
-  type RoomWithMembers 
+  type RoomWithMembers,
+  type RegisterUser,
+  type LoginUser
 } from "@shared/schema";
 import { SQLiteStorage } from "./sqlite-storage";
 import { randomUUID } from "crypto";
@@ -18,6 +20,9 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  registerUser(user: RegisterUser): Promise<User>;
+  authenticateUser(credentials: LoginUser): Promise<User | null>;
+  isUsernameAvailable(username: string): Promise<boolean>;
   updateUserOnlineStatus(userId: string, isOnline: boolean): Promise<void>;
   getOnlineUsers(): Promise<User[]>;
 

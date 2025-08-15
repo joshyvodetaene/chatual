@@ -1,17 +1,22 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { User, Room, RoomWithMembers, MessageWithUser } from '@shared/schema';
 import { useWebSocket } from '@/hooks/use-websocket';
+import { apiRequest } from '@/lib/queryClient';
 import Sidebar from '@/components/chat/sidebar';
 import MessageList from '@/components/chat/message-list';
 import MessageInput from '@/components/chat/message-input';
 import UserList from '@/components/chat/user-list';
 import CreateRoomModal from '@/components/chat/create-room-modal';
+import AuthScreen from '@/components/auth/auth-screen';
 import { Button } from '@/components/ui/button';
-import { Hash, Users, Search, Settings } from 'lucide-react';
+import { Hash, Users, Search, Settings, LogOut } from 'lucide-react';
 
 export default function ChatPage() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem('chatual_user');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [activeRoom, setActiveRoom] = useState<Room | null>(null);
   const [showUserList, setShowUserList] = useState(true);
   const [showCreateRoom, setShowCreateRoom] = useState(false);
@@ -27,33 +32,26 @@ export default function ChatPage() {
     setMessages 
   } = useWebSocket(currentUser?.id);
 
-  // Login on component mount
-  useEffect(() => {
-    const loginUser = async () => {
-      const username = localStorage.getItem('chatual_username') || prompt('Enter your username:');
-      const displayName = localStorage.getItem('chatual_display_name') || prompt('Enter your display name:');
-      
-      if (username && displayName) {
-        localStorage.setItem('chatual_username', username);
-        localStorage.setItem('chatual_display_name', displayName);
-        
-        try {
-          const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, displayName }),
-          });
-          
-          const data = await response.json();
-          setCurrentUser(data.user);
-        } catch (error) {
-          console.error('Login failed:', error);
-        }
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      if (currentUser?.id) {
+        await apiRequest('POST', '/api/auth/logout', { userId: currentUser.id });
       }
-    };
+    },
+    onSuccess: () => {
+      setCurrentUser(null);
+      localStorage.removeItem('chatual_user');
+    },
+  });
 
-    loginUser();
-  }, []);
+  const handleAuthSuccess = (user: User) => {
+    setCurrentUser(user);
+    localStorage.setItem('chatual_user', JSON.stringify(user));
+  };
+
+  const handleLogout = () => {
+    logoutMutation.mutate();
+  };
 
   const { data: roomsData } = useQuery<{ rooms: Room[] }>({
     queryKey: ['/api/rooms'],
@@ -107,14 +105,7 @@ export default function ChatPage() {
   };
 
   if (!currentUser) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-chat-bg">
-        <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-gray-600">Connecting to Chatual...</p>
-        </div>
-      </div>
-    );
+    return <AuthScreen onAuthSuccess={handleAuthSuccess} />;
   }
 
   return (
@@ -159,6 +150,15 @@ export default function ChatPage() {
             </Button>
             <Button variant="ghost" size="sm" data-testid="button-settings">
               <Settings className="w-4 h-4" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleLogout}
+              disabled={logoutMutation.isPending}
+              data-testid="button-logout"
+            >
+              <LogOut className="w-4 h-4" />
             </Button>
           </div>
         </div>
