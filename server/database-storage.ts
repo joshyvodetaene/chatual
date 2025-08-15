@@ -22,12 +22,18 @@ import {
   type BlockedUserWithDetails,
   type UpdateUserProfile,
   type UserProfileSettings,
+  type Report,
+  type InsertReport,
+  type UpdateReportStatus,
+  type ReportWithDetails,
+  type ModerationData,
   users,
   rooms,
   messages,
   roomMembers,
   userPhotos,
-  blockedUsers
+  blockedUsers,
+  reports
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, ne } from "drizzle-orm";
@@ -414,5 +420,145 @@ export class DatabaseStorage implements IStorage {
       ));
 
     return !!blocked;
+  }
+
+  async getBlockedByUsers(userId: string): Promise<string[]> {
+    const blockers = await db
+      .select({ blockerId: blockedUsers.blockerId })
+      .from(blockedUsers)
+      .where(eq(blockedUsers.blockedId, userId));
+    
+    return blockers.map(b => b.blockerId);
+  }
+
+  // Reporting methods
+  async createReport(reportData: InsertReport): Promise<Report> {
+    const [report] = await db.insert(reports).values({ ...reportData, id: randomUUID() }).returning();
+    return report;
+  }
+
+  async getReports(adminUserId: string): Promise<ReportWithDetails[]> {
+    // Check if user is admin
+    const admin = await this.getUser(adminUserId);
+    if (!admin || admin.role !== 'admin') {
+      throw new Error('Access denied: Admin privileges required');
+    }
+
+    const reportsList = await db
+      .select({
+        report: reports,
+        reporter: users,
+        reportedUser: { 
+          id: users.id, 
+          username: users.username, 
+          displayName: users.displayName 
+        }
+      })
+      .from(reports)
+      .innerJoin(users, eq(reports.reporterId, users.id))
+      .innerJoin({ reportedUser: users }, eq(reports.reportedUserId, users.id))
+      .orderBy(desc(reports.reportedAt));
+
+    return reportsList.map(({ report, reporter, reportedUser }) => ({
+      ...report,
+      reporter,
+      reportedUser: reportedUser as User,
+      reviewedByUser: report.reviewedBy ? undefined : undefined // Will be populated separately if needed
+    }));
+  }
+
+  async getReportById(reportId: string): Promise<ReportWithDetails | undefined> {
+    const [reportData] = await db
+      .select({
+        report: reports,
+        reporter: users,
+        reportedUser: { 
+          id: users.id, 
+          username: users.username, 
+          displayName: users.displayName 
+        }
+      })
+      .from(reports)
+      .innerJoin(users, eq(reports.reporterId, users.id))
+      .innerJoin({ reportedUser: users }, eq(reports.reportedUserId, users.id))
+      .where(eq(reports.id, reportId));
+
+    if (!reportData) return undefined;
+
+    const { report, reporter, reportedUser } = reportData;
+    let reviewedByUser: User | undefined;
+    
+    if (report.reviewedBy) {
+      reviewedByUser = await this.getUser(report.reviewedBy);
+    }
+
+    return {
+      ...report,
+      reporter,
+      reportedUser: reportedUser as User,
+      reviewedByUser
+    };
+  }
+
+  async updateReportStatus(reportId: string, statusUpdate: UpdateReportStatus, adminUserId: string): Promise<Report> {
+    // Check if user is admin
+    const admin = await this.getUser(adminUserId);
+    if (!admin || admin.role !== 'admin') {
+      throw new Error('Access denied: Admin privileges required');
+    }
+
+    const [updatedReport] = await db
+      .update(reports)
+      .set({
+        status: statusUpdate.status,
+        adminNotes: statusUpdate.adminNotes,
+        reviewedBy: adminUserId,
+        reviewedAt: new Date()
+      })
+      .where(eq(reports.id, reportId))
+      .returning();
+
+    return updatedReport;
+  }
+
+  async getUserReports(reportedUserId: string): Promise<ReportWithDetails[]> {
+    const userReports = await db
+      .select({
+        report: reports,
+        reporter: users,
+        reportedUser: { 
+          id: users.id, 
+          username: users.username, 
+          displayName: users.displayName 
+        }
+      })
+      .from(reports)
+      .innerJoin(users, eq(reports.reporterId, users.id))
+      .innerJoin({ reportedUser: users }, eq(reports.reportedUserId, users.id))
+      .where(eq(reports.reportedUserId, reportedUserId))
+      .orderBy(desc(reports.reportedAt));
+
+    return userReports.map(({ report, reporter, reportedUser }) => ({
+      ...report,
+      reporter,
+      reportedUser: reportedUser as User
+    }));
+  }
+
+  async getModerationData(adminUserId: string): Promise<ModerationData> {
+    // Check if user is admin
+    const admin = await this.getUser(adminUserId);
+    if (!admin || admin.role !== 'admin') {
+      throw new Error('Access denied: Admin privileges required');
+    }
+
+    const allReports = await this.getReports(adminUserId);
+    const pendingReports = allReports.filter(r => r.status === 'pending');
+
+    return {
+      reports: allReports,
+      pendingCount: pendingReports.length,
+      totalCount: allReports.length
+    };
   }
 }

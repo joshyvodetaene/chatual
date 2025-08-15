@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { User, Room, RoomWithMembers, MessageWithUser, PrivateRoom, PrivateChatData } from '@shared/schema';
+import { User, Room, RoomWithMembers, MessageWithUser, PrivateRoom, PrivateChatData, BlockedUserWithDetails } from '@shared/schema';
 import { useWebSocket } from '@/hooks/use-websocket';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import Sidebar from '@/components/chat/sidebar';
@@ -67,6 +67,11 @@ export default function ChatPage() {
     enabled: !!currentUser?.id,
   });
 
+  const { data: blockedUsersData } = useQuery<BlockedUserWithDetails[]>({
+    queryKey: ['/api/users', currentUser?.id, 'blocked-users'],
+    enabled: !!currentUser?.id,
+  });
+
   // Handle chat data changes
   useEffect(() => {
     if (chatData) {
@@ -124,16 +129,24 @@ export default function ChatPage() {
   const handleStartPrivateChat = async (userId: string) => {
     if (!currentUser?.id) return;
     
+    // Check if trying to start private chat with blocked user
+    const blockedUserIds = new Set(blockedUsersData?.map(bu => bu.blockedId) || []);
+    if (blockedUserIds.has(userId)) {
+      // This shouldn't happen as blocked users should be filtered out,
+      // but adding this as a safety check
+      return;
+    }
+    
     try {
-      const response = await apiRequest('POST', '/api/private-chat/create', {
+      const response = await apiRequest('/api/private-chat/create', 'POST', {
         user1Id: currentUser.id,
         user2Id: userId,
-      });
+      }) as unknown as { room: Room };
       
       if (response.room) {
         setActiveRoom(response.room);
         // Refresh private rooms list
-        queryClient.invalidateQueries(['/api/chat-data', currentUser.id]);
+        queryClient.invalidateQueries({ queryKey: ['/api/chat-data', currentUser.id] });
       }
     } catch (error) {
       console.error('Failed to create private chat:', error);
@@ -226,6 +239,7 @@ export default function ChatPage() {
           onlineUsers={roomOnlineUsers}
           currentUser={currentUser}
           onStartPrivateChat={handleStartPrivateChat}
+          blockedUserIds={new Set(blockedUsersData?.map(bu => bu.blockedId) || [])}
         />
       )}
 

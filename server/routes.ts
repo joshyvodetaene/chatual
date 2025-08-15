@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { insertUserSchema, insertRoomSchema, insertMessageSchema, registerUserSchema, loginSchema, insertUserPhotoSchema, updateUserProfileSchema, insertBlockedUserSchema } from "@shared/schema";
+import { insertUserSchema, insertRoomSchema, insertMessageSchema, registerUserSchema, loginSchema, insertUserPhotoSchema, updateUserProfileSchema, insertBlockedUserSchema, insertReportSchema, reportSchema, updateReportStatusSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
 interface WebSocketClient extends WebSocket {
@@ -532,10 +532,143 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId } = req.params;
       const blockedUsers = await storage.getBlockedUsers(userId);
-      res.json({ blockedUsers });
+      res.json(blockedUsers);
     } catch (error) {
       console.error('Get blocked users error:', error);
       res.status(500).json({ error: 'Failed to fetch blocked users' });
+    }
+  });
+
+  // Report routes
+  app.post('/api/reports', async (req, res) => {
+    try {
+      // Get the reporter's user ID from a session or auth token
+      // For now, assuming it's passed in the request body
+      const { reportedUserId, reason, description, reporterId } = req.body;
+      
+      if (!reporterId) {
+        return res.status(401).json({ error: 'Reporter ID is required' });
+      }
+      
+      const reportData = reportSchema.parse({
+        reportedUserId,
+        reason,
+        description,
+      });
+      
+      if (reporterId === reportedUserId) {
+        return res.status(400).json({ error: 'Cannot report yourself' });
+      }
+      
+      // Check if users exist
+      const reporter = await storage.getUser(reporterId);
+      const reportedUser = await storage.getUser(reportedUserId);
+      
+      if (!reporter || !reportedUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      const insertData = insertReportSchema.parse({
+        reporterId,
+        reportedUserId: reportData.reportedUserId,
+        reason: reportData.reason,
+        description: reportData.description,
+        status: 'pending',
+      });
+      
+      const report = await storage.createReport(insertData);
+      res.json({ report });
+    } catch (error) {
+      console.error('Create report error:', error);
+      res.status(400).json({ error: 'Failed to create report' });
+    }
+  });
+
+  app.get('/api/admin/reports', async (req, res) => {
+    try {
+      // Get the admin user ID from session/auth
+      // For now, checking if user has admin role
+      const { adminUserId } = req.query;
+      
+      if (!adminUserId) {
+        return res.status(401).json({ error: 'Admin authentication required' });
+      }
+      
+      const reports = await storage.getReports(adminUserId as string);
+      res.json({ reports });
+    } catch (error) {
+      console.error('Get reports error:', error);
+      if (error instanceof Error && error.message?.includes('Access denied')) {
+        res.status(403).json({ error: 'Admin privileges required' });
+      } else {
+        res.status(500).json({ error: 'Failed to fetch reports' });
+      }
+    }
+  });
+
+  app.get('/api/admin/moderation-data', async (req, res) => {
+    try {
+      const { adminUserId } = req.query;
+      
+      if (!adminUserId) {
+        return res.status(401).json({ error: 'Admin authentication required' });
+      }
+      
+      const moderationData = await storage.getModerationData(adminUserId as string);
+      res.json(moderationData);
+    } catch (error) {
+      console.error('Get moderation data error:', error);
+      if (error instanceof Error && error.message?.includes('Access denied')) {
+        res.status(403).json({ error: 'Admin privileges required' });
+      } else {
+        res.status(500).json({ error: 'Failed to fetch moderation data' });
+      }
+    }
+  });
+
+  app.put('/api/admin/reports/:reportId/status', async (req, res) => {
+    try {
+      const { reportId } = req.params;
+      const { adminUserId, ...statusUpdate } = req.body;
+      
+      if (!adminUserId) {
+        return res.status(401).json({ error: 'Admin authentication required' });
+      }
+      
+      const validatedStatusUpdate = updateReportStatusSchema.parse(statusUpdate);
+      const updatedReport = await storage.updateReportStatus(reportId, validatedStatusUpdate, adminUserId);
+      
+      res.json({ report: updatedReport });
+    } catch (error) {
+      console.error('Update report status error:', error);
+      if (error instanceof Error && error.message?.includes('Access denied')) {
+        res.status(403).json({ error: 'Admin privileges required' });
+      } else {
+        res.status(400).json({ error: 'Failed to update report status' });
+      }
+    }
+  });
+
+  app.get('/api/reports/user/:userId', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { requesterId } = req.query;
+      
+      if (!requesterId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+      
+      // Check if requester is admin
+      const requester = await storage.getUser(requesterId as string);
+      if (!requester || requester.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin privileges required' });
+      }
+      
+      const userReports = await storage.getUserReports(userId);
+      res.json({ reports: userReports });
+    } catch (error) {
+      console.error('Get user reports error:', error);
+      res.status(500).json({ error: 'Failed to fetch user reports' });
     }
   });
 

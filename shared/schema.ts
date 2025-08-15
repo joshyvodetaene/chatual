@@ -68,6 +68,20 @@ export const blockedUsers = pgTable("blocked_users", {
   reason: text("reason"), // Optional reason for blocking
 });
 
+// Reports table for user reporting system
+export const reports = pgTable("reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reporterId: varchar("reporter_id").notNull().references(() => users.id),
+  reportedUserId: varchar("reported_user_id").notNull().references(() => users.id),
+  reason: varchar("reason").notNull(), // "harassment", "spam", "inappropriate_content", "fake_profile", "other"
+  description: text("description"), // Detailed description of the report
+  status: varchar("status").notNull().default("pending"), // "pending", "reviewed", "resolved", "dismissed"
+  reportedAt: timestamp("reported_at").defaultNow(),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewedBy: varchar("reviewed_by").references(() => users.id), // Admin who reviewed the report
+  adminNotes: text("admin_notes"), // Admin notes for the report
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   isOnline: true,
@@ -97,7 +111,7 @@ export const insertRoomSchema = createInsertSchema(rooms).omit({
 
 export const insertMessageSchema = createInsertSchema(messages).omit({
   id: true,
-  timestamp: true,
+  createdAt: true,
 });
 
 export const insertUserPhotoSchema = createInsertSchema(userPhotos).omit({
@@ -113,6 +127,23 @@ export const insertRoomMemberSchema = createInsertSchema(roomMembers).omit({
 export const insertBlockedUserSchema = createInsertSchema(blockedUsers).omit({
   id: true,
   blockedAt: true,
+});
+
+export const insertReportSchema = createInsertSchema(reports).omit({
+  id: true,
+  reportedAt: true,
+  reviewedAt: true,
+});
+
+export const reportSchema = z.object({
+  reportedUserId: z.string().min(1, "User ID is required"),
+  reason: z.enum(["harassment", "spam", "inappropriate_content", "fake_profile", "other"]),
+  description: z.string().min(1, "Description is required").max(500, "Description must be less than 500 characters"),
+});
+
+export const updateReportStatusSchema = z.object({
+  status: z.enum(["pending", "reviewed", "resolved", "dismissed"]),
+  adminNotes: z.string().optional(),
 });
 
 export const updateUserProfileSchema = z.object({
@@ -143,6 +174,10 @@ export type UserPhoto = typeof userPhotos.$inferSelect;
 export type InsertUserPhoto = z.infer<typeof insertUserPhotoSchema>;
 export type BlockedUser = typeof blockedUsers.$inferSelect;
 export type InsertBlockedUser = z.infer<typeof insertBlockedUserSchema>;
+export type Report = typeof reports.$inferSelect;
+export type InsertReport = z.infer<typeof insertReportSchema>;
+export type CreateReport = z.infer<typeof reportSchema>;
+export type UpdateReportStatus = z.infer<typeof updateReportStatusSchema>;
 export type UpdateUserProfile = z.infer<typeof updateUserProfileSchema>;
 
 export type MessageWithUser = Message & {
@@ -185,4 +220,16 @@ export type UserProfileSettings = {
   photos: UserPhoto[];
   primaryPhoto?: UserPhoto;
   blockedUsers: BlockedUserWithDetails[];
+};
+
+export type ReportWithDetails = Report & {
+  reporter: User;
+  reportedUser: User;
+  reviewedByUser?: User;
+};
+
+export type ModerationData = {
+  reports: ReportWithDetails[];
+  pendingCount: number;
+  totalCount: number;
 };

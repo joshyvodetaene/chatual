@@ -1,15 +1,83 @@
 import { RoomWithMembers, User } from '@shared/schema';
 import { cn } from '@/lib/utils';
 import UserDistance from './user-distance';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertTriangle, Flag } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
 
 interface UserListProps {
   room: RoomWithMembers;
   onlineUsers: Set<string>;
   currentUser?: User;
   onStartPrivateChat: (userId: string) => void;
+  blockedUserIds?: Set<string>;
 }
 
-export default function UserList({ room, onlineUsers, currentUser, onStartPrivateChat }: UserListProps) {
+export default function UserList({ room, onlineUsers, currentUser, onStartPrivateChat, blockedUserIds = new Set() }: UserListProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportingUserId, setReportingUserId] = useState<string | null>(null);
+  const [reportReason, setReportReason] = useState<string>('');
+  const [reportDescription, setReportDescription] = useState<string>('');
+
+  const reportUserMutation = useMutation({
+    mutationFn: async (data: { reportedUserId: string; reason: string; description: string }) => {
+      return await apiRequest(`/api/reports`, {
+        method: 'POST',
+        body: {
+          ...data,
+          reporterId: currentUser?.id,
+        },
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "User reported successfully",
+      });
+      setReportDialogOpen(false);
+      setReportingUserId(null);
+      setReportReason('');
+      setReportDescription('');
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to report user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleReportUser = (userId: string) => {
+    setReportingUserId(userId);
+    setReportDialogOpen(true);
+  };
+
+  const handleSubmitReport = () => {
+    if (!reportingUserId || !reportReason || !reportDescription.trim()) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    reportUserMutation.mutate({
+      reportedUserId: reportingUserId,
+      reason: reportReason,
+      description: reportDescription.trim(),
+    });
+  };
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -32,15 +100,17 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
     return colors[hash % colors.length];
   };
 
-  const onlineMembers = room.members.filter(member => onlineUsers.has(member.id));
-  const offlineMembers = room.members.filter(member => !onlineUsers.has(member.id));
+  // Filter out blocked users from members list
+  const filteredMembers = room.members.filter(member => !blockedUserIds.has(member.id));
+  const onlineMembers = filteredMembers.filter(member => onlineUsers.has(member.id));
+  const offlineMembers = filteredMembers.filter(member => !onlineUsers.has(member.id));
 
   return (
     <div className="w-64 bg-white border-l border-gray-200 flex flex-col" data-testid="user-list">
       <div className="p-4 border-b border-gray-200">
         <h3 className="text-sm font-semibold text-gray-900">Online in Room</h3>
         <p className="text-xs text-gray-500 mt-1" data-testid="online-count">
-          {onlineMembers.length} online • {room.memberCount} total
+          {onlineMembers.length} online • {filteredMembers.length} visible
         </p>
       </div>
       
@@ -56,7 +126,7 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
               {onlineMembers.map((member) => (
                 <div
                   key={`online-${member.id}`}
-                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                  className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
                   onClick={() => member.id !== currentUser?.id && onStartPrivateChat(member.id)}
                   data-testid={`online-user-${member.id}`}
                 >
@@ -84,6 +154,22 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                       )}
                     </div>
                   </div>
+                  
+                  {/* Report Button */}
+                  {currentUser && member.id !== currentUser.id && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleReportUser(member.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      data-testid={`button-report-${member.id}`}
+                    >
+                      <Flag className="w-3 h-3" />
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
@@ -101,7 +187,7 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
               {offlineMembers.map((member) => (
                 <div
                   key={`offline-${member.id}`}
-                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors opacity-60"
+                  className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors opacity-60"
                   onClick={() => member.id !== currentUser?.id && onStartPrivateChat(member.id)}
                   data-testid={`offline-user-${member.id}`}
                 >
@@ -126,12 +212,88 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                       )}
                     </div>
                   </div>
+                  
+                  {/* Report Button */}
+                  {currentUser && member.id !== currentUser.id && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleReportUser(member.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      data-testid={`button-report-${member.id}`}
+                    >
+                      <Flag className="w-3 h-3" />
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
           </div>
         )}
       </div>
+
+      {/* Report User Dialog */}
+      <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <AlertTriangle className="w-5 h-5 text-red-500" />
+              <span>Report User</span>
+            </DialogTitle>
+            <DialogDescription>
+              Report this user for inappropriate behavior. Our moderation team will review your report.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="report-reason">Reason *</Label>
+              <Select value={reportReason} onValueChange={setReportReason}>
+                <SelectTrigger data-testid="select-report-reason">
+                  <SelectValue placeholder="Select a reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="harassment">Harassment</SelectItem>
+                  <SelectItem value="spam">Spam</SelectItem>
+                  <SelectItem value="inappropriate_content">Inappropriate Content</SelectItem>
+                  <SelectItem value="fake_profile">Fake Profile</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="report-description">Description *</Label>
+              <Textarea
+                id="report-description"
+                placeholder="Please provide details about why you're reporting this user..."
+                value={reportDescription}
+                onChange={(e) => setReportDescription(e.target.value)}
+                maxLength={500}
+                data-testid="textarea-report-description"
+              />
+              <p className="text-xs text-gray-500 mt-1">{reportDescription.length}/500 characters</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setReportDialogOpen(false)}
+              data-testid="button-cancel-report"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmitReport}
+              disabled={reportUserMutation.isPending || !reportReason || !reportDescription.trim()}
+              data-testid="button-submit-report"
+            >
+              {reportUserMutation.isPending ? 'Reporting...' : 'Submit Report'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

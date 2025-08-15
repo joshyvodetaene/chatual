@@ -21,7 +21,13 @@ import {
   type InsertBlockedUser,
   type BlockedUserWithDetails,
   type UpdateUserProfile,
-  type UserProfileSettings
+  type UserProfileSettings,
+  type Report,
+  type InsertReport,
+  type CreateReport,
+  type UpdateReportStatus,
+  type ReportWithDetails,
+  type ModerationData
 } from "@shared/schema";
 import { DatabaseStorage } from "./database-storage";
 import { randomUUID } from "crypto";
@@ -77,6 +83,15 @@ export interface IStorage {
   unblockUser(blockerId: string, blockedId: string): Promise<void>;
   getBlockedUsers(userId: string): Promise<BlockedUserWithDetails[]>;
   isUserBlocked(blockerId: string, blockedId: string): Promise<boolean>;
+  getBlockedByUsers(userId: string): Promise<string[]>; // Get users who have blocked this user
+  
+  // Reporting methods
+  createReport(reportData: InsertReport): Promise<Report>;
+  getReports(adminUserId: string): Promise<ReportWithDetails[]>; // Admin only
+  getReportById(reportId: string): Promise<ReportWithDetails | undefined>;
+  updateReportStatus(reportId: string, statusUpdate: UpdateReportStatus, adminUserId: string): Promise<Report>;
+  getUserReports(reportedUserId: string): Promise<ReportWithDetails[]>; // Get reports about a specific user
+  getModerationData(adminUserId: string): Promise<ModerationData>; // Get summary for admin panel
 }
 
 export const storage = new DatabaseStorage();
