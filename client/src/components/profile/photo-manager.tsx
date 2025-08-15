@@ -8,7 +8,6 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import type { UserPhoto } from '@shared/schema';
 import type { UploadResult } from '@uppy/core';
-import { PhotoUploader } from '@/components/chat/photo-uploader';
 
 interface PhotoManagerProps {
   userId: string;
@@ -61,57 +60,79 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
     },
   });
 
-  const handleGetUploadParameters = async () => {
-    try {
-      const response = await apiRequest('POST', '/api/photos/upload-url', { 
-        fileName: `photo-${Date.now()}.jpg` 
-      });
-      const data = await response.json();
-      return {
-        method: 'PUT' as const,
-        url: data.uploadURL,
-      };
-    } catch (error) {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type and size
+    if (!file.type.startsWith('image/')) {
       toast({
         title: "Error",
-        description: "Failed to get upload URL",
+        description: "Please select an image file",
         variant: "destructive",
       });
-      throw error;
+      return;
     }
-  };
 
-  const handlePhotoUploadComplete = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+    if (file.size > 10485760) { // 10MB
+      toast({
+        title: "Error",
+        description: "Image must be less than 10MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      const uploadedFile = result.successful?.[0];
-      if (uploadedFile?.uploadURL) {
-        if (uploadedFile.uploadURL) {
-          setUploadingPhotos(prev => [...prev, uploadedFile.uploadURL]);
-        }
-        
-        await apiRequest('POST', `/api/users/${userId}/photos`, {
-          photoUrl: uploadedFile.uploadURL,
-          fileName: uploadedFile.name,
-          isPrimary: photos.length === 0, // First photo becomes primary
-        });
+      // Get upload URL
+      const response = await apiRequest('POST', '/api/photos/upload-url', { 
+        fileName: file.name 
+      });
+      const data = await response.json();
+      
+      setUploadingPhotos(prev => [...prev, 'uploading']);
+      
+      // Upload file directly
+      const uploadResponse = await fetch(data.uploadURL, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
 
-        toast({
-          title: "Success",
-          description: "Photo uploaded successfully",
-        });
-        
-        queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/profile-settings`] });
-        setUploadingPhotos(prev => prev.filter(url => url !== uploadedFile.uploadURL));
+      if (!uploadResponse.ok) {
+        throw new Error('Upload failed');
       }
+
+      // Save photo metadata
+      await apiRequest('POST', `/api/users/${userId}/photos`, {
+        photoUrl: data.uploadURL,
+        fileName: file.name,
+        isPrimary: photos.length === 0,
+      });
+
+      toast({
+        title: "Success",
+        description: "Photo uploaded successfully",
+      });
+      
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/profile-settings`] });
+      setUploadingPhotos([]);
+      
+      // Reset file input
+      event.target.value = '';
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to save photo",
+        description: "Failed to upload photo",
         variant: "destructive",
       });
       setUploadingPhotos([]);
+      event.target.value = '';
     }
   };
+
 
   const getPhotoSrc = (photo: UserPhoto) => {
     return photo.photoUrl.startsWith('http') ? photo.photoUrl : `/photos${photo.photoUrl}`;
@@ -121,19 +142,22 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
     <div className="space-y-6" data-testid="photo-manager">
       {/* Upload Button */}
       <div className="flex justify-center">
-        <PhotoUploader
-          maxNumberOfFiles={1}
-          maxFileSize={10485760} // 10MB
-          onGetUploadParameters={handleGetUploadParameters}
-          onComplete={handlePhotoUploadComplete}
-          buttonClassName="border-2 border-dashed border-gray-300 hover:border-primary p-8 rounded-lg transition-colors bg-transparent"
-        >
-          <div className="text-center">
-            <Plus className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-            <p className="text-sm text-gray-600">Add New Photo</p>
-            <p className="text-xs text-gray-400">Click to upload image</p>
-          </div>
-        </PhotoUploader>
+        <div className="relative">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileSelect}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+            data-testid="photo-input"
+          />
+          <Button className="border-2 border-dashed border-gray-300 hover:border-primary p-8 rounded-lg transition-colors bg-transparent">
+            <div className="text-center">
+              <Plus className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+              <p className="text-sm text-gray-600">Add New Photo</p>
+              <p className="text-xs text-gray-400">Click to upload image</p>
+            </div>
+          </Button>
+        </div>
       </div>
 
       {/* Photos Grid */}
