@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { insertUserSchema, insertRoomSchema, insertMessageSchema, registerUserSchema, loginSchema, insertUserPhotoSchema, updateUserProfileSchema, insertBlockedUserSchema, insertReportSchema, reportSchema, updateReportStatusSchema } from "@shared/schema";
+import { insertUserSchema, insertRoomSchema, insertMessageSchema, registerUserSchema, loginSchema, insertUserPhotoSchema, updateUserProfileSchema, insertBlockedUserSchema, insertReportSchema, reportSchema, updateReportStatusSchema, warnUserSchema, banUserSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
 interface WebSocketClient extends WebSocket {
@@ -669,6 +669,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Get user reports error:', error);
       res.status(500).json({ error: 'Failed to fetch user reports' });
+    }
+  });
+
+  // Admin Dashboard Routes
+  app.get('/api/admin/dashboard-stats', async (req, res) => {
+    try {
+      // In a real app, you'd get the admin user from session/auth
+      // For now, using hardcoded admin ID
+      const adminUserId = req.headers.adminuserid as string || '7a6dab62-7327-4f79-b025-952b687688c1';
+      const stats = await storage.getAdminDashboardStats();
+      res.json({ stats });
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      res.status(500).json({ error: 'Failed to fetch dashboard stats' });
+    }
+  });
+
+  app.get('/api/admin/moderation-data', async (req, res) => {
+    try {
+      const adminUserId = req.headers.adminuserid as string || '7a6dab62-7327-4f79-b025-952b687688c1';
+      const moderationData = await storage.getModerationData(adminUserId);
+      res.json(moderationData);
+    } catch (error) {
+      console.error('Error fetching moderation data:', error);
+      res.status(500).json({ error: 'Failed to fetch moderation data' });
+    }
+  });
+
+  app.get('/api/admin/banned-users', async (req, res) => {
+    try {
+      const bannedUsers = await storage.getBannedUsers();
+      res.json({ users: bannedUsers });
+    } catch (error) {
+      console.error('Error fetching banned users:', error);
+      res.status(500).json({ error: 'Failed to fetch banned users' });
+    }
+  });
+
+  app.post('/api/admin/warn-user', async (req, res) => {
+    try {
+      const adminUserId = req.headers.adminuserid as string || '7a6dab62-7327-4f79-b025-952b687688c1';
+      const warnData = warnUserSchema.parse(req.body);
+      const action = await storage.warnUser(warnData, adminUserId);
+      res.json({ action });
+    } catch (error) {
+      console.error('Error warning user:', error);
+      res.status(500).json({ error: 'Failed to warn user' });
+    }
+  });
+
+  app.post('/api/admin/ban-user', async (req, res) => {
+    try {
+      const adminUserId = req.headers.adminuserid as string || '7a6dab62-7327-4f79-b025-952b687688c1';
+      const banData = banUserSchema.parse(req.body);
+      const result = await storage.banUser(banData, adminUserId);
+      res.json(result);
+    } catch (error) {
+      console.error('Error banning user:', error);
+      res.status(500).json({ error: 'Failed to ban user' });
+    }
+  });
+
+  app.post('/api/admin/unban-user', async (req, res) => {
+    try {
+      const adminUserId = req.headers.adminuserid as string || '7a6dab62-7327-4f79-b025-952b687688c1';
+      const { userId, reason } = req.body;
+      const result = await storage.unbanUser(userId, adminUserId, reason || 'Unbanned by admin');
+      res.json(result);
+    } catch (error) {
+      console.error('Error unbanning user:', error);
+      res.status(500).json({ error: 'Failed to unban user' });
+    }
+  });
+
+  app.get('/api/admin/user/:userId/moderation-history', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const history = await storage.getUserModerationHistory(userId);
+      res.json({ history });
+    } catch (error) {
+      console.error('Error fetching user moderation history:', error);
+      res.status(500).json({ error: 'Failed to fetch moderation history' });
     }
   });
 

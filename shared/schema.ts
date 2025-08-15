@@ -19,6 +19,10 @@ export const users = pgTable("users", {
   avatar: varchar("avatar"),
   isOnline: boolean("is_online").default(false),
   lastSeen: timestamp("last_seen").defaultNow(),
+  isBanned: boolean("is_banned").default(false),
+  bannedAt: timestamp("banned_at"),
+  bannedBy: varchar("banned_by").references(() => users.id),
+  banReason: text("ban_reason"),
 });
 
 export const rooms = pgTable("rooms", {
@@ -66,6 +70,18 @@ export const blockedUsers = pgTable("blocked_users", {
   blockedId: varchar("blocked_id").notNull().references(() => users.id),
   blockedAt: timestamp("blocked_at").defaultNow(),
   reason: text("reason"), // Optional reason for blocking
+});
+
+// User warnings/bans tracking table
+export const userModerationActions = pgTable("user_moderation_actions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  actionType: varchar("action_type").notNull(), // "warning", "ban", "unban"
+  reason: text("reason").notNull(),
+  notes: text("notes"),
+  performedBy: varchar("performed_by").notNull().references(() => users.id),
+  performedAt: timestamp("performed_at").defaultNow(),
+  expiresAt: timestamp("expires_at"), // For temporary bans
 });
 
 // Reports table for user reporting system
@@ -146,6 +162,25 @@ export const updateReportStatusSchema = z.object({
   adminNotes: z.string().optional(),
 });
 
+export const insertModerationActionSchema = createInsertSchema(userModerationActions).omit({
+  id: true,
+  performedAt: true,
+});
+
+export const warnUserSchema = z.object({
+  userId: z.string().min(1, "User ID is required"),
+  reason: z.string().min(1, "Reason is required").max(500, "Reason must be less than 500 characters"),
+  notes: z.string().max(1000, "Notes must be less than 1000 characters").optional(),
+});
+
+export const banUserSchema = z.object({
+  userId: z.string().min(1, "User ID is required"),
+  reason: z.string().min(1, "Reason is required").max(500, "Reason must be less than 500 characters"),
+  notes: z.string().max(1000, "Notes must be less than 1000 characters").optional(),
+  permanent: z.boolean().default(false),
+  duration: z.number().optional(), // Duration in hours for temporary bans
+});
+
 export const updateUserProfileSchema = z.object({
   displayName: z.string().min(1, "Display name is required"),
   location: z.string().min(1, "Location is required"),
@@ -179,6 +214,10 @@ export type InsertReport = z.infer<typeof insertReportSchema>;
 export type CreateReport = z.infer<typeof reportSchema>;
 export type UpdateReportStatus = z.infer<typeof updateReportStatusSchema>;
 export type UpdateUserProfile = z.infer<typeof updateUserProfileSchema>;
+export type UserModerationAction = typeof userModerationActions.$inferSelect;
+export type InsertModerationAction = z.infer<typeof insertModerationActionSchema>;
+export type WarnUser = z.infer<typeof warnUserSchema>;
+export type BanUser = z.infer<typeof banUserSchema>;
 
 export type MessageWithUser = Message & {
   user: User;
@@ -228,8 +267,25 @@ export type ReportWithDetails = Report & {
   reviewedByUser?: User;
 };
 
+export type UserModerationActionWithDetails = UserModerationAction & {
+  user: User;
+  performedByUser: User;
+};
+
 export type ModerationData = {
   reports: ReportWithDetails[];
   pendingCount: number;
   totalCount: number;
+  recentActions: UserModerationActionWithDetails[];
+  bannedUsersCount: number;
+  totalWarnings: number;
+};
+
+export type AdminDashboardStats = {
+  totalUsers: number;
+  bannedUsers: number;
+  pendingReports: number;
+  totalReports: number;
+  recentWarnings: number;
+  activeUsers: number;
 };

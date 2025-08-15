@@ -27,16 +27,23 @@ import {
   type UpdateReportStatus,
   type ReportWithDetails,
   type ModerationData,
+  type UserModerationAction,
+  type InsertModerationAction,
+  type UserModerationActionWithDetails,
+  type WarnUser,
+  type BanUser,
+  type AdminDashboardStats,
   users,
   rooms,
   messages,
   roomMembers,
   userPhotos,
   blockedUsers,
-  reports
+  reports,
+  userModerationActions
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, ne } from "drizzle-orm";
+import { eq, and, or, desc, ne, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 import type { IStorage } from "./storage";
@@ -555,10 +562,195 @@ export class DatabaseStorage implements IStorage {
     const allReports = await this.getReports(adminUserId);
     const pendingReports = allReports.filter(r => r.status === 'pending');
 
+    const recentActions = await this.getRecentModerationActions(10);
+    const bannedUsersCount = await this.getBannedUsersCount();
+    const totalWarnings = await this.getTotalWarningsCount();
+
     return {
       reports: allReports,
       pendingCount: pendingReports.length,
-      totalCount: allReports.length
+      totalCount: allReports.length,
+      recentActions,
+      bannedUsersCount,
+      totalWarnings
+    };
+  }
+
+  // User Moderation Methods
+  async warnUser(warnData: WarnUser, adminUserId: string): Promise<UserModerationAction> {
+    // Check if user is admin
+    const admin = await this.getUser(adminUserId);
+    if (!admin || admin.role !== 'admin') {
+      throw new Error('Access denied: Admin privileges required');
+    }
+
+    const moderationAction: InsertModerationAction = {
+      userId: warnData.userId,
+      actionType: 'warning',
+      reason: warnData.reason,
+      notes: warnData.notes,
+      performedBy: adminUserId,
+    };
+
+    const [action] = await db.insert(userModerationActions).values({ ...moderationAction, id: randomUUID() }).returning();
+    return action;
+  }
+
+  async banUser(banData: BanUser, adminUserId: string): Promise<{ user: User; action: UserModerationAction }> {
+    // Check if user is admin
+    const admin = await this.getUser(adminUserId);
+    if (!admin || admin.role !== 'admin') {
+      throw new Error('Access denied: Admin privileges required');
+    }
+
+    // Calculate expiration time for temporary bans
+    let expiresAt: Date | null = null;
+    if (!banData.permanent && banData.duration) {
+      expiresAt = new Date(Date.now() + banData.duration * 60 * 60 * 1000); // Convert hours to milliseconds
+    }
+
+    // Update user ban status
+    const [bannedUser] = await db
+      .update(users)
+      .set({
+        isBanned: true,
+        bannedAt: new Date(),
+        bannedBy: adminUserId,
+        banReason: banData.reason
+      })
+      .where(eq(users.id, banData.userId))
+      .returning();
+
+    // Create moderation action record
+    const moderationAction: InsertModerationAction = {
+      userId: banData.userId,
+      actionType: 'ban',
+      reason: banData.reason,
+      notes: banData.notes,
+      performedBy: adminUserId,
+      expiresAt
+    };
+
+    const [action] = await db.insert(userModerationActions).values({ ...moderationAction, id: randomUUID() }).returning();
+
+    return { user: bannedUser, action };
+  }
+
+  async unbanUser(userId: string, adminUserId: string, reason: string): Promise<{ user: User; action: UserModerationAction }> {
+    // Check if user is admin
+    const admin = await this.getUser(adminUserId);
+    if (!admin || admin.role !== 'admin') {
+      throw new Error('Access denied: Admin privileges required');
+    }
+
+    // Update user ban status
+    const [unbannedUser] = await db
+      .update(users)
+      .set({
+        isBanned: false,
+        bannedAt: null,
+        bannedBy: null,
+        banReason: null
+      })
+      .where(eq(users.id, userId))
+      .returning();
+
+    // Create moderation action record
+    const moderationAction: InsertModerationAction = {
+      userId,
+      actionType: 'unban',
+      reason,
+      notes: 'User unbanned by admin',
+      performedBy: adminUserId,
+    };
+
+    const [action] = await db.insert(userModerationActions).values({ ...moderationAction, id: randomUUID() }).returning();
+
+    return { user: unbannedUser, action };
+  }
+
+  async getUserModerationHistory(userId: string): Promise<UserModerationActionWithDetails[]> {
+    const actions = await db
+      .select({
+        action: userModerationActions,
+        user: users,
+        performedByUser: { 
+          id: users.id, 
+          username: users.username, 
+          displayName: users.displayName 
+        }
+      })
+      .from(userModerationActions)
+      .innerJoin(users, eq(userModerationActions.userId, users.id))
+      .innerJoin({ performedByUser: users }, eq(userModerationActions.performedBy, users.id))
+      .where(eq(userModerationActions.userId, userId))
+      .orderBy(desc(userModerationActions.performedAt));
+
+    return actions.map(({ action, user, performedByUser }) => ({
+      ...action,
+      user,
+      performedByUser: performedByUser as User
+    }));
+  }
+
+  async getRecentModerationActions(limit: number = 10): Promise<UserModerationActionWithDetails[]> {
+    const actions = await db
+      .select({
+        action: userModerationActions,
+        user: users,
+        performedByUser: { 
+          id: users.id, 
+          username: users.username, 
+          displayName: users.displayName 
+        }
+      })
+      .from(userModerationActions)
+      .innerJoin(users, eq(userModerationActions.userId, users.id))
+      .innerJoin({ performedByUser: users }, eq(userModerationActions.performedBy, users.id))
+      .orderBy(desc(userModerationActions.performedAt))
+      .limit(limit);
+
+    return actions.map(({ action, user, performedByUser }) => ({
+      ...action,
+      user,
+      performedByUser: performedByUser as User
+    }));
+  }
+
+  async getBannedUsers(): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.isBanned, true));
+  }
+
+  async getBannedUsersCount(): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` }).from(users).where(eq(users.isBanned, true));
+    return result[0]?.count || 0;
+  }
+
+  async getTotalWarningsCount(): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` }).from(userModerationActions).where(eq(userModerationActions.actionType, 'warning'));
+    return result[0]?.count || 0;
+  }
+
+  async getAdminDashboardStats(): Promise<AdminDashboardStats> {
+    const [totalUsers] = await db.select({ count: sql<number>`count(*)` }).from(users);
+    const [bannedUsers] = await db.select({ count: sql<number>`count(*)` }).from(users).where(eq(users.isBanned, true));
+    const [pendingReports] = await db.select({ count: sql<number>`count(*)` }).from(reports).where(eq(reports.status, 'pending'));
+    const [totalReports] = await db.select({ count: sql<number>`count(*)` }).from(reports);
+    const [recentWarnings] = await db.select({ count: sql<number>`count(*)` }).from(userModerationActions).where(
+      and(
+        eq(userModerationActions.actionType, 'warning'),
+        sql`${userModerationActions.performedAt} >= NOW() - INTERVAL '7 days'`
+      )
+    );
+    const [activeUsers] = await db.select({ count: sql<number>`count(*)` }).from(users).where(eq(users.isOnline, true));
+
+    return {
+      totalUsers: totalUsers.count || 0,
+      bannedUsers: bannedUsers.count || 0,
+      pendingReports: pendingReports.count || 0,
+      totalReports: totalReports.count || 0,
+      recentWarnings: recentWarnings.count || 0,
+      activeUsers: activeUsers.count || 0,
     };
   }
 }
