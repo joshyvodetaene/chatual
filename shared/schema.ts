@@ -23,7 +23,7 @@ export const users = pgTable("users", {
   lastSeen: timestamp("last_seen").defaultNow(),
   isBanned: boolean("is_banned").default(false),
   bannedAt: timestamp("banned_at"),
-  bannedBy: varchar("banned_by").references(() => users.id),
+  bannedBy: varchar("banned_by"),
   banReason: text("ban_reason"),
 });
 

@@ -189,7 +189,7 @@ export class DatabaseStorage implements IStorage {
         id: m.photo.id,
         photoUrl: m.photo.photoUrl,
         fileName: m.photo.fileName,
-        isPrimary: m.photo.isPrimary
+        isPrimary: m.photo.isPrimary || false
       } : null
     }));
   }
@@ -315,12 +315,12 @@ export class DatabaseStorage implements IStorage {
       whereCondition = and(
         eq(messages.roomId, roomId),
         gt(messages.createdAt, new Date(before))
-      );
+      )!;
     } else if (after) {
       whereCondition = and(
         eq(messages.roomId, roomId),
         lt(messages.createdAt, new Date(after))
-      );
+      )!;
     }
     
     // Get one extra message to check if there are more
@@ -351,7 +351,7 @@ export class DatabaseStorage implements IStorage {
           id: photo.id,
           photoUrl: photo.photoUrl,
           fileName: photo.fileName,
-          isPrimary: photo.isPrimary
+          isPrimary: photo.isPrimary || false
         } : null
       }
     })).reverse(); // Reverse to show oldest first
@@ -388,7 +388,10 @@ export class DatabaseStorage implements IStorage {
     return {
       ...user,
       photos,
-      primaryPhoto
+      primaryPhoto: primaryPhoto ? {
+        ...primaryPhoto,
+        isPrimary: primaryPhoto.isPrimary || false
+      } : primaryPhoto
     };
   }
 
@@ -512,19 +515,21 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Access denied: Admin privileges required');
     }
 
+    const reportedUserAlias = {
+      id: users.id,
+      username: users.username,
+      displayName: users.displayName
+    };
+    
     const reportsList = await db
       .select({
         report: reports,
         reporter: users,
-        reportedUser: { 
-          id: users.id, 
-          username: users.username, 
-          displayName: users.displayName 
-        }
+        reportedUser: reportedUserAlias
       })
       .from(reports)
       .innerJoin(users, eq(reports.reporterId, users.id))
-      .innerJoin({ reportedUser: users }, eq(reports.reportedUserId, users.id))
+      .innerJoin(users, eq(reports.reportedUserId, users.id))
       .orderBy(desc(reports.reportedAt));
 
     return reportsList.map(({ report, reporter, reportedUser }) => ({
@@ -536,19 +541,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getReportById(reportId: string): Promise<ReportWithDetails | undefined> {
+    const reportedUserAlias = {
+      id: users.id,
+      username: users.username,
+      displayName: users.displayName
+    };
+    
     const [reportData] = await db
       .select({
         report: reports,
         reporter: users,
-        reportedUser: { 
-          id: users.id, 
-          username: users.username, 
-          displayName: users.displayName 
-        }
+        reportedUser: reportedUserAlias
       })
       .from(reports)
       .innerJoin(users, eq(reports.reporterId, users.id))
-      .innerJoin({ reportedUser: users }, eq(reports.reportedUserId, users.id))
+      .innerJoin(users, eq(reports.reportedUserId, users.id))
       .where(eq(reports.id, reportId));
 
     if (!reportData) return undefined;
@@ -590,19 +597,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserReports(reportedUserId: string): Promise<ReportWithDetails[]> {
+    const reportedUserAlias = {
+      id: users.id,
+      username: users.username,
+      displayName: users.displayName
+    };
+    
     const userReports = await db
       .select({
         report: reports,
         reporter: users,
-        reportedUser: { 
-          id: users.id, 
-          username: users.username, 
-          displayName: users.displayName 
-        }
+        reportedUser: reportedUserAlias
       })
       .from(reports)
       .innerJoin(users, eq(reports.reporterId, users.id))
-      .innerJoin({ reportedUser: users }, eq(reports.reportedUserId, users.id))
+      .innerJoin(users, eq(reports.reportedUserId, users.id))
       .where(eq(reports.reportedUserId, reportedUserId))
       .orderBy(desc(reports.reportedAt));
 
@@ -731,19 +740,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserModerationHistory(userId: string): Promise<UserModerationActionWithDetails[]> {
+    // Create aliases for the two different user tables
+    const targetUser = users;
+    const performingUser = users;
+    
     const actions = await db
       .select({
         action: userModerationActions,
-        user: users,
+        user: targetUser,
         performedByUser: { 
-          id: users.id, 
-          username: users.username, 
-          displayName: users.displayName 
+          id: performingUser.id, 
+          username: performingUser.username, 
+          displayName: performingUser.displayName 
         }
       })
       .from(userModerationActions)
-      .innerJoin(users, eq(userModerationActions.userId, users.id))
-      .innerJoin({ performedByUser: users }, eq(userModerationActions.performedBy, users.id))
+      .innerJoin(targetUser, eq(userModerationActions.userId, targetUser.id))
+      .innerJoin(performingUser, eq(userModerationActions.performedBy, performingUser.id))
       .where(eq(userModerationActions.userId, userId))
       .orderBy(desc(userModerationActions.performedAt));
 
@@ -755,19 +768,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRecentModerationActions(limit: number = 10): Promise<UserModerationActionWithDetails[]> {
+    // Create aliases for the two different user tables
+    const targetUser = users;
+    const performingUser = users;
+    
     const actions = await db
       .select({
         action: userModerationActions,
-        user: users,
+        user: targetUser,
         performedByUser: { 
-          id: users.id, 
-          username: users.username, 
-          displayName: users.displayName 
+          id: performingUser.id, 
+          username: performingUser.username, 
+          displayName: performingUser.displayName 
         }
       })
       .from(userModerationActions)
-      .innerJoin(users, eq(userModerationActions.userId, users.id))
-      .innerJoin({ performedByUser: users }, eq(userModerationActions.performedBy, users.id))
+      .innerJoin(targetUser, eq(userModerationActions.userId, targetUser.id))
+      .innerJoin(performingUser, eq(userModerationActions.performedBy, performingUser.id))
       .orderBy(desc(userModerationActions.performedAt))
       .limit(limit);
 
