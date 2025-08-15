@@ -172,13 +172,26 @@ export class DatabaseStorage implements IStorage {
   async getRoomMembers(roomId: string): Promise<User[]> {
     const members = await db
       .select({
-        user: users
+        user: users,
+        photo: userPhotos
       })
       .from(roomMembers)
       .innerJoin(users, eq(roomMembers.userId, users.id))
+      .leftJoin(userPhotos, and(
+        eq(userPhotos.userId, users.id),
+        eq(userPhotos.isPrimary, true)
+      ))
       .where(eq(roomMembers.roomId, roomId));
     
-    return members.map(m => m.user);
+    return members.map(m => ({
+      ...m.user,
+      primaryPhoto: m.photo ? {
+        id: m.photo.id,
+        photoUrl: m.photo.photoUrl,
+        fileName: m.photo.fileName,
+        isPrimary: m.photo.isPrimary
+      } : null
+    }));
   }
 
   async getUserRooms(userId: string): Promise<Room[]> {
@@ -314,10 +327,15 @@ export class DatabaseStorage implements IStorage {
     const roomMessages = await db
       .select({
         message: messages,
-        user: users
+        user: users,
+        photo: userPhotos
       })
       .from(messages)
       .innerJoin(users, eq(messages.userId, users.id))
+      .leftJoin(userPhotos, and(
+        eq(userPhotos.userId, users.id),
+        eq(userPhotos.isPrimary, true)
+      ))
       .where(whereCondition)
       .orderBy(desc(messages.createdAt))
       .limit(limit + 1);
@@ -325,9 +343,17 @@ export class DatabaseStorage implements IStorage {
     const hasMore = roomMessages.length > limit;
     const items = roomMessages.slice(0, limit);
     
-    const messagesWithUser = items.map(({ message, user }) => ({
+    const messagesWithUser = items.map(({ message, user, photo }) => ({
       ...message,
-      user
+      user: {
+        ...user,
+        primaryPhoto: photo ? {
+          id: photo.id,
+          photoUrl: photo.photoUrl,
+          fileName: photo.fileName,
+          isPrimary: photo.isPrimary
+        } : null
+      }
     })).reverse(); // Reverse to show oldest first
     
     // Generate cursors

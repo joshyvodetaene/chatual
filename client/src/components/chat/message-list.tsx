@@ -177,12 +177,20 @@ export default function MessageList({
               onStartPrivateChat={onStartPrivateChat}
               disabled={isOwnMessage}
             >
-              <div className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium flex-shrink-0 cursor-pointer",
-                isOwnMessage ? "bg-primary" : getAvatarColor(message.user.displayName)
-              )}>
-                {getInitials(message.user.displayName)}
-              </div>
+              {message.user.primaryPhoto?.photoUrl ? (
+                <img 
+                  src={message.user.primaryPhoto.photoUrl}
+                  alt={`${message.user.displayName} profile`}
+                  className="w-10 h-10 rounded-full object-cover flex-shrink-0 cursor-pointer border-2 border-white"
+                />
+              ) : (
+                <div className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium flex-shrink-0 cursor-pointer",
+                  isOwnMessage ? "bg-primary" : getAvatarColor(message.user.displayName)
+                )}>
+                  {getInitials(message.user.displayName)}
+                </div>
+              )}
             </UserProfileMenu>
             <div className={cn("flex-1", isOwnMessage && "text-right")}>
               <div className={cn(
@@ -249,12 +257,20 @@ export default function MessageList({
               currentUser={currentUser}
               onStartPrivateChat={onStartPrivateChat}
             >
-              <div className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium flex-shrink-0 cursor-pointer",
-                getAvatarColor(typingUser.displayName)
-              )}>
-                {getInitials(typingUser.displayName)}
-              </div>
+              {typingUser.primaryPhoto?.photoUrl ? (
+                <img 
+                  src={typingUser.primaryPhoto.photoUrl}
+                  alt={`${typingUser.displayName} profile`}
+                  className="w-10 h-10 rounded-full object-cover flex-shrink-0 cursor-pointer border-2 border-white"
+                />
+              ) : (
+                <div className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium flex-shrink-0 cursor-pointer",
+                  getAvatarColor(typingUser.displayName)
+                )}>
+                  {getInitials(typingUser.displayName)}
+                </div>
+              )}
             </UserProfileMenu>
             <div className="flex-1">
               <div className="flex items-baseline space-x-2 mb-1">

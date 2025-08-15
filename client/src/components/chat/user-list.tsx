@@ -76,12 +76,20 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                     data-testid={`online-user-${member.id}`}
                   >
                     <div className="relative">
-                      <div className={cn(
-                        "w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium",
-                        getAvatarColor(member.displayName)
-                      )}>
-                        {getInitials(member.displayName)}
-                      </div>
+                      {member.primaryPhoto?.photoUrl ? (
+                        <img 
+                          src={member.primaryPhoto.photoUrl}
+                          alt={`${member.displayName} profile`}
+                          className="w-8 h-8 rounded-full object-cover border-2 border-white"
+                        />
+                      ) : (
+                        <div className={cn(
+                          "w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium",
+                          getAvatarColor(member.displayName)
+                        )}>
+                          {getInitials(member.displayName)}
+                        </div>
+                      )}
                       <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-accent border-2 border-white rounded-full"></div>
                     </div>
                     <div className="flex-1 min-w-0">
@@ -126,9 +134,17 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                     data-testid={`offline-user-${member.id}`}
                   >
                     <div className="relative">
-                      <div className="w-8 h-8 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center text-white text-xs font-medium">
-                        {getInitials(member.displayName)}
-                      </div>
+                      {member.primaryPhoto?.photoUrl ? (
+                        <img 
+                          src={member.primaryPhoto.photoUrl}
+                          alt={`${member.displayName} profile`}
+                          className="w-8 h-8 rounded-full object-cover border-2 border-white opacity-60"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center text-white text-xs font-medium">
+                          {getInitials(member.displayName)}
+                        </div>
+                      )}
                       <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-gray-400 border-2 border-white rounded-full"></div>
                     </div>
                     <div className="flex-1 min-w-0">

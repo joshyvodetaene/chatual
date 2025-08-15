@@ -196,7 +196,14 @@ export const updateUserProfileSchema = z.object({
   path: ["ageMax"],
 });
 
-export type User = typeof users.$inferSelect;
+export type User = typeof users.$inferSelect & {
+  primaryPhoto?: {
+    id: string;
+    photoUrl: string;
+    fileName: string;
+    isPrimary: boolean;
+  } | null;
+};
 export type Room = typeof rooms.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type RoomMember = typeof roomMembers.$inferSelect;
