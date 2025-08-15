@@ -122,20 +122,8 @@ export default function MessageInput({
           throw new Error('No upload URL received');
         }
         
-        // Extract actual filename from the storage URL
-        const extractFilenameFromUrl = (url: string): string => {
-          try {
-            const urlObj = new URL(url);
-            const pathname = urlObj.pathname;
-            const parts = pathname.split('/');
-            const filename = parts[parts.length - 1];
-            return filename && filename.length > 0 ? filename : 'photo.jpg';
-          } catch {
-            return 'photo.jpg';
-          }
-        };
-        
-        const photoFileName = extractFilenameFromUrl(photoUrl);
+        // Use the original filename for display, not the storage UUID filename
+        const photoFileName = uploadedFile.name || 'photo.jpg';
         
         console.log('Photo upload completed:', { photoUrl, photoFileName, originalName: uploadedFile.name });
         
