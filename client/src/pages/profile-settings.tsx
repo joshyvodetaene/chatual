@@ -14,32 +14,33 @@ import BlockedUsers from '@/components/profile/blocked-users';
 import ContactFilters from '@/components/profile/contact-filters';
 
 export default function ProfileSettings() {
-  // Mock current user - in a real app, this would come from auth context
-  const currentUser: User = {
-    id: '62ee0027-878c-456f-a75a-63b7be426a97',
-    username: 'testuser',
-    displayName: 'Test User',
-    password: 'hashed_password',
-    gender: 'male',
-    location: 'New York, NY',
-    latitude: '40.7128',
-    longitude: '-74.0060',
-    genderPreference: 'all',
-    ageMin: 18,
-    ageMax: 99,
-    role: 'user',
-    avatar: null,
-    isOnline: true,
-    lastSeen: new Date(),
-  };
+  // Get current user from localStorage (same as chat page)
+  const [currentUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem('chatual_user');
+    return saved ? JSON.parse(saved) : null;
+  });
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Fetch profile settings
   const { data: profileSettings, isLoading } = useQuery({
-    queryKey: [`/api/users/${currentUser.id}/profile-settings`],
-    enabled: !!currentUser.id,
+    queryKey: [`/api/users/${currentUser?.id}/profile-settings`],
+    enabled: !!currentUser?.id,
   }) as { data: UserProfileSettings | undefined; isLoading: boolean };
+
+  // Redirect to login if no current user
+  if (!currentUser) {
+    return (
+      <div className="flex-1 flex items-center justify-center" data-testid="profile-settings-no-user">
+        <div className="text-center">
+          <p className="text-gray-500 mb-4">Please log in to access profile settings</p>
+          <Button onClick={() => window.location.href = '/'}>
+            Go to Chat
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -58,7 +59,7 @@ export default function ProfileSettings() {
         <div className="text-center">
           <p className="text-gray-500">Failed to load profile settings</p>
           <Button 
-            onClick={() => queryClient.invalidateQueries({ queryKey: [`/api/users/${currentUser.id}/profile-settings`] })}
+            onClick={() => queryClient.invalidateQueries({ queryKey: [`/api/users/${currentUser?.id}/profile-settings`] })}
             className="mt-4"
           >
             Retry
@@ -109,7 +110,7 @@ export default function ProfileSettings() {
               </CardHeader>
               <CardContent>
                 <PhotoManager 
-                  userId={currentUser.id}
+                  userId={currentUser?.id || ''}
                   photos={profileSettings?.photos || []}
                   primaryPhoto={profileSettings?.primaryPhoto}
                 />
@@ -143,7 +144,7 @@ export default function ProfileSettings() {
               </CardHeader>
               <CardContent>
                 <BlockedUsers 
-                  userId={currentUser.id}
+                  userId={currentUser?.id || ''}
                   blockedUsers={profileSettings?.blockedUsers || []}
                 />
               </CardContent>
