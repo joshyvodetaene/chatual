@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Paperclip, Smile, Send, Image } from 'lucide-react';
 import { PhotoUploader } from './photo-uploader';
+import EmojiPicker from './emoji-picker';
 import { apiRequest } from '@/lib/queryClient';
 import type { UploadResult } from '@uppy/core';
 import { useToast } from '@/hooks/use-toast';
@@ -20,7 +21,9 @@ export default function MessageInput({
 }: MessageInputProps) {
   const [message, setMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
   const { toast } = useToast();
 
@@ -89,6 +92,53 @@ export default function MessageInput({
     }
   };
 
+  // Handle emoji selection
+  const handleEmojiSelect = (emoji: string) => {
+    if (textareaRef.current) {
+      const textarea = textareaRef.current;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const currentMessage = message;
+      
+      // Insert emoji at cursor position
+      const newMessage = currentMessage.slice(0, start) + emoji + currentMessage.slice(end);
+      setMessage(newMessage);
+      
+      // Set cursor position after the inserted emoji
+      setTimeout(() => {
+        const newCursorPosition = start + emoji.length;
+        textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+        textarea.focus();
+        
+        // Auto-resize textarea
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+      }, 0);
+    }
+    
+    setShowEmojiPicker(false);
+  };
+
+  // Handle click outside emoji picker
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (emojiButtonRef.current && 
+          !emojiButtonRef.current.contains(event.target as Node) &&
+          showEmojiPicker) {
+        // Check if click is inside emoji picker
+        const emojiPicker = document.querySelector('[data-testid="emoji-picker"]');
+        if (!emojiPicker || !emojiPicker.contains(event.target as Node)) {
+          setShowEmojiPicker(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showEmojiPicker]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -124,14 +174,22 @@ export default function MessageInput({
               data-testid="input-message"
             />
             <Button
+              ref={emojiButtonRef}
               variant="ghost"
               size="sm"
-              className="absolute right-3 bottom-3 h-auto p-1"
+              className="absolute right-3 bottom-3 h-auto p-1 hover:bg-gray-100"
               disabled={disabled}
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
               data-testid="button-emoji"
             >
-              <Smile className="w-4 h-4 text-gray-500" />
+              <Smile className={`w-4 h-4 ${showEmojiPicker ? 'text-primary' : 'text-gray-500'}`} />
             </Button>
+            
+            <EmojiPicker
+              isOpen={showEmojiPicker}
+              onEmojiSelect={handleEmojiSelect}
+              onToggle={() => setShowEmojiPicker(!showEmojiPicker)}
+            />
           </div>
         </div>
         
