@@ -22,6 +22,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { LogIn } from 'lucide-react';
+import { useResponsive } from '@/hooks/use-responsive';
+import { cn } from '@/lib/utils';
 
 interface LoginFormProps {
   onSuccess: (user: any) => void;
@@ -30,6 +32,7 @@ interface LoginFormProps {
 
 export default function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
   const { toast } = useToast();
+  const { isMobile } = useResponsive();
 
   const form = useForm<LoginUser>({
     resolver: zodResolver(loginSchema),
@@ -67,18 +70,33 @@ export default function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormPr
 
   return (
     <Card className="w-full max-w-md mx-auto bg-card/80 backdrop-blur-sm border-primary/20 shadow-2xl red-glow">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-white text-xl">
-          <LogIn className="w-6 h-6 text-primary" />
+      <CardHeader className={cn(
+        isMobile && "p-4 pb-3"
+      )}>
+        <CardTitle className={cn(
+          "flex items-center gap-2 text-white",
+          isMobile ? "text-lg" : "text-xl"
+        )}>
+          <LogIn className={cn(
+            "text-primary",
+            isMobile ? "w-5 h-5" : "w-6 h-6"
+          )} />
           Welcome Back
         </CardTitle>
-        <CardDescription className="text-gray-300">
+        <CardDescription className={cn(
+          "text-gray-300",
+          isMobile ? "text-sm" : ""
+        )}>
           Sign in to your Chatual account
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className={cn(
+        isMobile && "p-4 pt-0"
+      )}>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className={cn(
+            isMobile ? "space-y-3" : "space-y-4"
+          )}>
             <FormField
               control={form.control}
               name="username"

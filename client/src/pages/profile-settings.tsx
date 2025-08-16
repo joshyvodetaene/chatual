@@ -13,6 +13,8 @@ import LocationSettings from '@/components/profile/location-settings';
 import BlockedUsers from '@/components/profile/blocked-users';
 import ContactFilters from '@/components/profile/contact-filters';
 import { BackButton } from '@/components/ui/back-button';
+import { useResponsive } from '@/hooks/use-responsive';
+import { cn } from '@/lib/utils';
 
 export default function ProfileSettings() {
   // Get current user from localStorage (same as chat page)
@@ -22,6 +24,7 @@ export default function ProfileSettings() {
   });
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isMobile, isTablet } = useResponsive();
 
   // Fetch profile settings
   const { data: profileSettings, isLoading } = useQuery({
@@ -71,46 +74,116 @@ export default function ProfileSettings() {
   }
 
   return (
-    <div className="flex-1 p-6 max-w-4xl mx-auto bg-background sensual-gradient min-h-screen" data-testid="profile-settings">
+    <div className={cn(
+      "flex-1 bg-background sensual-gradient min-h-screen",
+      isMobile ? "p-4" : "p-6",
+      !isMobile && "max-w-4xl mx-auto"
+    )} data-testid="profile-settings">
       <BackButton className="mb-4" />
       <div className="mb-6">
-        <div className="flex items-center space-x-3 mb-2">
-          <Settings className="w-6 h-6 text-primary" />
-          <h1 className="text-2xl font-bold text-white text-glow">Profile Settings</h1>
+        <div className={cn(
+          "flex items-center mb-2",
+          isMobile ? "space-x-2" : "space-x-3"
+        )}>
+          <Settings className={cn(
+            "text-primary",
+            isMobile ? "w-5 h-5" : "w-6 h-6"
+          )} />
+          <h1 className={cn(
+            "font-bold text-white text-glow",
+            isMobile ? "text-xl" : "text-2xl"
+          )}>Profile Settings</h1>
         </div>
-        <p className="text-gray-300">Manage your account settings and preferences</p>
+        <p className={cn(
+          "text-gray-300",
+          isMobile ? "text-sm" : ""
+        )}>Manage your account settings and preferences</p>
       </div>
 
       <Tabs defaultValue="photos" className="w-full">
-        <TabsList className="grid w-full grid-cols-4" data-testid="settings-tabs">
-          <TabsTrigger value="photos" data-testid="tab-photos">
-            <Camera className="w-4 h-4 mr-2" />
-            Photos
+        <TabsList className={cn(
+          "grid w-full",
+          isMobile ? "grid-cols-2 gap-1 h-auto" : "grid-cols-4",
+          isMobile && "p-1"
+        )} data-testid="settings-tabs">
+          <TabsTrigger 
+            value="photos" 
+            data-testid="tab-photos"
+            className={cn(
+              "flex items-center justify-center",
+              isMobile ? "flex-col gap-1 h-16 text-xs" : "flex-row gap-2"
+            )}
+          >
+            <Camera className={cn(
+              isMobile ? "w-5 h-5" : "w-4 h-4"
+            )} />
+            <span className={isMobile ? "leading-tight" : ""}>Photos</span>
           </TabsTrigger>
-          <TabsTrigger value="location" data-testid="tab-location">
-            <MapPin className="w-4 h-4 mr-2" />
-            Location
+          <TabsTrigger 
+            value="location" 
+            data-testid="tab-location"
+            className={cn(
+              "flex items-center justify-center",
+              isMobile ? "flex-col gap-1 h-16 text-xs" : "flex-row gap-2"
+            )}
+          >
+            <MapPin className={cn(
+              isMobile ? "w-5 h-5" : "w-4 h-4"
+            )} />
+            <span className={isMobile ? "leading-tight" : ""}>Location</span>
           </TabsTrigger>
-          <TabsTrigger value="blocked" data-testid="tab-blocked">
-            <Shield className="w-4 h-4 mr-2" />
-            Blocked Users
+          <TabsTrigger 
+            value="blocked" 
+            data-testid="tab-blocked"
+            className={cn(
+              "flex items-center justify-center",
+              isMobile ? "flex-col gap-1 h-16 text-xs" : "flex-row gap-2"
+            )}
+          >
+            <Shield className={cn(
+              isMobile ? "w-5 h-5" : "w-4 h-4"
+            )} />
+            <span className={isMobile ? "leading-tight text-center" : ""}>Blocked Users</span>
           </TabsTrigger>
-          <TabsTrigger value="filters" data-testid="tab-filters">
-            <Users className="w-4 h-4 mr-2" />
-            Contact Filters
+          <TabsTrigger 
+            value="filters" 
+            data-testid="tab-filters"
+            className={cn(
+              "flex items-center justify-center",
+              isMobile ? "flex-col gap-1 h-16 text-xs" : "flex-row gap-2"
+            )}
+          >
+            <Users className={cn(
+              isMobile ? "w-5 h-5" : "w-4 h-4"
+            )} />
+            <span className={isMobile ? "leading-tight text-center" : ""}>Contact Filters</span>
           </TabsTrigger>
         </TabsList>
 
-        <div className="mt-6">
-          <TabsContent value="photos" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Photo Management</CardTitle>
-                <CardDescription>
+        <div className={cn(
+          isMobile ? "mt-4" : "mt-6"
+        )}>
+          <TabsContent value="photos" className={cn(
+            isMobile ? "space-y-4" : "space-y-6"
+          )}>
+            <Card className={cn(
+              isMobile && "mx-0"
+            )}>
+              <CardHeader className={cn(
+                isMobile && "p-4 pb-3"
+              )}>
+                <CardTitle className={cn(
+                  isMobile ? "text-lg" : ""
+                )}>Photo Management</CardTitle>
+                <CardDescription className={cn(
+                  isMobile ? "text-sm" : ""
+                )}>
                   Upload and manage your profile photos. Set a primary photo that others will see.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className={cn(
+                isMobile && "p-4 pt-0"
+              )}>
                 <PhotoManager 
                   userId={currentUser?.id || ''}
                   photos={profileSettings?.photos || []}
@@ -120,15 +193,27 @@ export default function ProfileSettings() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="location" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Location Settings</CardTitle>
-                <CardDescription>
+          <TabsContent value="location" className={cn(
+            isMobile ? "space-y-4" : "space-y-6"
+          )}>
+            <Card className={cn(
+              isMobile && "mx-0"
+            )}>
+              <CardHeader className={cn(
+                isMobile && "p-4 pb-3"
+              )}>
+                <CardTitle className={cn(
+                  isMobile ? "text-lg" : ""
+                )}>Location Settings</CardTitle>
+                <CardDescription className={cn(
+                  isMobile ? "text-sm" : ""
+                )}>
                   Update your location information to connect with nearby users.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className={cn(
+                isMobile && "p-4 pt-0"
+              )}>
                 <LocationSettings 
                   user={profileSettings?.user || currentUser}
                 />
@@ -136,15 +221,27 @@ export default function ProfileSettings() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="blocked" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Blocked Users</CardTitle>
-                <CardDescription>
+          <TabsContent value="blocked" className={cn(
+            isMobile ? "space-y-4" : "space-y-6"
+          )}>
+            <Card className={cn(
+              isMobile && "mx-0"
+            )}>
+              <CardHeader className={cn(
+                isMobile && "p-4 pb-3"
+              )}>
+                <CardTitle className={cn(
+                  isMobile ? "text-lg" : ""
+                )}>Blocked Users</CardTitle>
+                <CardDescription className={cn(
+                  isMobile ? "text-sm" : ""
+                )}>
                   Manage users you've blocked. Blocked users cannot send you messages.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className={cn(
+                isMobile && "p-4 pt-0"
+              )}>
                 <BlockedUsers 
                   userId={currentUser?.id || ''}
                   blockedUsers={profileSettings?.blockedUsers || []}
@@ -153,15 +250,27 @@ export default function ProfileSettings() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="filters" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Contact Filters</CardTitle>
-                <CardDescription>
+          <TabsContent value="filters" className={cn(
+            isMobile ? "space-y-4" : "space-y-6"
+          )}>
+            <Card className={cn(
+              isMobile && "mx-0"
+            )}>
+              <CardHeader className={cn(
+                isMobile && "p-4 pb-3"
+              )}>
+                <CardTitle className={cn(
+                  isMobile ? "text-lg" : ""
+                )}>Contact Filters</CardTitle>
+                <CardDescription className={cn(
+                  isMobile ? "text-sm" : ""
+                )}>
                   Control who can contact you based on your preferences.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className={cn(
+                isMobile && "p-4 pt-0"
+              )}>
                 <ContactFilters 
                   user={profileSettings?.user || currentUser}
                 />

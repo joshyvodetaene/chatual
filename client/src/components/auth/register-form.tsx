@@ -32,6 +32,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useResponsive } from '@/hooks/use-responsive';
 
 interface RegisterFormProps {
   onSuccess: (user: any) => void;
@@ -41,6 +42,7 @@ interface RegisterFormProps {
 export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) {
   const [usernameToCheck, setUsernameToCheck] = useState('');
   const { toast } = useToast();
+  const { isMobile } = useResponsive();
 
   const form = useForm<RegisterUser>({
     resolver: zodResolver(registerUserSchema),
@@ -133,15 +135,27 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
 
   return (
     <Card className="w-full max-w-md mx-auto bg-card/80 backdrop-blur-sm border-primary/20 shadow-2xl red-glow">
-      <CardHeader>
-        <CardTitle className="text-white text-xl">Join Chatual</CardTitle>
-        <CardDescription className="text-gray-300">
+      <CardHeader className={cn(
+        isMobile && "p-4 pb-3"
+      )}>
+        <CardTitle className={cn(
+          "text-white",
+          isMobile ? "text-lg" : "text-xl"
+        )}>Join Chatual</CardTitle>
+        <CardDescription className={cn(
+          "text-gray-300",
+          isMobile ? "text-sm" : ""
+        )}>
           Create your account to start chatting
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className={cn(
+        isMobile && "p-4 pt-0"
+      )}>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className={cn(
+            isMobile ? "space-y-3" : "space-y-4"
+          )}>
             <FormField
               control={form.control}
               name="username"
