@@ -9,9 +9,10 @@ interface UserListProps {
   currentUser?: User;
   onStartPrivateChat: (userId: string) => void;
   blockedUserIds?: Set<string>;
+  isMobile?: boolean;
 }
 
-export default function UserList({ room, onlineUsers, currentUser, onStartPrivateChat, blockedUserIds = new Set() }: UserListProps) {
+export default function UserList({ room, onlineUsers, currentUser, onStartPrivateChat, blockedUserIds = new Set(), isMobile = false }: UserListProps) {
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -47,10 +48,22 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
   const offlineMembers = filteredMembers.filter((member: User) => !onlineUsers.has(member.id));
 
   return (
-    <div className="w-64 bg-white border-l border-gray-200 flex flex-col" data-testid="user-list">
-      <div className="p-4 border-b border-gray-200">
-        <h3 className="text-sm font-semibold text-gray-900">Online in Room</h3>
-        <p className="text-xs text-gray-500 mt-1" data-testid="online-count">
+    <div className={cn(
+      "bg-white border-l border-gray-200 flex flex-col",
+      isMobile ? "w-full" : "w-64"
+    )} data-testid="user-list">
+      <div className={cn(
+        "border-b border-gray-200",
+        isMobile ? "p-6" : "p-4"
+      )}>
+        <h3 className={cn(
+          "font-semibold text-gray-900",
+          isMobile ? "text-lg" : "text-sm"
+        )}>Online in Room</h3>
+        <p className={cn(
+          "text-gray-500 mt-1",
+          isMobile ? "text-sm" : "text-xs"
+        )} data-testid="online-count">
           {onlineMembers.length} online • {filteredMembers.length} visible
         </p>
       </div>

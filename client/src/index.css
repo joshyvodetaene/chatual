@@ -147,4 +147,30 @@
   .bg-dark-bg {
     background-color: var(--dark-bg);
   }
+  
+  /* Mobile-specific utilities */
+  .mobile-safe-area {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+  
+  /* Responsive text sizing */
+  .responsive-text {
+    font-size: clamp(0.875rem, 2.5vw, 1rem);
+  }
+  
+  /* Mobile-optimized scrolling */
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  
+  /* Improved tap targets for mobile */
+  .tap-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }

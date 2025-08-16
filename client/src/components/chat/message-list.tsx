@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import PhotoMessage from './photo-message';
 import { Button } from '@/components/ui/button';
 import { UserProfileMenu } from './user-profile-menu';
+import { useResponsive } from '@/hooks/use-responsive';
 
 interface MessageListProps {
   messages: MessageWithUser[];
@@ -16,6 +17,7 @@ interface MessageListProps {
   hasMoreMessages?: boolean;
   onLoadMore?: () => void;
   onStartPrivateChat?: (userId: string) => void;
+  isMobile?: boolean;
 }
 
 export default function MessageList({
@@ -28,7 +30,10 @@ export default function MessageList({
   hasMoreMessages = false,
   onLoadMore,
   onStartPrivateChat,
+  isMobile: propIsMobile,
 }: MessageListProps) {
+  const { isMobile: hookIsMobile, isTablet } = useResponsive();
+  const isMobile = propIsMobile ?? hookIsMobile;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesStartRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);

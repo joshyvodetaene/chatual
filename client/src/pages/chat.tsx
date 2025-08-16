@@ -3,6 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { User, Room, RoomWithMembers, MessageWithUser, PrivateRoom, PrivateChatData, BlockedUserWithDetails } from '@shared/schema';
 import { useWebSocket } from '@/hooks/use-websocket';
 import { usePaginatedMessages } from '@/hooks/use-paginated-messages';
+import { useResponsive } from '@/hooks/use-responsive';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import Sidebar from '@/components/chat/sidebar';
 import MessageList from '@/components/chat/message-list';
@@ -11,10 +12,12 @@ import UserList from '@/components/chat/user-list';
 import CreateRoomModal from '@/components/chat/create-room-modal';
 import AuthScreen from '@/components/auth/auth-screen';
 import { Button } from '@/components/ui/button';
-import { Hash, Users, Search, Settings, LogOut, Shield } from 'lucide-react';
+import { MobileMenu } from '@/components/ui/mobile-menu';
+import { Hash, Users, Search, Settings, LogOut, Shield, Menu } from 'lucide-react';
 import { BackButton } from '@/components/ui/back-button';
 import { ConnectionStatusIndicator } from '@/components/chat/connection-status';
 import { Link } from 'wouter';
+import { cn } from '@/lib/utils';
 
 export default function ChatPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -22,7 +25,9 @@ export default function ChatPage() {
     return saved ? JSON.parse(saved) : null;
   });
   const [activeRoom, setActiveRoom] = useState<Room | null>(null);
-  const [showUserList, setShowUserList] = useState(true);
+  const [showUserList, setShowUserList] = useState(false);
+  const [showSidebarMobile, setShowSidebarMobile] = useState(false);
+  const { isMobile, isTablet, isDesktop } = useResponsive();
   const [showCreateRoom, setShowCreateRoom] = useState(false);
   const [privateRooms, setPrivateRooms] = useState<PrivateRoom[]>([]);
   const currentJoinedRoom = useRef<string | null>(null);
@@ -188,48 +193,128 @@ export default function ChatPage() {
     return <AuthScreen onAuthSuccess={handleAuthSuccess} />;
   }
 
+  // Auto-show user list on desktop, hide on mobile/tablet
+  useEffect(() => {
+    setShowUserList(isDesktop);
+  }, [isDesktop]);
+
+  const handleRoomSelectMobile = (room: Room) => {
+    handleRoomSelect(room);
+    if (isMobile) {
+      setShowSidebarMobile(false);
+    }
+  };
+
   return (
     <div className="h-screen flex overflow-hidden bg-background sensual-gradient" data-testid="chat-application">
-      {/* Sidebar */}
-      <Sidebar
-        currentUser={currentUser}
-        rooms={roomsData?.rooms || []}
-        privateRooms={privateRooms}
-        activeRoom={activeRoom}
-        onRoomSelect={handleRoomSelect}
-        onCreateRoom={() => setShowCreateRoom(true)}
-        onStartPrivateChat={handleStartPrivateChat}
-      />
+      {/* Desktop Sidebar */}
+      {isDesktop && (
+        <Sidebar
+          currentUser={currentUser}
+          rooms={roomsData?.rooms || []}
+          privateRooms={privateRooms}
+          activeRoom={activeRoom}
+          onRoomSelect={handleRoomSelect}
+          onCreateRoom={() => setShowCreateRoom(true)}
+          onStartPrivateChat={handleStartPrivateChat}
+          className="hidden lg:flex"
+        />
+      )}
+
+      {/* Mobile Sidebar */}
+      {(isMobile || isTablet) && (
+        <MobileMenu
+          side="left"
+          contentClassName="w-80 bg-sidebar border-r border-border"
+        >
+          <Sidebar
+            currentUser={currentUser}
+            rooms={roomsData?.rooms || []}
+            privateRooms={privateRooms}
+            activeRoom={activeRoom}
+            onRoomSelect={handleRoomSelectMobile}
+            onCreateRoom={() => setShowCreateRoom(true)}
+            onStartPrivateChat={handleStartPrivateChat}
+            className="h-full"
+            isMobile={true}
+          />
+        </MobileMenu>
+      )}
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
         {/* Chat Header */}
-        <div className="h-16 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-6 red-glow">
-          <BackButton className="mr-4" />
+        <div className="h-16 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-4 lg:px-6 red-glow">
           <div className="flex items-center space-x-3">
+            {/* Mobile Menu Button */}
+            {(isMobile || isTablet) && (
+              <MobileMenu
+                side="left"
+                triggerClassName="text-gray-300 hover:text-white hover:bg-primary/20 mr-2"
+                contentClassName="w-80 bg-sidebar border-r border-border"
+              >
+                <Sidebar
+                  currentUser={currentUser}
+                  rooms={roomsData?.rooms || []}
+                  privateRooms={privateRooms}
+                  activeRoom={activeRoom}
+                  onRoomSelect={handleRoomSelectMobile}
+                  onCreateRoom={() => setShowCreateRoom(true)}
+                  onStartPrivateChat={handleStartPrivateChat}
+                  className="h-full"
+                  isMobile={true}
+                />
+              </MobileMenu>
+            )}
+            
+            <BackButton className={cn("mr-2", (isMobile || isTablet) && "hidden")} />
+            
             <div className="w-8 h-8 bg-primary text-white rounded-lg flex items-center justify-center red-glow">
               <Hash className="w-4 h-4" />
             </div>
-            <div>
-              <h2 className="text-lg font-semibold text-white" data-testid="room-name">
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold text-white truncate" data-testid="room-name">
                 {activeRoom?.name || 'Select a room'}
               </h2>
-              <p className="text-xs text-gray-400" data-testid="room-member-count">
+              <p className="text-xs text-gray-400 hidden sm:block" data-testid="room-member-count">
                 {activeRoomData?.room?.memberCount || 0} members
               </p>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowUserList(!showUserList)}
-              data-testid="button-toggle-user-list"
-              className="text-gray-300 hover:text-white hover:bg-primary/20"
-            >
-              <Users className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="sm" data-testid="button-search" className="text-gray-300 hover:text-white hover:bg-primary/20">
+          
+          <div className="flex items-center space-x-1 sm:space-x-2">
+            {/* User List Toggle - Desktop Only */}
+            {isDesktop && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowUserList(!showUserList)}
+                data-testid="button-toggle-user-list"
+                className="text-gray-300 hover:text-white hover:bg-primary/20"
+              >
+                <Users className="w-4 h-4" />
+              </Button>
+            )}
+            
+            {/* Mobile User List */}
+            {(isMobile || isTablet) && activeRoomData?.room && (
+              <MobileMenu
+                side="right"
+                triggerClassName="text-gray-300 hover:text-white hover:bg-primary/20"
+                contentClassName="w-80 bg-white border-l border-gray-200"
+              >
+                <UserList
+                  room={activeRoomData.room}
+                  onlineUsers={roomOnlineUsers}
+                  currentUser={currentUser}
+                  onStartPrivateChat={handleStartPrivateChat}
+                  blockedUserIds={new Set(blockedUsersData?.map(bu => bu.blockedId) || [])}
+                  isMobile={true}
+                />
+              </MobileMenu>
+            )}
+            
+            <Button variant="ghost" size="sm" data-testid="button-search" className="text-gray-300 hover:text-white hover:bg-primary/20 hidden sm:flex">
               <Search className="w-4 h-4" />
             </Button>
             <Link href="/settings">
@@ -239,7 +324,7 @@ export default function ChatPage() {
             </Link>
             {currentUser?.role === 'admin' && (
               <Link href="/admin">
-                <Button variant="ghost" size="sm" data-testid="button-admin" className="text-gray-300 hover:text-white hover:bg-primary/20">
+                <Button variant="ghost" size="sm" data-testid="button-admin" className="text-gray-300 hover:text-white hover:bg-primary/20 hidden sm:flex">
                   <Shield className="w-4 h-4" />
                 </Button>
               </Link>
@@ -289,8 +374,8 @@ export default function ChatPage() {
         />
       </div>
 
-      {/* User List */}
-      {showUserList && activeRoomData?.room && (
+      {/* Desktop User List */}
+      {isDesktop && showUserList && activeRoomData?.room && (
         <UserList
           room={activeRoomData.room}
           onlineUsers={roomOnlineUsers}

@@ -7,6 +7,8 @@ import EmojiPicker from './emoji-picker';
 import { apiRequest } from '@/lib/queryClient';
 import type { UploadResult } from '@uppy/core';
 import { useToast } from '@/hooks/use-toast';
+import { useResponsive } from '@/hooks/use-responsive';
+import { cn } from '@/lib/utils';
 
 interface MessageInputProps {
   onSendMessage: (content: string, photoUrl?: string, photoFileName?: string) => void;
@@ -26,6 +28,7 @@ export default function MessageInput({
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
   const { toast } = useToast();
+  const { isMobile, isTablet } = useResponsive();
 
   const handleSendMessage = () => {
     if (message.trim() && !disabled) {
@@ -216,16 +219,28 @@ export default function MessageInput({
   }, []);
 
   return (
-    <div className="border-t border-gray-200 bg-white p-4" data-testid="message-input">
-      <div className="flex items-end space-x-3">
+    <div className={cn(
+      "border-t border-gray-200 bg-white mobile-safe-area",
+      isMobile || isTablet ? "p-3" : "p-4"
+    )} data-testid="message-input">
+      <div className={cn(
+        "flex items-end",
+        isMobile ? "space-x-2" : "space-x-3"
+      )}>
         <PhotoUploader
           maxNumberOfFiles={1}
           maxFileSize={10485760} // 10MB
           onGetUploadParameters={handleGetUploadParameters}
           onComplete={handlePhotoUploadComplete}
-          buttonClassName="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          buttonClassName={cn(
+            "hover:bg-gray-100 rounded-lg transition-colors tap-target",
+            isMobile ? "p-2" : "p-2"
+          )}
         >
-          <Image className="w-4 h-4 text-gray-500" />
+          <Image className={cn(
+            "text-gray-500",
+            isMobile ? "w-5 h-5" : "w-4 h-4"
+          )} />
         </PhotoUploader>
         
         <div className="flex-1">
@@ -236,7 +251,12 @@ export default function MessageInput({
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder="Type a message..."
-              className="resize-none border border-gray-300 rounded-2xl px-4 py-3 pr-12 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-20 placeholder-gray-500 text-sm min-h-[44px] max-h-[120px]"
+              className={cn(
+                "resize-none border border-gray-300 rounded-2xl focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-20 placeholder-gray-500 touch-manipulation",
+                isMobile 
+                  ? "px-4 py-3 pr-12 text-base min-h-[44px] max-h-[120px]" 
+                  : "px-4 py-3 pr-12 text-sm min-h-[44px] max-h-[120px]"
+              )}
               rows={1}
               disabled={disabled}
               data-testid="input-message"
@@ -245,12 +265,18 @@ export default function MessageInput({
               ref={emojiButtonRef}
               variant="ghost"
               size="sm"
-              className="absolute right-3 bottom-3 h-auto p-1 hover:bg-gray-100"
+              className={cn(
+                "absolute right-3 bottom-3 h-auto hover:bg-gray-100 tap-target",
+                isMobile ? "p-2" : "p-1"
+              )}
               disabled={disabled}
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
               data-testid="button-emoji"
             >
-              <Smile className={`w-4 h-4 ${showEmojiPicker ? 'text-primary' : 'text-gray-500'}`} />
+              <Smile className={cn(
+                showEmojiPicker ? 'text-primary' : 'text-gray-500',
+                isMobile ? "w-5 h-5" : "w-4 h-4"
+              )} />
             </Button>
             
             <EmojiPicker
@@ -264,10 +290,15 @@ export default function MessageInput({
         <Button
           onClick={handleSendMessage}
           disabled={!message.trim() || disabled}
-          className="bg-primary text-white p-3 rounded-2xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className={cn(
+            "bg-primary text-white rounded-2xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed tap-target touch-manipulation",
+            isMobile ? "p-3 min-h-[44px] min-w-[44px]" : "p-3"
+          )}
           data-testid="button-send"
         >
-          <Send className="w-4 h-4" />
+          <Send className={cn(
+            isMobile ? "w-5 h-5" : "w-4 h-4"
+          )} />
         </Button>
       </div>
     </div>

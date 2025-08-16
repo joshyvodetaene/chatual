@@ -15,6 +15,8 @@ interface SidebarProps {
   onRoomSelect: (room: Room) => void;
   onCreateRoom: () => void;
   onStartPrivateChat: (userId: string) => void;
+  className?: string;
+  isMobile?: boolean;
 }
 
 export default function Sidebar({
@@ -25,6 +27,8 @@ export default function Sidebar({
   onRoomSelect,
   onCreateRoom,
   onStartPrivateChat,
+  className,
+  isMobile = false,
 }: SidebarProps) {
   // State für den aktiven Tab (Räume oder Private Chats)
   const [activeTab, setActiveTab] = useState<'rooms' | 'private'>('rooms');
@@ -94,7 +98,10 @@ export default function Sidebar({
 
   return (
     /* Haupt-Container der Sidebar */
-    <div className="w-80 bg-sidebar border-r border-border flex flex-col" data-testid="sidebar">
+    <div className={cn(
+      "w-80 bg-sidebar border-r border-border flex flex-col",
+      className
+    )} data-testid="sidebar">
       {/* Header-Bereich mit App-Logo und Raum-erstellen Button */}
       <div className="p-4 border-b border-border bg-primary text-white red-glow">
         <div className="flex items-center justify-between">
@@ -158,7 +165,10 @@ export default function Sidebar({
 
       {/* Tab-Navigation zwischen Räumen und privaten Chats */}
       <div className="px-4 pt-4">
-        <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
+        <div className={cn(
+          "flex space-x-1 rounded-lg p-1",
+          isMobile ? "bg-gray-800" : "bg-gray-100"
+        )}>
           {/* Räume Tab */}
           <button
             className={cn(
