@@ -137,53 +137,65 @@ export function UserProfileMenu({
   };
 
   // Don't show menu for current user
-  if (user.id === currentUser.id || disabled) {
+  if (disabled) {
     return <>{children}</>;
   }
 
+  const isCurrentUser = user.id === currentUser.id;
+
   return (
     <>
-      <DropdownMenu onOpenChange={(open) => console.log(`[DEBUG] Dropdown ${open ? 'OPENED' : 'CLOSED'} for user:`, user.displayName, 'isOnline:', user.isOnline)}>
+      <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <div 
             role="button" 
             tabIndex={0} 
             className="w-full cursor-pointer"
-            onClick={() => console.log('[DEBUG] UserProfileMenu trigger clicked for:', user.displayName, 'isOnline:', user.isOnline)}
           >
             {children}
           </div>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-48 z-50">
-          <DropdownMenuItem onClick={handleSendMessage} data-testid="menu-send-message">
-            <MessageCircle className="w-4 h-4 mr-2" />
-            Send Message
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={handleViewProfile} data-testid="menu-view-profile">
-            <UserIcon className="w-4 h-4 mr-2" />
-            View Profile
-          </DropdownMenuItem>
-          
-          <DropdownMenuSeparator />
-          
-          <DropdownMenuItem 
-            onClick={handleBlockUser} 
-            className="text-orange-600 focus:text-orange-700"
-            data-testid="menu-block-user"
-          >
-            <Shield className="w-4 h-4 mr-2" />
-            Block User
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem 
-            onClick={handleReportUser} 
-            className="text-red-600 focus:text-red-700"
-            data-testid="menu-report-user"
-          >
-            <Flag className="w-4 h-4 mr-2" />
-            Report User
-          </DropdownMenuItem>
+          {isCurrentUser ? (
+            // Menu options for current user
+            <DropdownMenuItem onClick={handleViewProfile} data-testid="menu-view-profile">
+              <UserIcon className="w-4 h-4 mr-2" />
+              View My Profile
+            </DropdownMenuItem>
+          ) : (
+            // Menu options for other users
+            <>
+              <DropdownMenuItem onClick={handleSendMessage} data-testid="menu-send-message">
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Send Message
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem onClick={handleViewProfile} data-testid="menu-view-profile">
+                <UserIcon className="w-4 h-4 mr-2" />
+                View Profile
+              </DropdownMenuItem>
+              
+              <DropdownMenuSeparator />
+              
+              <DropdownMenuItem 
+                onClick={handleBlockUser} 
+                className="text-orange-600 focus:text-orange-700"
+                data-testid="menu-block-user"
+              >
+                <Shield className="w-4 h-4 mr-2" />
+                Block User
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem 
+                onClick={handleReportUser} 
+                className="text-red-600 focus:text-red-700"
+                data-testid="menu-report-user"
+              >
+                <Flag className="w-4 h-4 mr-2" />
+                Report User
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
