@@ -176,6 +176,11 @@ export default function ChatPage() {
     }
   }, [activeRoom?.id, currentUser?.id, joinRoom, setMessages]);
 
+  // Debug: Log room online users state
+  useEffect(() => {
+    console.log('Room online users:', roomOnlineUsers, 'Active room:', activeRoom?.name);
+  }, [roomOnlineUsers, activeRoom]);
+
   // Set initial active room
   useEffect(() => {
     if (roomsData?.rooms && roomsData.rooms.length > 0 && !activeRoom && currentUser) {
@@ -187,6 +192,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (currentUser) {
       setShowUserList(isDesktop);
+      console.log('Setting showUserList to:', isDesktop, 'for device type');
     }
   }, [isDesktop, currentUser]);
 
