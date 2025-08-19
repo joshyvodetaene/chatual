@@ -192,8 +192,26 @@ export default function ChatPage() {
   useEffect(() => {
     console.log('Active room effect - roomsData:', roomsData?.rooms?.length, 'activeRoom:', activeRoom?.name, 'currentUser:', !!currentUser);
     if (roomsData?.rooms && roomsData.rooms.length > 0 && !activeRoom && currentUser) {
-      console.log('Setting initial active room to:', roomsData.rooms[0].name);
-      setActiveRoom(roomsData.rooms[0]);
+      // Try to restore from localStorage first
+      const savedRoom = localStorage.getItem('chatual_active_room');
+      let roomToSet = roomsData.rooms[0]; // default
+      
+      if (savedRoom) {
+        try {
+          const parsedRoom = JSON.parse(savedRoom);
+          const foundRoom = roomsData.rooms.find(r => r.id === parsedRoom.id);
+          if (foundRoom) {
+            roomToSet = foundRoom;
+            console.log('Restored active room from localStorage:', foundRoom.name);
+          }
+        } catch (e) {
+          console.log('Failed to parse saved room, using default');
+        }
+      }
+      
+      console.log('Setting initial active room to:', roomToSet.name);
+      setActiveRoom(roomToSet);
+      localStorage.setItem('chatual_active_room', JSON.stringify({ id: roomToSet.id, name: roomToSet.name }));
     }
   }, [roomsData?.rooms, activeRoom, currentUser]);
 
@@ -212,7 +230,8 @@ export default function ChatPage() {
       photoFileName,
       currentUser: currentUser?.id,
       activeRoom: activeRoom?.id,
-      activeRoomName: activeRoom?.name
+      activeRoomName: activeRoom?.name,
+      roomsDataLength: roomsData?.rooms?.length
     });
     
     if (!currentUser?.id) {
@@ -220,26 +239,44 @@ export default function ChatPage() {
       return;
     }
     
-    if (!activeRoom?.id) {
-      console.log('No active room, aborting send. activeRoom state:', activeRoom);
-      console.log('Available rooms:', roomsData?.rooms?.map(r => ({ id: r.id, name: r.name })));
-      
-      // Try to find and set a default room if we have rooms available
-      if (roomsData?.rooms && roomsData.rooms.length > 0) {
-        console.log('Setting fallback active room to:', roomsData.rooms[0].name);
-        setActiveRoom(roomsData.rooms[0]);
-        // Retry sending after setting active room
-        setTimeout(() => {
-          console.log('Retrying send with fallback room');
-          sendMessage(content, photoUrl, photoFileName);
-        }, 100);
-        return;
+    // First try to use current activeRoom
+    let roomToUse = activeRoom;
+    
+    // If no activeRoom, try to find a room from roomsData
+    if (!roomToUse?.id && roomsData?.rooms && roomsData.rooms.length > 0) {
+      console.log('No activeRoom, using first available room:', roomsData.rooms[0].name);
+      roomToUse = roomsData.rooms[0];
+      // Also set it as active room for future messages
+      setActiveRoom(roomsData.rooms[0]);
+    }
+    
+    // If still no room, try to get from current joined room or use localStorage
+    if (!roomToUse?.id) {
+      console.log('No room available, checking localStorage for last room');
+      const savedRoom = localStorage.getItem('chatual_active_room');
+      if (savedRoom && roomsData?.rooms) {
+        const parsedRoom = JSON.parse(savedRoom);
+        roomToUse = roomsData.rooms.find(r => r.id === parsedRoom.id) || roomsData.rooms[0];
+        if (roomToUse) {
+          setActiveRoom(roomToUse);
+        }
       }
+    }
+    
+    if (!roomToUse?.id) {
+      console.log('No room available for sending message. Waiting for room data...');
+      // Wait a bit and try again if rooms are still loading
+      setTimeout(() => {
+        if (roomsData?.rooms && roomsData.rooms.length > 0) {
+          console.log('Retrying send with loaded rooms');
+          handleSendMessage(content, photoUrl, photoFileName);
+        }
+      }, 500);
       return;
     }
 
     // Send message via WebSocket without temporary message
-    console.log('About to call sendMessage via WebSocket for room:', activeRoom.name);
+    console.log('About to call sendMessage via WebSocket for room:', roomToUse.name);
     sendMessage(content, photoUrl, photoFileName);
   };
 
@@ -266,6 +303,8 @@ export default function ChatPage() {
 
   const handleRoomSelect = (room: Room) => {
     setActiveRoom(room);
+    // Save selected room to localStorage as backup
+    localStorage.setItem('chatual_active_room', JSON.stringify({ id: room.id, name: room.name }));
     if (isMobile || isTablet) {
       setShowSidebarMobile(false);
     }
