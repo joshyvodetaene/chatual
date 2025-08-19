@@ -58,7 +58,7 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
         </p>
       </div>
       
-      <div className="flex-1 overflow-y-auto overflow-x-visible min-h-0 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+      <div className="flex-1 overflow-y-auto overflow-x-visible min-h-0 hide-scrollbar">
         {/* Online Members */}
         {onlineMembers.length > 0 && (
           <div className="p-2 sm:p-3 md:p-4">
