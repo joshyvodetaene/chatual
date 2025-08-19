@@ -4,13 +4,13 @@ import { MessageWithUser, PaginatedResponse } from '@shared/schema';
 
 interface UsePaginatedMessagesOptions {
   roomId?: string;
-  pageSize?: number;
+  pageSize?: number; // Default is 20 for latest messages
   enabled?: boolean;
 }
 
 export function usePaginatedMessages({ 
   roomId, 
-  pageSize = 50, 
+  pageSize = 20, 
   enabled = true 
 }: UsePaginatedMessagesOptions) {
   const [allMessages, setAllMessages] = useState<MessageWithUser[]>([]);

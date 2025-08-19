@@ -572,7 +572,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { limit, before, after } = req.query;
       const pagination = {
-        limit: limit ? parseInt(limit as string) : undefined,
+        limit: limit ? parseInt(limit as string) : 20, // Default to 20 messages
         before: before as string,
         after: after as string,
       };

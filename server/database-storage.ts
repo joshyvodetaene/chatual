@@ -453,7 +453,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRoomMessages(roomId: string, pagination: PaginationParams = {}): Promise<PaginatedResponse<MessageWithUser>> {
-    const { limit = 50, before, after } = pagination;
+    const { limit = 20, before, after } = pagination;
     
     // Build base condition
     let whereCondition = eq(messages.roomId, roomId);
