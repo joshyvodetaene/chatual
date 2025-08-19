@@ -159,10 +159,7 @@ export default function Sidebar({
               @{currentUser.username}
             </p>
           </div>
-          {/* Einstellungen-Button */}
-          <Button variant="ghost" size="sm" className="text-white hover:bg-white hover:bg-opacity-10" data-testid="button-user-settings">
-            <Settings className="w-4 h-4 text-white" />
-          </Button>
+          
         </div>
       </div>
 
