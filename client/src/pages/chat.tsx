@@ -86,14 +86,17 @@ export default function ChatPage() {
           id: pr.id,
           participant: pr.participant2?.displayName
         })));
+        // Store private rooms in localStorage for persistence
+        localStorage.setItem(`chatual_private_rooms_${currentUser.id}`, JSON.stringify(data.privateRooms));
       }
 
       return data as PrivateChatData;
     },
     enabled: !!currentUser?.id,
-    staleTime: 5000, // Reduced to 5 seconds for better consistency
-    refetchOnWindowFocus: true,
-    refetchOnMount: true, // Always refetch when component mounts
+    staleTime: 30000, // Increased to 30 seconds to reduce refetching
+    refetchOnWindowFocus: false, // Disable refetch on window focus to reduce re-renders
+    refetchOnMount: false, // Don't always refetch on mount
+    gcTime: 60000, // Keep data in cache for 1 minute
   });
 
   const { data: blockedUsersData } = useQuery<BlockedUserWithDetails[]>({
@@ -160,20 +163,25 @@ export default function ChatPage() {
       }
     },
     onSuccess: () => {
+      // Don't remove private rooms from localStorage during logout
+      const userId = currentUser?.id;
       setCurrentUser(null);
       localStorage.removeItem('chatual_user');
       // Reset theme context to login page (light theme)
       setUserId(null);
-      // Clear all query cache to prevent stale data issues
+      // Clear query cache but preserve specific keys for private rooms
       queryClient.clear();
+      console.log(`[CHAT_PAGE] Logout completed, private rooms preserved for user: ${userId}`);
     },
     onError: () => {
-      // Even if logout fails on server, clear local state
+      // Even if logout fails on server, clear local state but preserve private rooms
+      const userId = currentUser?.id;
       setCurrentUser(null);
       localStorage.removeItem('chatual_user');
       // Reset theme context to login page (light theme)
       setUserId(null);
       queryClient.clear();
+      console.log(`[CHAT_PAGE] Logout failed but state cleared, private rooms preserved for user: ${userId}`);
     },
   });
 
@@ -200,17 +208,40 @@ export default function ChatPage() {
       privateRoomsCount: chatData?.privateRooms?.length || 0
     });
 
-    if (chatData && currentUser) {
-      console.log(`[CHAT_PAGE] Setting ${chatData.rooms?.length || 0} rooms`);
-      setRooms(chatData.rooms || []);
+    if (currentUser) {
+      // Set rooms from chat data or fallback to empty array
+      if (chatData?.rooms) {
+        console.log(`[CHAT_PAGE] Setting ${chatData.rooms.length} rooms`);
+        setRooms(chatData.rooms);
+      }
 
-      // Always set private rooms, even if empty array
-      console.log(`[CHAT_PAGE] Setting ${chatData.privateRooms?.length || 0} private rooms`);
-      setPrivateRooms(chatData.privateRooms || []);
+      // Handle private rooms with localStorage fallback
+      let privateRoomsToSet: PrivateRoom[] = [];
+      
+      if (chatData?.privateRooms && chatData.privateRooms.length > 0) {
+        console.log(`[CHAT_PAGE] Setting ${chatData.privateRooms.length} private rooms from API`);
+        privateRoomsToSet = chatData.privateRooms;
+      } else {
+        // Try to restore from localStorage if API doesn't return private rooms
+        const stored = localStorage.getItem(`chatual_private_rooms_${currentUser.id}`);
+        if (stored) {
+          try {
+            const storedRooms = JSON.parse(stored);
+            if (Array.isArray(storedRooms) && storedRooms.length > 0) {
+              console.log(`[CHAT_PAGE] Restoring ${storedRooms.length} private rooms from localStorage`);
+              privateRoomsToSet = storedRooms;
+            }
+          } catch (e) {
+            console.log(`[CHAT_PAGE] Error parsing stored private rooms:`, e);
+          }
+        }
+      }
+
+      setPrivateRooms(privateRoomsToSet);
 
       // Log each private room for debugging
-      if (chatData.privateRooms && chatData.privateRooms.length > 0) {
-        chatData.privateRooms.forEach((pr, index) => {
+      if (privateRoomsToSet.length > 0) {
+        privateRoomsToSet.forEach((pr, index) => {
           console.log(`[CHAT_PAGE] Private room ${index + 1}:`, {
             id: pr.id,
             participant1: pr.participant1?.displayName,
@@ -461,6 +492,13 @@ export default function ChatPage() {
 
   const handleRoomSelect = useCallback((room: Room) => {
     const previousRoom = activeRoom;
+    
+    // Prevent unnecessary re-renders if same room is selected
+    if (previousRoom && previousRoom.id === room.id) {
+      console.log(`[CHAT_PAGE] Same room selected, skipping re-render: ${room.name}`);
+      return;
+    }
+
     setActiveRoom(room);
     activeRoomRef.current = room;
 
