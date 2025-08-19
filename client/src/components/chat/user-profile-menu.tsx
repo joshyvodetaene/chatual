@@ -143,13 +143,12 @@ export function UserProfileMenu({
 
   return (
     <>
-      <DropdownMenu onOpenChange={(open) => console.log(`Dropdown ${open ? 'opened' : 'closed'} for:`, user.displayName)}>
+      <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <div 
             role="button" 
             tabIndex={0} 
             className="w-full cursor-pointer"
-            onClick={() => console.log('UserProfileMenu trigger clicked for:', user.displayName)}
           >
             {children}
           </div>

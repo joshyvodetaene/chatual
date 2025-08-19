@@ -134,10 +134,6 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                       size="sm"
                       className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-6 w-6"
                       data-testid={`online-user-menu-${member.id}`}
-                      onClick={(e) => {
-                        console.log('Online user menu button clicked:', member.displayName);
-                        e.stopPropagation();
-                      }}
                     >
                       <MoreVertical className="h-4 w-4" />
                     </Button>
@@ -208,10 +204,6 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                       size="sm"
                       className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-6 w-6"
                       data-testid={`offline-user-menu-${member.id}`}
-                      onClick={(e) => {
-                        console.log('Offline user menu button clicked:', member.displayName);
-                        e.stopPropagation();
-                      }}
                     >
                       <MoreVertical className="h-4 w-4" />
                     </Button>
