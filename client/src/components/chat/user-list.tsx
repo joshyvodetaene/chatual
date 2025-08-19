@@ -2,6 +2,8 @@ import { RoomWithMembers, User } from '@shared/schema';
 import { cn } from '@/lib/utils';
 import UserDistance from './user-distance';
 import { UserProfileMenu } from './user-profile-menu';
+import { MoreVertical } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface UserListProps {
   room: RoomWithMembers;
@@ -78,57 +80,65 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
             
             <div className="space-y-2">
               {onlineMembers.map((member) => (
-                <UserProfileMenu
+                <div
                   key={`online-${member.id}`}
-                  user={member}
-                  currentUser={currentUser!}
-                  onStartPrivateChat={onStartPrivateChat}
+                  className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                  data-testid={`online-user-${member.id}`}
                 >
-                  <div
-                    className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                    data-testid={`online-user-${member.id}`}
-                  >
-                    <div className="relative">
-                      {member.primaryPhoto?.photoUrl ? (
-                        <img 
-                          src={member.primaryPhoto.photoUrl}
-                          alt={`${member.displayName} profile`}
-                          className="w-8 h-8 rounded-full object-cover border-2 border-white"
-                        />
-                      ) : (
-                        <div className={cn(
-                          "w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium",
-                          getAvatarColor(member.displayName)
-                        )}>
-                          {getInitials(member.displayName)}
-                        </div>
+                  <div className="relative">
+                    {member.primaryPhoto?.photoUrl ? (
+                      <img 
+                        src={member.primaryPhoto.photoUrl}
+                        alt={`${member.displayName} profile`}
+                        className="w-8 h-8 rounded-full object-cover border-2 border-white"
+                      />
+                    ) : (
+                      <div className={cn(
+                        "w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium",
+                        getAvatarColor(member.displayName)
+                      )}>
+                        {getInitials(member.displayName)}
+                      </div>
+                    )}
+                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-accent border-2 border-white rounded-full"></div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {member.displayName}
+                      </p>
+                      {member.age && (
+                        <span className="text-xs text-gray-500 font-normal">
+                          {member.age}
+                        </span>
                       )}
-                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-accent border-2 border-white rounded-full"></div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {member.displayName}
-                        </p>
-                        {member.age && (
-                          <span className="text-xs text-gray-500 font-normal">
-                            {member.age}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs text-gray-500">Member</p>
-                        {currentUser && (
-                          <UserDistance 
-                            currentUserId={currentUser.id} 
-                            targetUserId={member.id}
-                            className="text-xs"
-                          />
-                        )}
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-gray-500">Member</p>
+                      {currentUser && (
+                        <UserDistance 
+                          currentUserId={currentUser.id} 
+                          targetUserId={member.id}
+                          className="text-xs"
+                        />
+                      )}
                     </div>
                   </div>
-                </UserProfileMenu>
+                  <UserProfileMenu
+                    user={member}
+                    currentUser={currentUser!}
+                    onStartPrivateChat={onStartPrivateChat}
+                  >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-6 w-6"
+                      data-testid={`online-user-menu-${member.id}`}
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </UserProfileMenu>
+                </div>
               ))}
             </div>
           </div>
@@ -143,54 +153,62 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
             
             <div className="space-y-2">
               {offlineMembers.map((member) => (
-                <UserProfileMenu
+                <div
                   key={`offline-${member.id}`}
-                  user={member}
-                  currentUser={currentUser!}
-                  onStartPrivateChat={onStartPrivateChat}
+                  className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors opacity-60"
+                  data-testid={`offline-user-${member.id}`}
                 >
-                  <div
-                    className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors opacity-60"
-                    data-testid={`offline-user-${member.id}`}
-                  >
-                    <div className="relative">
-                      {member.primaryPhoto?.photoUrl ? (
-                        <img 
-                          src={member.primaryPhoto.photoUrl}
-                          alt={`${member.displayName} profile`}
-                          className="w-8 h-8 rounded-full object-cover border-2 border-white opacity-60"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center text-white text-xs font-medium">
-                          {getInitials(member.displayName)}
-                        </div>
+                  <div className="relative">
+                    {member.primaryPhoto?.photoUrl ? (
+                      <img 
+                        src={member.primaryPhoto.photoUrl}
+                        alt={`${member.displayName} profile`}
+                        className="w-8 h-8 rounded-full object-cover border-2 border-white opacity-60"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center text-white text-xs font-medium">
+                        {getInitials(member.displayName)}
+                      </div>
+                    )}
+                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-gray-400 border-2 border-white rounded-full"></div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2">
+                      <p className="text-sm font-medium text-gray-700 truncate">
+                        {member.displayName}
+                      </p>
+                      {member.age && (
+                        <span className="text-xs text-gray-400 font-normal">
+                          {member.age}
+                        </span>
                       )}
-                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-gray-400 border-2 border-white rounded-full"></div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2">
-                        <p className="text-sm font-medium text-gray-700 truncate">
-                          {member.displayName}
-                        </p>
-                        {member.age && (
-                          <span className="text-xs text-gray-400 font-normal">
-                            {member.age}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs text-gray-400">Last seen recently</p>
-                        {currentUser && (
-                          <UserDistance 
-                            currentUserId={currentUser.id} 
-                            targetUserId={member.id}
-                            className="text-xs opacity-60"
-                          />
-                        )}
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-gray-400">Last seen recently</p>
+                      {currentUser && (
+                        <UserDistance 
+                          currentUserId={currentUser.id} 
+                          targetUserId={member.id}
+                          className="text-xs opacity-60"
+                        />
+                      )}
                     </div>
                   </div>
-                </UserProfileMenu>
+                  <UserProfileMenu
+                    user={member}
+                    currentUser={currentUser!}
+                    onStartPrivateChat={onStartPrivateChat}
+                  >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-6 w-6"
+                      data-testid={`offline-user-menu-${member.id}`}
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </UserProfileMenu>
+                </div>
               ))}
             </div>
           </div>
