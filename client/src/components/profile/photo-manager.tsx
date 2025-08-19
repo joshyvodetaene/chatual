@@ -30,7 +30,20 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
         title: "Success",
         description: "Primary photo updated successfully",
       });
+      // Invalidate all queries that might contain user avatar data
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/profile-settings`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/chat-data'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      // Force refresh of localStorage user data if this is the current user
+      const currentUser = localStorage.getItem('chatual_user');
+      if (currentUser) {
+        const user = JSON.parse(currentUser);
+        if (user.id === userId) {
+          // Update localStorage with fresh user data
+          queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}`] });
+        }
+      }
     },
     onError: (error) => {
       toast({
@@ -50,7 +63,20 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
         title: "Success",
         description: "Photo deleted successfully",
       });
+      // Invalidate all queries that might contain user avatar data
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/profile-settings`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/chat-data'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      // Force refresh of localStorage user data if this is the current user
+      const currentUser = localStorage.getItem('chatual_user');
+      if (currentUser) {
+        const user = JSON.parse(currentUser);
+        if (user.id === userId) {
+          // Update localStorage with fresh user data
+          queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}`] });
+        }
+      }
     },
     onError: (error) => {
       toast({
@@ -118,7 +144,20 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
         description: "Profile photo uploaded successfully",
       });
       
+      // Invalidate all queries that might contain user avatar data
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/profile-settings`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/chat-data'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      // Force refresh of localStorage user data if this is the current user
+      const currentUser = localStorage.getItem('chatual_user');
+      if (currentUser) {
+        const user = JSON.parse(currentUser);
+        if (user.id === userId) {
+          // Update localStorage with fresh user data
+          queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}`] });
+        }
+      }
       setUploadingPhotos([]);
       
       // Reset file input
