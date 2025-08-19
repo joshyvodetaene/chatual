@@ -179,7 +179,8 @@ export default function ChatPage() {
   // Debug: Log room online users state and messages
   useEffect(() => {
     console.log('Room online users:', roomOnlineUsers, 'Active room:', activeRoom?.name);
-    console.log('Paginated messages:', paginatedMessages.length, paginatedMessages.filter(m => m.messageType === 'photo'));
+    console.log('Paginated messages:', paginatedMessages.length, 'Photo messages:', paginatedMessages.filter(m => m.messageType === 'photo').length);
+    console.log('All messages with types:', paginatedMessages.map(m => ({ id: m.id, type: m.messageType, hasPhoto: !!m.photoUrl, content: m.content?.substring(0, 20) })));
   }, [roomOnlineUsers, activeRoom, paginatedMessages]);
 
   // Set initial active room

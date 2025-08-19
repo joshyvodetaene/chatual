@@ -102,7 +102,8 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
       ws.current = new WebSocket(wsUrl);
     } catch (error) {
       console.error('Failed to create WebSocket:', error, 'URL:', wsUrl);
-      setLastError(`Failed to create WebSocket: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setLastError(`Failed to create WebSocket: ${errorMessage}`);
       return;
     }
 

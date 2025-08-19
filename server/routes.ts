@@ -124,8 +124,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 messageType: message.messageType || 'text',
               });
               
+              console.log('Created message:', {
+                id: newMessage.id,
+                messageType: newMessage.messageType,
+                photoUrl: newMessage.photoUrl,
+                photoFileName: newMessage.photoFileName
+              });
+              
               const user = await storage.getUser(ws.userId);
               const messageWithUser = { ...newMessage, user };
+              
+              console.log('Broadcasting message:', {
+                id: messageWithUser.id,
+                messageType: messageWithUser.messageType,
+                photoUrl: messageWithUser.photoUrl
+              });
               
               // Broadcast message to room
               broadcastToRoom(ws.roomId, {
