@@ -179,8 +179,8 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-background sensual-gradient" data-testid="admin-dashboard">
-      <div className="container mx-auto p-3 sm:p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen bg-background sensual-gradient overflow-x-hidden" data-testid="admin-dashboard">
+      <div className="container mx-auto px-3 py-4 sm:p-4 md:p-6 lg:p-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 md:mb-8 gap-3 sm:gap-4">
           <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-4">

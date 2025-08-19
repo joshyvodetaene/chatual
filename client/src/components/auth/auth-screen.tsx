@@ -17,7 +17,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
   return (
     <div className={cn(
       "min-h-screen sensual-gradient flex items-center justify-center relative overflow-hidden",
-      isMobile ? "p-4" : "p-4"
+      "px-4 py-6 md:p-4"
     )}>
       {/* Background Effects */}
       <div className="absolute inset-0 bg-black/80"></div>
@@ -32,7 +32,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
       
       <div className={cn(
         "w-full relative z-10",
-        isMobile ? "max-w-sm" : "max-w-md"
+        "max-w-sm xs:max-w-md"
       )}>
         {/* App Header */}
         <div className={cn(

@@ -208,63 +208,63 @@
   .text-primary {
     color: var(--primary);
   }
-  
+
   .bg-primary {
     background-color: var(--primary);
   }
-  
+
   .text-secondary {
     color: var(--secondary);
   }
-  
+
   .bg-secondary {
     background-color: var(--secondary);
   }
-  
+
   .text-accent {
     color: var(--accent);
   }
-  
+
   .bg-accent {
     background-color: var(--accent);
   }
-  
+
   .bg-chat-bg {
     background-color: var(--chat-bg);
   }
-  
+
   .bg-message-sent {
     background-color: var(--message-sent);
   }
-  
+
   .bg-message-received {
     background-color: var(--message-received);
   }
-  
+
   .bg-dark-bg {
     background-color: var(--dark-bg);
   }
-  
+
   /* Mobile-specific utilities */
   .mobile-safe-area {
     padding-bottom: env(safe-area-inset-bottom);
   }
-  
+
   .touch-manipulation {
     touch-action: manipulation;
   }
-  
+
   /* Responsive text sizing */
   .responsive-text {
     font-size: clamp(0.875rem, 2.5vw, 1rem);
   }
-  
+
   /* Mobile-optimized scrolling */
   .mobile-scroll {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
   }
-  
+
   /* Improved tap targets for mobile */
   .tap-target {
     min-height: 44px;
@@ -327,5 +327,59 @@
   .focus-visible-primary {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
+  }
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  /* Improve touch targets */
+  button, [role="button"], input, textarea, select {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  /* Better text sizing for mobile */
+  html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Improve scrolling performance */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent zoom on input focus */
+  input, textarea, select {
+    font-size: 16px;
+  }
+
+  /* Better tap highlighting */
+  * {
+    -webkit-tap-highlight-color: rgba(255, 255, 255, 0.1);
+  }
+
+  /* Optimize viewport */
+  body {
+    overflow-x: hidden;
+  }
+}
+
+/* Small mobile optimizations */
+@media (max-width: 480px) {
+  /* Smaller margins and padding */
+  .container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  /* Better button sizing */
+  button {
+    min-height: 48px;
+  }
+
+  /* Improved text input sizing */
+  input, textarea {
+    font-size: 17px; /* Prevent zoom on iOS */
   }
 }

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 
 interface ResponsiveState {
@@ -6,9 +7,12 @@ interface ResponsiveState {
   isDesktop: boolean;
   screenWidth: number;
   screenHeight: number;
+  isSmallMobile: boolean;
+  isLargeMobile: boolean;
 }
 
 const breakpoints = {
+  smallMobile: 480,
   mobile: 768,
   tablet: 1024,
 };
@@ -22,6 +26,8 @@ export function useResponsive(): ResponsiveState {
         isDesktop: true,
         screenWidth: 1920,
         screenHeight: 1080,
+        isSmallMobile: false,
+        isLargeMobile: false,
       };
     }
 
@@ -34,6 +40,8 @@ export function useResponsive(): ResponsiveState {
       isDesktop: width >= breakpoints.tablet,
       screenWidth: width,
       screenHeight: height,
+      isSmallMobile: width < breakpoints.smallMobile,
+      isLargeMobile: width >= breakpoints.smallMobile && width < breakpoints.mobile,
     };
   });
 
@@ -48,6 +56,8 @@ export function useResponsive(): ResponsiveState {
         isDesktop: width >= breakpoints.tablet,
         screenWidth: width,
         screenHeight: height,
+        isSmallMobile: width < breakpoints.smallMobile,
+        isLargeMobile: width >= breakpoints.smallMobile && width < breakpoints.mobile,
       });
     };
 
@@ -84,6 +94,8 @@ export function useMediaQuery(query: string): boolean {
 }
 
 // Predefined media queries for common breakpoints
+export const useIsSmallMobile = () => useMediaQuery('(max-width: 479px)');
 export const useIsMobile = () => useMediaQuery('(max-width: 767px)');
+export const useIsLargeMobile = () => useMediaQuery('(min-width: 480px) and (max-width: 767px)');
 export const useIsTablet = () => useMediaQuery('(min-width: 768px) and (max-width: 1023px)');
 export const useIsDesktop = () => useMediaQuery('(min-width: 1024px)');

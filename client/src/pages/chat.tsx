@@ -35,7 +35,7 @@ export default function ChatPage() {
   const activeRoomRef = useRef<Room | null>(null);
   const [showUserList, setShowUserList] = useState(false);
   const [showSidebarMobile, setShowSidebarMobile] = useState(false);
-  const { isMobile, isTablet, isDesktop } = useResponsive();
+  const { isMobile, isTablet, isDesktop, isSmallMobile, isLargeMobile } = useResponsive();
   const { toast } = useToast();
   const [showCreateRoom, setShowCreateRoom] = useState(false);
   const { setUserId } = useTheme();
@@ -43,19 +43,19 @@ export default function ChatPage() {
   const currentJoinedRoom = useRef<string | null>(null);
 
   // Always call hooks consistently - enable/disable with the enabled option
-  const { 
+  const {
     isConnected,
     connectionStatus,
     lastError,
-    messages, 
-    onlineUsers, 
+    messages,
+    onlineUsers,
     roomOnlineUsers,
     typingUsers,
     queuedCount,
     failedCount,
     isProcessingQueue,
-    joinRoom, 
-    sendMessage, 
+    joinRoom,
+    sendMessage,
     sendTyping,
     setMessages,
     reconnect,
@@ -184,22 +184,22 @@ export default function ChatPage() {
   // Optimize message sync with memoization to prevent unnecessary updates
   const syncedMessages = useMemo(() => {
     if (!currentUser || paginatedMessages.length === 0) return [];
-    
+
     // Check if we need to sync by comparing message IDs instead of array references
     const paginatedIds = new Set(paginatedMessages.map(m => m.id));
     const wsIds = new Set(messages.map(m => m.id));
-    
-    const needsSync = paginatedMessages.length !== messages.length || 
+
+    const needsSync = paginatedMessages.length !== messages.length ||
                       !Array.from(paginatedIds).every(id => wsIds.has(id));
-    
+
     if (needsSync && paginatedMessages.length > 0) {
       console.log(`[CHAT_PAGE] Syncing ${paginatedMessages.length} paginated messages to WebSocket`);
       return paginatedMessages;
     }
-    
+
     return messages;
   }, [paginatedMessages, messages, currentUser]);
-  
+
   // Apply synced messages only when necessary
   useEffect(() => {
     if (syncedMessages !== messages && syncedMessages.length > 0) {
@@ -221,8 +221,8 @@ export default function ChatPage() {
     }
 
     // Batch process new messages for better performance
-    const newMessages = messages.filter(msg => 
-      msg.roomId === activeRoom.id && 
+    const newMessages = messages.filter(msg =>
+      msg.roomId === activeRoom.id &&
       !paginatedMessages.some(pMsg => pMsg.id === msg.id)
     );
 
@@ -245,22 +245,22 @@ export default function ChatPage() {
   const handleRoomJoin = useCallback(async (roomId: string, userId: string) => {
     console.log(`[CHAT_PAGE] Switching to room: ${roomId}`);
     currentJoinedRoom.current = roomId;
-    
+
     // For private chats, preserve message history - only clear messages for public rooms
     // Private chats should maintain their full conversation history
     const currentRoomData = activeRoomData?.room || activeRoom;
     const isPrivateChat = currentRoomData?.isPrivate || false;
-    
+
     if (!isPrivateChat) {
       console.log(`[CHAT_PAGE] Clearing messages for public room`);
       setMessages([]);
     } else {
       console.log(`[CHAT_PAGE] Preserving message history for private chat`);
     }
-    
+
     // Join room via WebSocket
     joinRoom(roomId);
-    
+
     // Join room on server asynchronously
     try {
       const response = await fetch(`/api/rooms/${roomId}/join`, {
@@ -273,7 +273,7 @@ export default function ChatPage() {
       console.error(`[CHAT_PAGE] Room join error:`, error);
     }
   }, [joinRoom, setMessages]);
-  
+
   useEffect(() => {
     if (activeRoom?.id && currentUser?.id && currentJoinedRoom.current !== activeRoom.id) {
       handleRoomJoin(activeRoom.id, currentUser.id);
@@ -294,7 +294,7 @@ export default function ChatPage() {
       const savedRoom = localStorage.getItem('chatual_active_room');
       console.log(`[CHAT_PAGE] Saved room from localStorage:`, savedRoom);
       let roomToSet = roomsData.rooms[0]; // default
-      
+
       if (savedRoom) {
         try {
           const parsedRoom = JSON.parse(savedRoom);
@@ -311,7 +311,7 @@ export default function ChatPage() {
       } else {
         console.log(`[CHAT_PAGE] No saved room, using default: ${roomsData.rooms[0].name}`);
       }
-      
+
       console.log(`[CHAT_PAGE] Setting initial active room: ${roomToSet.name} (${roomToSet.id})`);
       setActiveRoom(roomToSet);
       activeRoomRef.current = roomToSet;
@@ -330,20 +330,20 @@ export default function ChatPage() {
 
   const handleSendMessage = (content: string, photoUrl?: string, photoFileName?: string) => {
     if (!currentUser?.id) return;
-    
+
     // Use multiple fallback strategies to find a room
     let roomToUse: Room | null = null;
-    
+
     // Strategy 1: Use activeRoom from state
     if (activeRoom?.id) {
       roomToUse = activeRoom;
     }
-    
+
     // Strategy 2: Use activeRoom from ref (more stable)
     if (!roomToUse && activeRoomRef.current?.id) {
       roomToUse = activeRoomRef.current;
     }
-    
+
     // Strategy 3: Get from localStorage and validate against available rooms
     if (!roomToUse) {
       const savedRoom = localStorage.getItem('chatual_active_room');
@@ -359,7 +359,7 @@ export default function ChatPage() {
         }
       }
     }
-    
+
     // Strategy 4: Use first available room from cache
     if (!roomToUse) {
       const cachedRooms = queryClient.getQueryData<{ rooms: Room[] }>(['/api/rooms']);
@@ -369,7 +369,7 @@ export default function ChatPage() {
         activeRoomRef.current = roomToUse;
       }
     }
-    
+
     if (!roomToUse) {
       // Force refresh room data and retry
       queryClient.invalidateQueries({ queryKey: ['/api/rooms'] }).then(() => {
@@ -390,26 +390,26 @@ export default function ChatPage() {
 
   const handleStartPrivateChat = async (userId: string) => {
     if (!currentUser?.id) return;
-    
+
     try {
       const response = await apiRequest('POST', '/api/private-chat/create', {
         user1Id: currentUser.id,
         user2Id: userId,
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || 'Failed to create private chat');
       }
-      
+
       const data = await response.json();
-      
+
       // Invalidate chat data to refresh the room list
       await queryClient.invalidateQueries({ queryKey: ['/api/chat-data', currentUser.id] });
-      
+
       // Set the new private room as active
       setActiveRoom(data.room);
-      
+
       toast({
         title: "Private Chat Started",
         description: `Started a private conversation with ${data.otherUser?.username || 'user'}`
@@ -427,18 +427,18 @@ export default function ChatPage() {
     const previousRoom = activeRoom;
     setActiveRoom(room);
     activeRoomRef.current = room;
-    
+
     // Use requestIdleCallback for non-critical localStorage update
     const updateStorage = () => {
       localStorage.setItem('chatual_active_room', JSON.stringify({ id: room.id, name: room.name }));
     };
-    
+
     if (typeof window.requestIdleCallback === 'function') {
       window.requestIdleCallback(updateStorage);
     } else {
       setTimeout(updateStorage, 0);
     }
-    
+
     // Show toast for room switching (only if switching from another room)
     if (previousRoom && previousRoom.id !== room.id) {
       toast({
@@ -446,7 +446,7 @@ export default function ChatPage() {
         description: `Now chatting in "${room.name}"`
       });
     }
-    
+
     if (isMobile || isTablet) {
       setShowSidebarMobile(false);
     }
@@ -516,7 +516,7 @@ export default function ChatPage() {
                 />
               </MobileMenu>
             )}
-            
+
             <Hash className={cn(
               "text-primary flex-shrink-0",
               "w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6"
@@ -527,8 +527,8 @@ export default function ChatPage() {
             )}>
               {activeRoom?.name || 'Select a room'}
             </h1>
-            
-            <ConnectionStatusIndicator 
+
+            <ConnectionStatusIndicator
               connectionStatus={connectionStatus}
               lastError={lastError}
               queuedCount={queuedCount}

@@ -143,19 +143,19 @@ export default function UserProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-black" data-testid="user-profile-page">
-      <div className="bg-black shadow-sm border-b border-gray-800">
+    <div className="min-h-screen bg-black overflow-x-hidden" data-testid="user-profile-page">
+      <div className="bg-black shadow-sm border-b border-gray-800 sticky top-0 z-10">
         <div className={cn(
-          "mx-auto py-4",
-          isMobile ? "px-4" : "max-w-4xl px-4"
+          "mx-auto py-3 px-4",
+          !isMobile && "max-w-4xl"
         )}>
           <BackButton />
         </div>
       </div>
 
       <div className={cn(
-        "mx-auto",
-        isMobile ? "px-4 py-6" : "max-w-4xl px-4 py-8"
+        "mx-auto px-4 py-4 xs:py-6 md:py-8",
+        !isMobile && "max-w-4xl"
       )}>
         <div className="bg-black rounded-lg shadow-sm overflow-hidden border border-gray-800">
           {/* Header Section */}
