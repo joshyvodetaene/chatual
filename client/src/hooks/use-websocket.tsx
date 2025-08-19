@@ -161,7 +161,9 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
         const message = JSON.parse(event.data);
         console.log(`[WS_HOOK] Parsed message type: ${message.type}`);
         
-        switch (message.type) {
+        // Use requestIdleCallback for non-critical updates to improve performance
+        const processMessage = () => {
+          switch (message.type) {
           case 'new_message':
             console.log('WebSocket received new_message:', {
               messageId: message.message?.id,
@@ -212,6 +214,15 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
               queryClient.invalidateQueries({ queryKey: ['/api/chat-data', userId] });
             }
             break;
+          }
+        };
+        
+        // Use requestIdleCallback for non-critical message processing
+        if (typeof window.requestIdleCallback === 'function') {
+          window.requestIdleCallback(processMessage);
+        } else {
+          // Fallback for browsers without requestIdleCallback
+          setTimeout(processMessage, 0);
         }
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
@@ -332,19 +343,43 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     }
   }, [enqueueMessage]);
 
+  // Add debouncing for typing indicators
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   const sendTyping = useCallback((isTyping: boolean) => {
+    // Clear any existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       try {
+        // Send typing indicator immediately
         ws.current.send(JSON.stringify({
           type: 'typing',
           isTyping,
         }));
+        
+        // If starting to type, set timeout to auto-stop after 3 seconds
+        if (isTyping) {
+          typingTimeoutRef.current = setTimeout(() => {
+            if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+              try {
+                ws.current.send(JSON.stringify({
+                  type: 'typing',
+                  isTyping: false,
+                }));
+              } catch (error) {
+                console.error('Failed to send auto-stop typing indicator:', error);
+              }
+            }
+          }, 3000);
+        }
       } catch (error) {
         console.error('Failed to send typing indicator:', error);
-        // Don't queue typing indicators as they're not critical
       }
     }
-    // Don't queue typing indicators for offline sending as they're ephemeral
   }, []);
 
   // Manual reconnect function
