@@ -138,15 +138,35 @@ export default function ChatPage() {
     }
   }, [paginatedMessages, messages, setMessages, currentUser]);
 
-  // Handle new messages from WebSocket
+  // Handle new messages from WebSocket and replace temporary messages
   useEffect(() => {
-    if (currentUser && messages.length > paginatedMessages.length) {
-      const newMessage = messages[messages.length - 1];
-      if (newMessage && !paginatedMessages.find(m => m.id === newMessage.id)) {
-        addMessage(newMessage);
+    if (!currentUser || messages.length === 0) return;
+
+    messages.forEach((newMessage) => {
+      // Check if this message already exists in paginated messages (including temporary ones)
+      const existingMessageIndex = paginatedMessages.findIndex(m => 
+        m.id === newMessage.id || 
+        (m.isTemporary && m.userId === newMessage.userId && m.content === newMessage.content && m.roomId === newMessage.roomId)
+      );
+
+      if (existingMessageIndex >= 0) {
+        // Replace temporary message with real one
+        const existingMessage = paginatedMessages[existingMessageIndex];
+        if (existingMessage.isTemporary && !newMessage.isTemporary) {
+          setPaginatedMessages(prev => 
+            prev.map((msg, index) => 
+              index === existingMessageIndex ? newMessage : msg
+            )
+          );
+        }
+      } else {
+        // Add new message if it doesn't exist
+        if (!paginatedMessages.find(m => m.id === newMessage.id)) {
+          addMessage(newMessage);
+        }
       }
-    }
-  }, [messages, paginatedMessages, addMessage, currentUser]);
+    });
+  }, [messages, paginatedMessages, addMessage, currentUser, setPaginatedMessages]);
 
   // Set user ID for theme context when user is available
   useEffect(() => {
@@ -190,8 +210,9 @@ export default function ChatPage() {
     if (!activeRoom?.id) return;
 
     const messageType = photoUrl ? 'photo' : 'text';
+    const tempId = `temp_${Date.now()}_${Math.random()}`;
     const tempMessage: MessageWithUser = {
-      id: crypto.randomUUID(),
+      id: tempId,
       roomId: activeRoom.id,
       userId: currentUser.id,
       content,
@@ -202,7 +223,10 @@ export default function ChatPage() {
       isTemporary: true,
     };
 
+    // Add temporary message optimistically
     setPaginatedMessages((prev: MessageWithUser[]) => [...prev, tempMessage]);
+    
+    // Send message via WebSocket
     sendMessage(content, photoUrl, photoFileName);
   };
 
