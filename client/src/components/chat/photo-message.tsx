@@ -11,7 +11,14 @@ export default function PhotoMessage({ message, isOwn }: PhotoMessageProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
+  console.log('PhotoMessage component received:', {
+    messageType: message.messageType,
+    photoUrl: message.photoUrl,
+    photoFileName: message.photoFileName
+  });
+  
   if (!message.photoUrl || message.messageType !== 'photo') {
+    console.log('PhotoMessage returning null - photoUrl:', message.photoUrl, 'messageType:', message.messageType);
     return null;
   }
 

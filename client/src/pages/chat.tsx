@@ -176,10 +176,11 @@ export default function ChatPage() {
     }
   }, [activeRoom?.id, currentUser?.id, joinRoom, setMessages]);
 
-  // Debug: Log room online users state
+  // Debug: Log room online users state and messages
   useEffect(() => {
     console.log('Room online users:', roomOnlineUsers, 'Active room:', activeRoom?.name);
-  }, [roomOnlineUsers, activeRoom]);
+    console.log('Paginated messages:', paginatedMessages.length, paginatedMessages.filter(m => m.messageType === 'photo'));
+  }, [roomOnlineUsers, activeRoom, paginatedMessages]);
 
   // Set initial active room
   useEffect(() => {
