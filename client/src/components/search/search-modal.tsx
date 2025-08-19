@@ -5,7 +5,8 @@ import {
   Dialog, 
   DialogContent, 
   DialogHeader, 
-  DialogTitle 
+  DialogTitle,
+  DialogDescription 
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -160,6 +161,9 @@ export default function SearchModal({
               <Search className={cn(isMobile ? "w-5 h-5" : "w-6 h-6")} />
               Search
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              Search for messages, users, and rooms across your conversations
+            </DialogDescription>
             <Button 
               variant="ghost" 
               size="sm" 

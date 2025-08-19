@@ -212,7 +212,7 @@ export default function ChatPage() {
       // Set rooms from chat data or fallback to empty array
       if (chatData?.rooms) {
         console.log(`[CHAT_PAGE] Setting ${chatData.rooms.length} rooms`);
-        setRooms(chatData.rooms);
+        // Rooms are handled by React Query cache
       }
 
       // Handle private rooms with localStorage fallback
