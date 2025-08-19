@@ -82,11 +82,11 @@ export default function UserProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
           <p className={cn(
-            "mt-2 text-gray-600",
+            "mt-2 text-gray-300",
             isMobile ? "text-sm" : ""
           )}>Loading profile...</p>
         </div>
@@ -96,17 +96,17 @@ export default function UserProfilePage() {
 
   if (!profileData?.user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className={cn(
           "text-center",
           isMobile ? "mx-4" : ""
         )}>
           <h1 className={cn(
-            "font-bold text-gray-900 mb-2",
+            "font-bold text-white mb-2",
             isMobile ? "text-xl" : "text-2xl"
           )}>User not found</h1>
           <p className={cn(
-            "text-gray-600 mb-4",
+            "text-gray-300 mb-4",
             isMobile ? "text-sm" : ""
           )}>The user you're looking for doesn't exist or has been removed.</p>
           <BackButton />
@@ -143,8 +143,8 @@ export default function UserProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50" data-testid="user-profile-page">
-      <div className="bg-white shadow-sm border-b">
+    <div className="min-h-screen bg-black" data-testid="user-profile-page">
+      <div className="bg-black shadow-sm border-b border-gray-800">
         <div className={cn(
           "mx-auto py-4",
           isMobile ? "px-4" : "max-w-4xl px-4"
@@ -157,10 +157,10 @@ export default function UserProfilePage() {
         "mx-auto",
         isMobile ? "px-4 py-6" : "max-w-4xl px-4 py-8"
       )}>
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-black rounded-lg shadow-sm overflow-hidden border border-gray-800">
           {/* Header Section */}
           <div className={cn(
-            "bg-gradient-to-r from-primary/10 to-primary/5",
+            "bg-gradient-to-r from-gray-900 to-gray-800",
             isMobile ? "p-6" : "p-8"
           )}>
             <div className={cn(
@@ -187,7 +187,7 @@ export default function UserProfilePage() {
                   )}
                 </div>
                 {user.isOnline && (
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 border-4 border-white rounded-full"></div>
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 border-4 border-black rounded-full"></div>
                 )}
               </div>
 
@@ -201,25 +201,25 @@ export default function UserProfilePage() {
                   isMobile ? "justify-center space-x-2 flex-wrap" : "space-x-3"
                 )}>
                   <h1 className={cn(
-                    "font-bold text-gray-900",
+                    "font-bold text-white",
                     isMobile ? "text-2xl" : "text-3xl"
                   )} data-testid="profile-display-name">
                     {user.displayName}
                   </h1>
                   {user.role === 'admin' && (
-                    <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                    <Badge variant="secondary" className="bg-purple-900 text-purple-200">
                       <Shield className="w-3 h-3 mr-1" />
                       Admin
                     </Badge>
                   )}
                 </div>
                 <p className={cn(
-                  "text-gray-600 mb-1",
+                  "text-gray-300 mb-1",
                   isMobile ? "text-sm" : ""
                 )}>@{user.username}</p>
                 
                 <div className={cn(
-                  "flex items-center text-gray-500",
+                  "flex items-center text-gray-400",
                   isMobile ? "flex-col space-y-2 text-xs" : "space-x-4 text-sm",
                   isMobile && "items-center"
                 )}>
@@ -245,8 +245,8 @@ export default function UserProfilePage() {
                     "px-2 py-1 rounded-full",
                     isMobile ? "text-xs" : "text-xs",
                     user.isOnline 
-                      ? "bg-green-100 text-green-800" 
-                      : "bg-gray-100 text-gray-600"
+                      ? "bg-green-900 text-green-200" 
+                      : "bg-gray-800 text-gray-300"
                   )}>
                     {user.isOnline ? 'Online' : 'Offline'}
                   </div>
@@ -287,11 +287,11 @@ export default function UserProfilePage() {
 
               {isBlocked && (
                 <div className={cn(
-                  "bg-red-50 border border-red-200 rounded-lg",
+                  "bg-red-900 border border-red-800 rounded-lg",
                   isMobile ? "p-3" : "p-4"
                 )}>
                   <p className={cn(
-                    "text-red-800",
+                    "text-red-200",
                     isMobile ? "text-xs" : "text-sm"
                   )}>You have blocked this user</p>
                 </div>
@@ -302,15 +302,15 @@ export default function UserProfilePage() {
           {/* Bio Section */}
           {user.bio && (
             <div className={cn(
-              "border-b",
+              "border-b border-gray-800",
               isMobile ? "p-6" : "p-8"
             )}>
               <h2 className={cn(
-                "font-semibold text-gray-900 mb-3",
+                "font-semibold text-white mb-3",
                 isMobile ? "text-base" : "text-lg"
               )}>About</h2>
               <p className={cn(
-                "text-gray-700 whitespace-pre-wrap",
+                "text-gray-200 whitespace-pre-wrap",
                 isMobile ? "text-sm" : ""
               )} data-testid="profile-bio">
                 {user.bio}
@@ -324,7 +324,7 @@ export default function UserProfilePage() {
               isMobile ? "p-6" : "p-8"
             )}>
               <h2 className={cn(
-                "font-semibold text-gray-900 mb-4 flex items-center",
+                "font-semibold text-white mb-4 flex items-center",
                 isMobile ? "text-base" : "text-lg"
               )}>
                 <Camera className={cn(
