@@ -46,7 +46,7 @@ export default function MessageList({
   const isMobile = propIsMobile ?? hookIsMobile;
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   // Reaction mutations
   const addReactionMutation = useMutation({
     mutationFn: async ({ messageId, emoji }: { messageId: string; emoji: string }) => {
@@ -67,7 +67,7 @@ export default function MessageList({
       });
     },
   });
-  
+
   const removeReactionMutation = useMutation({
     mutationFn: async ({ messageId, emoji }: { messageId: string; emoji: string }) => {
       return await apiRequest('DELETE', `/api/messages/${messageId}/reactions`, {
@@ -87,7 +87,7 @@ export default function MessageList({
       });
     },
   });
-  
+
   const handleAddReaction = (messageId: string, emoji: string) => {
     addReactionMutation.mutate({ messageId, emoji });
   };
@@ -106,21 +106,21 @@ export default function MessageList({
   // Handle infinite scroll for loading older messages
   const handleScroll = useCallback(() => {
     if (!containerRef.current || !onLoadMore || isLoadingMore || !hasMoreMessages) return;
-    
+
     const container = containerRef.current;
     const scrollTop = container.scrollTop;
     const threshold = 100; // Load more when 100px from top
-    
+
     if (scrollTop <= threshold) {
       setShouldScrollToBottom(false); // Don't auto-scroll when loading older messages
       onLoadMore();
     }
-    
+
     // Re-enable auto-scroll when user scrolls near the bottom
     const scrollHeight = container.scrollHeight;
     const clientHeight = container.clientHeight;
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-    
+
     if (distanceFromBottom < 200) {
       setShouldScrollToBottom(true);
     }
@@ -129,7 +129,7 @@ export default function MessageList({
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    
+
     container.addEventListener('scroll', handleScroll);
     return () => container.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
@@ -185,7 +185,7 @@ export default function MessageList({
           <span className="ml-1 sm:ml-2 md:ml-3 text-xs sm:text-sm md:text-base text-gray-500">Loading messages...</span>
         </div>
       )}
-      
+
       {/* Load more indicator */}
       {isLoadingMore && (
         <div className="flex justify-center items-center py-4" ref={messagesStartRef}>
@@ -193,7 +193,7 @@ export default function MessageList({
           <span className="ml-1 sm:ml-2 md:ml-3 text-gray-500 text-xs sm:text-sm md:text-base">Loading more messages...</span>
         </div>
       )}
-      
+
       {/* Load more button (shown when not auto-loading) */}
       {!isLoadingMore && hasMoreMessages && messages.length > 0 && onLoadMore && (
         <div className="flex justify-center py-4">
@@ -208,10 +208,10 @@ export default function MessageList({
           </Button>
         </div>
       )}
-      
+
       {messages.map((message) => {
         const isOwnMessage = message.userId === currentUser.id;
-        
+
         // Handle photo messages
         if (message.messageType === 'photo') {
           console.log('Rendering photo message:', {
@@ -229,7 +229,7 @@ export default function MessageList({
             />
           );
         }
-        
+
         // Handle text messages
         return (
           <div
@@ -303,7 +303,7 @@ export default function MessageList({
                   )}>
                     {message.content}
                   </p>
-                  
+
                   {/* Reaction Picker */}
                   <div className={cn(
                     "absolute top-2 opacity-0 group-hover:opacity-100 transition-opacity",
@@ -315,7 +315,7 @@ export default function MessageList({
                     />
                   </div>
                 </div>
-                
+
                 {/* Reaction Display */}
                 <ReactionDisplay
                   reactions={[]} // Will be populated when we have real reaction data
