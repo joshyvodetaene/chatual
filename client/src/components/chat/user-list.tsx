@@ -102,20 +102,6 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                     )}
                     <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-accent border-2 border-black rounded-full"></div>
                   </div>
-                  <UserProfileMenu
-                    user={member}
-                    currentUser={currentUser!}
-                    onStartPrivateChat={onStartPrivateChat}
-                  >
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-6 w-6 ml-2"
-                      data-testid={`online-user-menu-${member.id}`}
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </UserProfileMenu>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-2">
                       <p className="text-sm font-medium text-white truncate">
@@ -138,6 +124,20 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                       )}
                     </div>
                   </div>
+                  <UserProfileMenu
+                    user={member}
+                    currentUser={currentUser!}
+                    onStartPrivateChat={onStartPrivateChat}
+                  >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-6 w-6"
+                      data-testid={`online-user-menu-${member.id}`}
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </UserProfileMenu>
                 </div>
               ))}
             </div>
@@ -172,20 +172,6 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                     )}
                     <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-gray-400 border-2 border-black rounded-full"></div>
                   </div>
-                  <UserProfileMenu
-                    user={member}
-                    currentUser={currentUser!}
-                    onStartPrivateChat={onStartPrivateChat}
-                  >
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-6 w-6 ml-2"
-                      data-testid={`offline-user-menu-${member.id}`}
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </UserProfileMenu>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-2">
                       <p className="text-sm font-medium text-gray-300 truncate">
@@ -208,6 +194,20 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                       )}
                     </div>
                   </div>
+                  <UserProfileMenu
+                    user={member}
+                    currentUser={currentUser!}
+                    onStartPrivateChat={onStartPrivateChat}
+                  >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-6 w-6"
+                      data-testid={`offline-user-menu-${member.id}`}
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </UserProfileMenu>
                 </div>
               ))}
             </div>
