@@ -32,6 +32,7 @@ export default function ChatPage() {
   const [privateRooms, setPrivateRooms] = useState<PrivateRoom[]>([]);
   const currentJoinedRoom = useRef<string | null>(null);
 
+  // Always call hooks consistently - enable/disable with the enabled option
   const { 
     isConnected,
     connectionStatus,
@@ -51,38 +52,6 @@ export default function ChatPage() {
     clearFailedMessages
   } = useWebSocket(currentUser?.id);
 
-  const logoutMutation = useMutation({
-    mutationFn: async () => {
-      if (currentUser?.id) {
-        await apiRequest('POST', '/api/auth/logout', { userId: currentUser.id });
-      }
-    },
-    onSuccess: () => {
-      setCurrentUser(null);
-      localStorage.removeItem('chatual_user');
-      // Clear all query cache to prevent stale data issues
-      queryClient.clear();
-      // Force a page reload to reset all state cleanly
-      window.location.reload();
-    },
-    onError: () => {
-      // Even if logout fails on server, clear local state
-      setCurrentUser(null);
-      localStorage.removeItem('chatual_user');
-      queryClient.clear();
-      window.location.reload();
-    },
-  });
-
-  const handleAuthSuccess = (user: User) => {
-    setCurrentUser(user);
-    localStorage.setItem('chatual_user', JSON.stringify(user));
-  };
-
-  const handleLogout = () => {
-    logoutMutation.mutate();
-  };
-
   const { data: roomsData } = useQuery<{ rooms: Room[] }>({
     queryKey: ['/api/rooms'],
     enabled: !!currentUser,
@@ -98,16 +67,9 @@ export default function ChatPage() {
     enabled: !!currentUser?.id,
   });
 
-  // Handle chat data changes
-  useEffect(() => {
-    if (chatData) {
-      setPrivateRooms(chatData.privateRooms || []);
-    }
-  }, [chatData]);
-
   const { data: activeRoomData } = useQuery<{ room: RoomWithMembers }>({
     queryKey: ['/api/rooms', activeRoom?.id],
-    enabled: !!activeRoom?.id,
+    enabled: !!activeRoom?.id && !!currentUser,
   });
 
   // Use paginated messages for the active room
@@ -121,26 +83,61 @@ export default function ChatPage() {
     setMessages: setPaginatedMessages
   } = usePaginatedMessages({
     roomId: activeRoom?.id,
-    enabled: !!activeRoom?.id
+    enabled: !!activeRoom?.id && !!currentUser
   });
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      if (currentUser?.id) {
+        await apiRequest('POST', '/api/auth/logout', { userId: currentUser.id });
+      }
+    },
+    onSuccess: () => {
+      setCurrentUser(null);
+      localStorage.removeItem('chatual_user');
+      // Clear all query cache to prevent stale data issues
+      queryClient.clear();
+    },
+    onError: () => {
+      // Even if logout fails on server, clear local state
+      setCurrentUser(null);
+      localStorage.removeItem('chatual_user');
+      queryClient.clear();
+    },
+  });
+
+  const handleAuthSuccess = (user: User) => {
+    setCurrentUser(user);
+    localStorage.setItem('chatual_user', JSON.stringify(user));
+  };
+
+  const handleLogout = () => {
+    logoutMutation.mutate();
+  };
+
+  // Handle chat data changes
+  useEffect(() => {
+    if (chatData && currentUser) {
+      setPrivateRooms(chatData.privateRooms || []);
+    }
+  }, [chatData, currentUser]);
 
   // Sync paginated messages with WebSocket messages
   useEffect(() => {
-    if (paginatedMessages.length > 0 && paginatedMessages !== messages) {
+    if (currentUser && paginatedMessages.length > 0 && paginatedMessages !== messages) {
       setMessages(paginatedMessages);
     }
-  }, [paginatedMessages, messages, setMessages]);
+  }, [paginatedMessages, messages, setMessages, currentUser]);
 
   // Handle new messages from WebSocket
   useEffect(() => {
-    // When we receive a new message via WebSocket, add it to paginated messages too
-    if (messages.length > paginatedMessages.length) {
+    if (currentUser && messages.length > paginatedMessages.length) {
       const newMessage = messages[messages.length - 1];
       if (newMessage && !paginatedMessages.find(m => m.id === newMessage.id)) {
         addMessage(newMessage);
       }
     }
-  }, [messages, paginatedMessages, addMessage]);
+  }, [messages, paginatedMessages, addMessage, currentUser]);
 
   // Join room when active room changes
   useEffect(() => {
@@ -159,210 +156,211 @@ export default function ChatPage() {
 
   // Set initial active room
   useEffect(() => {
-    if (roomsData?.rooms && roomsData.rooms.length > 0 && !activeRoom) {
+    if (roomsData?.rooms && roomsData.rooms.length > 0 && !activeRoom && currentUser) {
       setActiveRoom(roomsData.rooms[0]);
     }
-  }, [roomsData, activeRoom]);
+  }, [roomsData?.rooms, activeRoom, currentUser]);
 
-  const handleRoomSelect = (room: Room) => {
-    setActiveRoom(room);
-  };
+  // Auto-show user list on desktop, hide on mobile/tablet
+  useEffect(() => {
+    if (currentUser) {
+      setShowUserList(isDesktop);
+    }
+  }, [isDesktop, currentUser]);
 
-  const handleSendMessage = (content: string, photoUrl?: string, photoFileName?: string) => {
-    sendMessage(content, photoUrl, photoFileName);
+  const handleSendMessage = async (content: string, messageType: 'text' | 'photo' = 'text', photoUrl?: string) => {
+    if (!currentUser?.id) return;
+    
+    if (!activeRoom?.id) return;
+
+    const tempMessage: MessageWithUser = {
+      id: crypto.randomUUID(),
+      roomId: activeRoom.id,
+      userId: currentUser.id,
+      content,
+      messageType,
+      photoUrl,
+      createdAt: new Date(),
+      user: currentUser,
+      isTemporary: true,
+    };
+
+    setPaginatedMessages(prev => [...prev, tempMessage]);
+    sendMessage(activeRoom.id, content, messageType, photoUrl);
   };
 
   const handleStartPrivateChat = async (userId: string) => {
     if (!currentUser?.id) return;
-    
-    // Check if trying to start private chat with blocked user
-    const blockedUserIds = new Set(blockedUsersData?.map(bu => bu.blockedId) || []);
-    if (blockedUserIds.has(userId)) {
-      // This shouldn't happen as blocked users should be filtered out,
-      // but adding this as a safety check
-      return;
-    }
     
     try {
       const response = await apiRequest('POST', '/api/private-chat/create', {
         user1Id: currentUser.id,
         user2Id: userId,
       });
-      const data = await response.json() as { room: Room };
       
-      if (data.room) {
-        setActiveRoom(data.room);
-        // Refresh private rooms list
-        queryClient.invalidateQueries({ queryKey: ['/api/chat-data', currentUser.id] });
-      }
+      const data = await response.json();
+      
+      // Invalidate chat data to refresh the room list
+      await queryClient.invalidateQueries({ queryKey: ['/api/chat-data', currentUser.id] });
+      
+      // Set the new private room as active
+      setActiveRoom(data.room);
     } catch (error) {
-      console.error('Failed to create private chat:', error);
+      console.error('Failed to start private chat:', error);
     }
   };
 
-  if (!currentUser) {
-    return <AuthScreen onAuthSuccess={handleAuthSuccess} />;
-  }
-
-  // Auto-show user list on desktop, hide on mobile/tablet
-  useEffect(() => {
-    setShowUserList(isDesktop);
-  }, [isDesktop]);
-
-  const handleRoomSelectMobile = (room: Room) => {
-    handleRoomSelect(room);
-    if (isMobile) {
+  const handleRoomSelect = (room: Room) => {
+    setActiveRoom(room);
+    if (isMobile || isTablet) {
       setShowSidebarMobile(false);
     }
   };
 
-  return (
-    <div className="h-screen flex overflow-hidden bg-background sensual-gradient" data-testid="chat-application">
-      {/* Desktop Sidebar */}
-      {isDesktop && (
-        <Sidebar
-          currentUser={currentUser}
-          rooms={roomsData?.rooms || []}
-          privateRooms={privateRooms}
-          activeRoom={activeRoom}
-          onRoomSelect={handleRoomSelect}
-          onCreateRoom={() => setShowCreateRoom(true)}
-          onStartPrivateChat={handleStartPrivateChat}
-          className="hidden lg:flex"
-        />
-      )}
+  // Return authentication screen if no user
+  if (!currentUser) {
+    return <AuthScreen onAuthSuccess={handleAuthSuccess} />;
+  }
 
+  return (
+    <div className="h-screen flex bg-gray-50 overflow-hidden">
       {/* Mobile Sidebar */}
       {(isMobile || isTablet) && (
         <MobileMenu
           side="left"
-          contentClassName="w-80 bg-sidebar border-r border-border"
+          className="w-80"
         >
           <Sidebar
-            currentUser={currentUser}
             rooms={roomsData?.rooms || []}
             privateRooms={privateRooms}
             activeRoom={activeRoom}
-            onRoomSelect={handleRoomSelectMobile}
+            onRoomSelect={handleRoomSelect}
+            currentUser={currentUser}
             onCreateRoom={() => setShowCreateRoom(true)}
-            onStartPrivateChat={handleStartPrivateChat}
-            className="h-full"
-            isMobile={true}
           />
         </MobileMenu>
       )}
 
+      {/* Desktop Sidebar */}
+      {isDesktop && (
+        <Sidebar
+          rooms={roomsData?.rooms || []}
+          privateRooms={privateRooms}
+          activeRoom={activeRoom}
+          onRoomSelect={handleRoomSelect}
+          currentUser={currentUser}
+          onCreateRoom={() => setShowCreateRoom(true)}
+          className="w-80 border-r border-gray-200"
+        />
+      )}
+
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Chat Header */}
-        <div className="h-16 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-4 lg:px-6 red-glow">
-          <div className="flex items-center space-x-3">
-            {/* Mobile Menu Button */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <div className={cn(
+          "bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between",
+          isMobile && "px-3 py-2"
+        )}>
+          <div className="flex items-center space-x-3 min-w-0">
             {(isMobile || isTablet) && (
               <MobileMenu
                 side="left"
-                triggerClassName="text-gray-300 hover:text-white hover:bg-primary/20 mr-2"
-                contentClassName="w-80 bg-sidebar border-r border-border"
+                className="w-80"
+                triggerClassName="mr-2"
               >
                 <Sidebar
-                  currentUser={currentUser}
                   rooms={roomsData?.rooms || []}
                   privateRooms={privateRooms}
                   activeRoom={activeRoom}
-                  onRoomSelect={handleRoomSelectMobile}
+                  onRoomSelect={handleRoomSelect}
+                  currentUser={currentUser}
                   onCreateRoom={() => setShowCreateRoom(true)}
-                  onStartPrivateChat={handleStartPrivateChat}
-                  className="h-full"
-                  isMobile={true}
                 />
               </MobileMenu>
             )}
             
-            <BackButton className={cn("mr-2", (isMobile || isTablet) && "hidden")} />
+            <Hash className={cn(
+              "text-gray-500",
+              isMobile ? "w-4 h-4" : "w-5 h-5"
+            )} />
+            <h1 className={cn(
+              "font-semibold text-gray-900 truncate",
+              isMobile ? "text-base" : "text-lg"
+            )}>
+              {activeRoom?.name || 'Select a room'}
+            </h1>
             
-            <div className="w-8 h-8 bg-primary text-white rounded-lg flex items-center justify-center red-glow">
-              <Hash className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-lg font-semibold text-white truncate" data-testid="room-name">
-                {activeRoom?.name || 'Select a room'}
-              </h2>
-              <p className="text-xs text-gray-400 hidden sm:block" data-testid="room-member-count">
-                {activeRoomData?.room?.memberCount || 0} members
-              </p>
-            </div>
+            <ConnectionStatusIndicator 
+              isConnected={isConnected}
+              status={connectionStatus}
+              queuedCount={queuedCount}
+              failedCount={failedCount}
+              isProcessing={isProcessingQueue}
+              onRetry={reconnect}
+              onClearFailed={clearFailedMessages}
+            />
           </div>
-          
-          <div className="flex items-center space-x-1 sm:space-x-2">
-            {/* User List Toggle - Desktop Only */}
-            {isDesktop && (
+
+          <div className={cn(
+            "flex items-center",
+            isMobile ? "space-x-1" : "space-x-2"
+          )}>
+            {!isMobile && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowUserList(!showUserList)}
+                className={cn(
+                  "text-gray-500 hover:text-gray-700",
+                  showUserList && "bg-gray-100 text-gray-700"
+                )}
                 data-testid="button-toggle-user-list"
-                className="text-gray-300 hover:text-white hover:bg-primary/20"
               >
                 <Users className="w-4 h-4" />
               </Button>
             )}
-            
-            {/* Mobile User List */}
-            {(isMobile || isTablet) && activeRoomData?.room && (
-              <MobileMenu
-                side="right"
-                triggerClassName="text-gray-300 hover:text-white hover:bg-primary/20"
-                contentClassName="w-80 bg-white border-l border-gray-200"
-              >
-                <UserList
-                  room={activeRoomData.room}
-                  onlineUsers={roomOnlineUsers}
-                  currentUser={currentUser}
-                  onStartPrivateChat={handleStartPrivateChat}
-                  blockedUserIds={new Set(blockedUsersData?.map(bu => bu.blockedId) || [])}
-                  isMobile={true}
-                />
-              </MobileMenu>
-            )}
-            
-            <Button variant="ghost" size="sm" data-testid="button-search" className="text-gray-300 hover:text-white hover:bg-primary/20 hidden sm:flex">
-              <Search className="w-4 h-4" />
-            </Button>
+
             <Link href="/settings">
-              <Button variant="ghost" size="sm" data-testid="button-settings" className="text-gray-300 hover:text-white hover:bg-primary/20">
-                <Settings className="w-4 h-4" />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-gray-500 hover:text-gray-700"
+                data-testid="button-settings"
+              >
+                <Settings className={cn(
+                  isMobile ? "w-4 h-4" : "w-4 h-4"
+                )} />
               </Button>
             </Link>
-            {currentUser?.role === 'admin' && (
+
+            {currentUser.role === 'admin' && (
               <Link href="/admin">
-                <Button variant="ghost" size="sm" data-testid="button-admin" className="text-gray-300 hover:text-white hover:bg-primary/20 hidden sm:flex">
-                  <Shield className="w-4 h-4" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-gray-500 hover:text-gray-700"
+                  data-testid="button-admin"
+                >
+                  <Shield className={cn(
+                    isMobile ? "w-4 h-4" : "w-4 h-4"
+                  )} />
                 </Button>
               </Link>
             )}
-            <Button 
-              variant="ghost" 
-              size="sm" 
+
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleLogout}
-              disabled={logoutMutation.isPending}
+              className="text-gray-500 hover:text-gray-700"
               data-testid="button-logout"
-              className="text-gray-300 hover:text-primary hover:bg-primary/20 transition-colors"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className={cn(
+                isMobile ? "w-4 h-4" : "w-4 h-4"
+              )} />
             </Button>
           </div>
         </div>
-
-        {/* Connection Status Indicator */}
-        <ConnectionStatusIndicator
-          connectionStatus={connectionStatus}
-          lastError={lastError}
-          queuedCount={queuedCount}
-          failedCount={failedCount}
-          isProcessingQueue={isProcessingQueue}
-          onReconnect={reconnect}
-          onClearFailed={clearFailedMessages}
-        />
 
         {/* Messages */}
         <MessageList
@@ -375,15 +373,38 @@ export default function ChatPage() {
           hasMoreMessages={hasMoreMessages}
           onLoadMore={loadMoreMessages}
           onStartPrivateChat={handleStartPrivateChat}
+          isMobile={isMobile}
         />
 
         {/* Message Input */}
         <MessageInput
           onSendMessage={handleSendMessage}
-          onTyping={sendTyping}
-          disabled={!activeRoom || !isConnected}
+          onTyping={() => {
+            if (activeRoom?.id && currentUser?.id) {
+              sendTyping(activeRoom.id);
+            }
+          }}
+          currentUser={currentUser}
+          disabled={!isConnected || !activeRoom}
+          isMobile={isMobile}
         />
       </div>
+
+      {/* Mobile User List Modal */}
+      {(isMobile || isTablet) && showUserList && activeRoomData?.room && (
+        <MobileMenu
+          side="right"
+          className="w-80"
+        >
+          <UserList
+            room={activeRoomData.room}
+            onlineUsers={roomOnlineUsers}
+            currentUser={currentUser}
+            onStartPrivateChat={handleStartPrivateChat}
+            blockedUserIds={new Set(blockedUsersData?.map(bu => bu.blockedId) || [])}
+          />
+        </MobileMenu>
+      )}
 
       {/* Desktop User List */}
       {isDesktop && showUserList && activeRoomData?.room && (
