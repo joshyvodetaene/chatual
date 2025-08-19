@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { User, Room, RoomWithMembers, MessageWithUser, PrivateRoom, PrivateChatData, BlockedUserWithDetails } from '@shared/schema';
 import { useWebSocket } from '@/hooks/use-websocket';
 import { usePaginatedMessages } from '@/hooks/use-paginated-messages';
@@ -27,6 +27,7 @@ export default function ChatPage() {
     return saved ? JSON.parse(saved) : null;
   });
   const [activeRoom, setActiveRoom] = useState<Room | null>(null);
+  const activeRoomRef = useRef<Room | null>(null);
   const [showUserList, setShowUserList] = useState(false);
   const [showSidebarMobile, setShowSidebarMobile] = useState(false);
   const { isMobile, isTablet, isDesktop } = useResponsive();
@@ -211,6 +212,7 @@ export default function ChatPage() {
       
       console.log('Setting initial active room to:', roomToSet.name);
       setActiveRoom(roomToSet);
+      activeRoomRef.current = roomToSet; // Keep ref in sync
       localStorage.setItem('chatual_active_room', JSON.stringify({ id: roomToSet.id, name: roomToSet.name }));
     }
   }, [roomsData?.rooms, activeRoom, currentUser]);
@@ -230,7 +232,7 @@ export default function ChatPage() {
       photoFileName,
       currentUser: currentUser?.id,
       activeRoom: activeRoom?.id,
-      activeRoomName: activeRoom?.name,
+      activeRoomRef: activeRoomRef.current?.id,
       roomsDataLength: roomsData?.rooms?.length
     });
     
@@ -239,43 +241,70 @@ export default function ChatPage() {
       return;
     }
     
-    // First try to use current activeRoom
-    let roomToUse = activeRoom;
+    // Use multiple fallback strategies to find a room
+    let roomToUse: Room | null = null;
     
-    // If no activeRoom, try to find a room from roomsData
-    if (!roomToUse?.id && roomsData?.rooms && roomsData.rooms.length > 0) {
-      console.log('No activeRoom, using first available room:', roomsData.rooms[0].name);
-      roomToUse = roomsData.rooms[0];
-      // Also set it as active room for future messages
-      setActiveRoom(roomsData.rooms[0]);
+    // Strategy 1: Use activeRoom from state
+    if (activeRoom?.id) {
+      roomToUse = activeRoom;
+      console.log('Using activeRoom from state:', roomToUse.name);
     }
     
-    // If still no room, try to get from current joined room or use localStorage
-    if (!roomToUse?.id) {
-      console.log('No room available, checking localStorage for last room');
+    // Strategy 2: Use activeRoom from ref (more stable)
+    if (!roomToUse && activeRoomRef.current?.id) {
+      roomToUse = activeRoomRef.current;
+      console.log('Using activeRoom from ref:', roomToUse.name);
+    }
+    
+    // Strategy 3: Get from localStorage and validate against available rooms
+    if (!roomToUse) {
       const savedRoom = localStorage.getItem('chatual_active_room');
-      if (savedRoom && roomsData?.rooms) {
-        const parsedRoom = JSON.parse(savedRoom);
-        roomToUse = roomsData.rooms.find(r => r.id === parsedRoom.id) || roomsData.rooms[0];
-        if (roomToUse) {
-          setActiveRoom(roomToUse);
+      if (savedRoom) {
+        try {
+          const parsedRoom = JSON.parse(savedRoom);
+          // Try to find this room in current rooms data or use a cached query
+          const cachedRooms = queryClient.getQueryData<{ rooms: Room[] }>(['/api/rooms']);
+          if (cachedRooms?.rooms) {
+            roomToUse = cachedRooms.rooms.find(r => r.id === parsedRoom.id) || null;
+            if (roomToUse) {
+              console.log('Using room from localStorage:', roomToUse.name);
+            }
+          }
+        } catch (e) {
+          console.log('Failed to parse saved room');
         }
       }
     }
     
-    if (!roomToUse?.id) {
-      console.log('No room available for sending message. Waiting for room data...');
-      // Wait a bit and try again if rooms are still loading
-      setTimeout(() => {
-        if (roomsData?.rooms && roomsData.rooms.length > 0) {
-          console.log('Retrying send with loaded rooms');
-          handleSendMessage(content, photoUrl, photoFileName);
-        }
-      }, 500);
+    // Strategy 4: Use first available room from cache
+    if (!roomToUse) {
+      const cachedRooms = queryClient.getQueryData<{ rooms: Room[] }>(['/api/rooms']);
+      if (cachedRooms?.rooms && cachedRooms.rooms.length > 0) {
+        roomToUse = cachedRooms.rooms[0];
+        console.log('Using first cached room:', roomToUse.name);
+        setActiveRoom(roomToUse);
+        activeRoomRef.current = roomToUse;
+      }
+    }
+    
+    if (!roomToUse) {
+      console.log('No room available for sending message. Force refreshing room data...');
+      // Force refresh room data and retry
+      queryClient.invalidateQueries({ queryKey: ['/api/rooms'] }).then(() => {
+        setTimeout(() => {
+          const refreshedRooms = queryClient.getQueryData<{ rooms: Room[] }>(['/api/rooms']);
+          if (refreshedRooms?.rooms && refreshedRooms.rooms.length > 0) {
+            console.log('Retrying send with refreshed rooms');
+            setActiveRoom(refreshedRooms.rooms[0]);
+            activeRoomRef.current = refreshedRooms.rooms[0];
+            sendMessage(content, photoUrl, photoFileName);
+          }
+        }, 1000);
+      });
       return;
     }
 
-    // Send message via WebSocket without temporary message
+    // Send message via WebSocket
     console.log('About to call sendMessage via WebSocket for room:', roomToUse.name);
     sendMessage(content, photoUrl, photoFileName);
   };
@@ -303,6 +332,7 @@ export default function ChatPage() {
 
   const handleRoomSelect = (room: Room) => {
     setActiveRoom(room);
+    activeRoomRef.current = room; // Keep ref in sync
     // Save selected room to localStorage as backup
     localStorage.setItem('chatual_active_room', JSON.stringify({ id: room.id, name: room.name }));
     if (isMobile || isTablet) {
