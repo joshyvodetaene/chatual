@@ -35,6 +35,10 @@ import {
   type AdminDashboardStats,
   type PaginationParams,
   type PaginatedResponse,
+  type MessageReaction,
+  type InsertMessageReaction,
+  type ReactionSummary,
+  type MessageWithReactions,
   users,
   rooms,
   messages,
@@ -42,10 +46,11 @@ import {
   userPhotos,
   blockedUsers,
   reports,
-  userModerationActions
+  userModerationActions,
+  messageReactions
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, ne, sql, gt, lt } from "drizzle-orm";
+import { eq, and, or, desc, ne, sql, gt, lt, like, ilike } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 import type { IStorage } from "./storage";
@@ -444,6 +449,189 @@ export class DatabaseStorage implements IStorage {
       rooms: publicRooms,
       privateRooms
     };
+  }
+
+  // Search functionality
+  async searchMessages(query: string, roomId?: string, userId?: string, limit: number = 20): Promise<MessageWithUser[]> {
+    console.log(`[DB] Searching messages with query: "${query}", roomId: ${roomId}, userId: ${userId}`);
+    
+    let whereConditions = [ilike(messages.content, `%${query}%`)];
+    
+    if (roomId) {
+      whereConditions.push(eq(messages.roomId, roomId));
+    }
+    
+    if (userId) {
+      // Only search in rooms where the user is a member
+      const userRooms = await db
+        .select({ roomId: roomMembers.roomId })
+        .from(roomMembers)
+        .where(eq(roomMembers.userId, userId));
+      
+      const roomIds = userRooms.map(r => r.roomId);
+      if (roomIds.length > 0) {
+        whereConditions.push(sql`${messages.roomId} = ANY(${roomIds})`);
+      } else {
+        return []; // User is not in any rooms
+      }
+    }
+    
+    const result = await db
+      .select({
+        message: messages,
+        user: users,
+      })
+      .from(messages)
+      .innerJoin(users, eq(messages.userId, users.id))
+      .where(and(...whereConditions))
+      .orderBy(desc(messages.createdAt))
+      .limit(limit);
+    
+    const searchResults = result.map(({ message, user }) => ({
+      ...message,
+      user: user
+    }));
+    
+    console.log(`[DB] Found ${searchResults.length} message search results`);
+    return searchResults;
+  }
+  
+  async searchUsers(query: string, currentUserId?: string, limit: number = 20): Promise<User[]> {
+    console.log(`[DB] Searching users with query: "${query}", currentUserId: ${currentUserId}`);
+    
+    let whereConditions = [
+      or(
+        ilike(users.username, `%${query}%`),
+        ilike(users.displayName, `%${query}%`)
+      )
+    ];
+    
+    // Exclude current user from search results
+    if (currentUserId) {
+      whereConditions.push(ne(users.id, currentUserId));
+    }
+    
+    // Exclude banned users
+    whereConditions.push(eq(users.isBanned, false));
+    
+    const searchResults = await db
+      .select()
+      .from(users)
+      .where(and(...whereConditions))
+      .orderBy(desc(users.isOnline), users.displayName)
+      .limit(limit);
+    
+    console.log(`[DB] Found ${searchResults.length} user search results`);
+    return searchResults;
+  }
+  
+  async searchRooms(query: string, userId?: string, limit: number = 20): Promise<Room[]> {
+    console.log(`[DB] Searching rooms with query: "${query}", userId: ${userId}`);
+    
+    let whereConditions = [
+      or(
+        ilike(rooms.name, `%${query}%`),
+        ilike(rooms.description, `%${query}%`)
+      ),
+      eq(rooms.isPrivate, false) // Only search public rooms
+    ];
+    
+    const searchResults = await db
+      .select()
+      .from(rooms)
+      .where(and(...whereConditions))
+      .orderBy(rooms.name)
+      .limit(limit);
+    
+    console.log(`[DB] Found ${searchResults.length} room search results`);
+    return searchResults;
+  }
+
+  // Reaction methods
+  async addReaction(reactionData: InsertMessageReaction): Promise<MessageReaction> {
+    console.log(`[DB] Adding reaction: ${reactionData.emoji} to message ${reactionData.messageId} by user ${reactionData.userId}`);
+    
+    // Check if user already reacted with this emoji
+    const existingReaction = await db
+      .select()
+      .from(messageReactions)
+      .where(
+        and(
+          eq(messageReactions.messageId, reactionData.messageId),
+          eq(messageReactions.userId, reactionData.userId),
+          eq(messageReactions.emoji, reactionData.emoji)
+        )
+      )
+      .limit(1);
+    
+    if (existingReaction.length > 0) {
+      console.log(`[DB] User already reacted with this emoji`);
+      return existingReaction[0];
+    }
+    
+    const [newReaction] = await db
+      .insert(messageReactions)
+      .values({ ...reactionData, id: randomUUID() })
+      .returning();
+    
+    console.log(`[DB] Reaction added successfully: ${newReaction.id}`);
+    return newReaction;
+  }
+  
+  async removeReaction(messageId: string, userId: string, emoji: string): Promise<boolean> {
+    console.log(`[DB] Removing reaction: ${emoji} from message ${messageId} by user ${userId}`);
+    
+    const result = await db
+      .delete(messageReactions)
+      .where(
+        and(
+          eq(messageReactions.messageId, messageId),
+          eq(messageReactions.userId, userId),
+          eq(messageReactions.emoji, emoji)
+        )
+      );
+    
+    console.log(`[DB] Reaction removal result: ${result.rowCount} rows affected`);
+    return (result.rowCount || 0) > 0;
+  }
+  
+  async getMessageReactions(messageId: string, currentUserId?: string): Promise<ReactionSummary[]> {
+    console.log(`[DB] Getting reactions for message: ${messageId}`);
+    
+    const reactions = await db
+      .select({
+        reaction: messageReactions,
+        user: users
+      })
+      .from(messageReactions)
+      .innerJoin(users, eq(messageReactions.userId, users.id))
+      .where(eq(messageReactions.messageId, messageId))
+      .orderBy(messageReactions.createdAt);
+    
+    // Group reactions by emoji
+    const reactionMap = new Map<string, ReactionSummary>();
+    
+    reactions.forEach(({ reaction, user }) => {
+      const existing = reactionMap.get(reaction.emoji);
+      if (existing) {
+        existing.count++;
+        existing.users.push({ id: user.id, displayName: user.displayName });
+        if (user.id === currentUserId) {
+          existing.userReacted = true;
+        }
+      } else {
+        reactionMap.set(reaction.emoji, {
+          emoji: reaction.emoji,
+          count: 1,
+          userReacted: user.id === currentUserId,
+          users: [{ id: user.id, displayName: user.displayName }]
+        });
+      }
+    });
+    
+    const summary = Array.from(reactionMap.values());
+    console.log(`[DB] Found ${summary.length} different reaction types for message ${messageId}`);
+    return summary;
   }
 
   // Message methods

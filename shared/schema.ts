@@ -49,6 +49,15 @@ export const messages = pgTable("messages", {
   messageType: varchar("message_type").notNull().default("text"), // "text", "photo"
 });
 
+// Message reactions table
+export const messageReactions = pgTable("message_reactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  messageId: varchar("message_id").notNull().references(() => messages.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  emoji: varchar("emoji").notNull(), // The emoji unicode or name (e.g., "👍", "❤️", "😂")
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // User profile photos table
 export const userPhotos = pgTable("user_photos", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -170,6 +179,27 @@ export const insertModerationActionSchema = createInsertSchema(userModerationAct
   id: true,
   performedAt: true,
 });
+
+// Message reactions schemas
+export const insertMessageReactionSchema = createInsertSchema(messageReactions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type MessageReaction = typeof messageReactions.$inferSelect;
+export type InsertMessageReaction = z.infer<typeof insertMessageReactionSchema>;
+
+// Message with reactions type
+export type ReactionSummary = {
+  emoji: string;
+  count: number;
+  userReacted: boolean; // Whether the current user reacted with this emoji
+  users: Array<{ id: string; displayName: string; }>; // Users who reacted
+};
+
+export type MessageWithReactions = MessageWithUser & {
+  reactions: ReactionSummary[];
+};
 
 export const warnUserSchema = z.object({
   userId: z.string().min(1, "User ID is required"),

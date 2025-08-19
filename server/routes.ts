@@ -561,6 +561,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Search routes
+  app.get('/api/search/messages', async (req, res) => {
+    try {
+      const { q: query, roomId, userId, limit } = req.query;
+      
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ error: 'Search query is required' });
+      }
+      
+      const results = await storage.searchMessages(
+        query,
+        roomId as string,
+        userId as string,
+        limit ? parseInt(limit as string) : 20
+      );
+      
+      res.json({ results });
+    } catch (error) {
+      console.error('Search messages error:', error);
+      res.status(500).json({ error: 'Failed to search messages' });
+    }
+  });
+  
+  app.get('/api/search/users', async (req, res) => {
+    try {
+      const { q: query, currentUserId, limit } = req.query;
+      
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ error: 'Search query is required' });
+      }
+      
+      const results = await storage.searchUsers(
+        query,
+        currentUserId as string,
+        limit ? parseInt(limit as string) : 20
+      );
+      
+      res.json({ results });
+    } catch (error) {
+      console.error('Search users error:', error);
+      res.status(500).json({ error: 'Failed to search users' });
+    }
+  });
+  
+  app.get('/api/search/rooms', async (req, res) => {
+    try {
+      const { q: query, userId, limit } = req.query;
+      
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ error: 'Search query is required' });
+      }
+      
+      const results = await storage.searchRooms(
+        query,
+        userId as string,
+        limit ? parseInt(limit as string) : 20
+      );
+      
+      res.json({ results });
+    } catch (error) {
+      console.error('Search rooms error:', error);
+      res.status(500).json({ error: 'Failed to search rooms' });
+    }
+  });
+
   // Room routes
   app.get('/api/rooms', async (req, res) => {
     try {
@@ -635,6 +700,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       res.status(400).json({ error: 'Failed to leave room' });
+    }
+  });
+
+  // Reaction routes
+  app.post('/api/messages/:messageId/reactions', async (req, res) => {
+    try {
+      const { messageId } = req.params;
+      const { userId, emoji } = req.body;
+      
+      if (!userId || !emoji) {
+        return res.status(400).json({ error: 'User ID and emoji are required' });
+      }
+      
+      const reaction = await storage.addReaction({ messageId, userId, emoji });
+      res.json({ reaction });
+    } catch (error) {
+      console.error('Add reaction error:', error);
+      res.status(500).json({ error: 'Failed to add reaction' });
+    }
+  });
+  
+  app.delete('/api/messages/:messageId/reactions', async (req, res) => {
+    try {
+      const { messageId } = req.params;
+      const { userId, emoji } = req.body;
+      
+      if (!userId || !emoji) {
+        return res.status(400).json({ error: 'User ID and emoji are required' });
+      }
+      
+      const success = await storage.removeReaction(messageId, userId, emoji);
+      if (success) {
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ error: 'Reaction not found' });
+      }
+    } catch (error) {
+      console.error('Remove reaction error:', error);
+      res.status(500).json({ error: 'Failed to remove reaction' });
+    }
+  });
+  
+  app.get('/api/messages/:messageId/reactions', async (req, res) => {
+    try {
+      const { messageId } = req.params;
+      const { currentUserId } = req.query;
+      
+      const reactions = await storage.getMessageReactions(messageId, currentUserId as string);
+      res.json({ reactions });
+    } catch (error) {
+      console.error('Get reactions error:', error);
+      res.status(500).json({ error: 'Failed to get reactions' });
     }
   });
 

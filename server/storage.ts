@@ -29,7 +29,10 @@ import {
   type ReportWithDetails,
   type ModerationData,
   type PaginationParams,
-  type PaginatedResponse
+  type PaginatedResponse,
+  type MessageReaction,
+  type InsertMessageReaction,
+  type ReactionSummary
 } from "@shared/schema";
 import { DatabaseStorage } from "./database-storage";
 import { randomUUID } from "crypto";
@@ -66,6 +69,16 @@ export interface IStorage {
   getPrivateRooms(userId: string): Promise<PrivateRoom[]>;
   deletePrivateRoom(roomId: string, userId: string): Promise<boolean>;
   getRoomsAndPrivateRooms(userId: string): Promise<PrivateChatData>;
+
+  // Search methods
+  searchMessages(query: string, roomId?: string, userId?: string, limit?: number): Promise<MessageWithUser[]>;
+  searchUsers(query: string, currentUserId?: string, limit?: number): Promise<User[]>;
+  searchRooms(query: string, userId?: string, limit?: number): Promise<Room[]>;
+
+  // Reaction methods
+  addReaction(reactionData: InsertMessageReaction): Promise<MessageReaction>;
+  removeReaction(messageId: string, userId: string, emoji: string): Promise<boolean>;
+  getMessageReactions(messageId: string, currentUserId?: string): Promise<ReactionSummary[]>;
 
   // Message methods
   createMessage(message: InsertMessage): Promise<Message>;

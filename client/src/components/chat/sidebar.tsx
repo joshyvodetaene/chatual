@@ -1,8 +1,9 @@
 import { User, Room, PrivateRoom } from '@shared/schema';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Hash, Lock, Plus, Settings, X } from 'lucide-react';
+import { MessageCircle, Hash, Lock, Plus, Settings, X, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import SearchModal from '@/components/search/search-modal';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
@@ -39,6 +40,7 @@ export default function Sidebar({
   });
   // State für den aktiven Tab (Räume oder Private Chats)
   const [activeTab, setActiveTab] = useState<'rooms' | 'private'>('rooms');
+  const [showSearch, setShowSearch] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -126,6 +128,16 @@ export default function Sidebar({
             </div>
             {/* App-Name */}
             <h1 className="text-lg sm:text-xl md:text-2xl font-semibold">Chatual</h1>
+            {/* Search Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowSearch(true)}
+              className="ml-auto h-8 w-8 p-0 hover:bg-white/20 rounded-lg"
+              data-testid="button-open-search"
+            >
+              <Search className="w-4 h-4" />
+            </Button>
           </div>
         </div>
       </div>
@@ -374,6 +386,15 @@ export default function Sidebar({
           )}
         </div>
       </div>
+      
+      {/* Search Modal */}
+      <SearchModal
+        isOpen={showSearch}
+        onClose={() => setShowSearch(false)}
+        onSelectRoom={onRoomSelect}
+        onSelectUser={(user) => onStartPrivateChat(user.id)}
+        currentUserId={currentUser?.id}
+      />
     </div>
   );
 }
