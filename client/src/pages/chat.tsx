@@ -192,9 +192,9 @@ export default function ChatPage() {
   useEffect(() => {
     if (currentUser) {
       setShowUserList(isDesktop);
-      console.log('Setting showUserList to:', isDesktop, 'for device type');
+      console.log('Setting showUserList to:', isDesktop, 'for device type:', { isMobile, isTablet, isDesktop });
     }
-  }, [isDesktop, currentUser]);
+  }, [isDesktop, currentUser, isMobile, isTablet]);
 
   const handleSendMessage = (content: string, photoUrl?: string, photoFileName?: string) => {
     if (!currentUser?.id) return;
@@ -324,20 +324,18 @@ export default function ChatPage() {
             "flex items-center",
             isMobile ? "space-x-1" : "space-x-2"
           )}>
-            {!isMobile && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowUserList(!showUserList)}
-                className={cn(
-                  "text-gray-500 hover:text-gray-700",
-                  showUserList && "bg-gray-100 text-gray-700"
-                )}
-                data-testid="button-toggle-user-list"
-              >
-                <Users className="w-4 h-4" />
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowUserList(!showUserList)}
+              className={cn(
+                "text-gray-500 hover:text-gray-700",
+                showUserList && "bg-gray-100 text-gray-700"
+              )}
+              data-testid="button-toggle-user-list"
+            >
+              <Users className="w-4 h-4" />
+            </Button>
 
             <Link href="/settings">
               <Button
