@@ -68,7 +68,24 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.host;
+    
+    // Ensure host is valid and properly formatted
+    if (!host || host.trim() === '') {
+      console.error('Invalid host for WebSocket connection:', host);
+      setLastError('Invalid WebSocket host');
+      return;
+    }
+    
     const wsUrl = `${protocol}//${host}/ws`;
+    
+    // Validate the WebSocket URL
+    try {
+      new URL(wsUrl);
+    } catch (error) {
+      console.error('Invalid WebSocket URL:', wsUrl, error);
+      setLastError('Invalid WebSocket URL');
+      return;
+    }
     
     const isReconnect = isReconnectingRef.current;
     
@@ -81,7 +98,13 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
       ws.current.close();
     }
     
-    ws.current = new WebSocket(wsUrl);
+    try {
+      ws.current = new WebSocket(wsUrl);
+    } catch (error) {
+      console.error('Failed to create WebSocket:', error, 'URL:', wsUrl);
+      setLastError(`Failed to create WebSocket: ${error.message}`);
+      return;
+    }
 
     ws.current.onopen = () => {
       console.log('WebSocket connected successfully');
