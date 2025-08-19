@@ -185,7 +185,7 @@ export default function Sidebar({
           {/* Private Chats Tab */}
           <button
             className={cn(
-              'flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95 hover:shadow-lg',
+              'flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95 hover:shadow-lg relative',
               activeTab === 'private'
                 ? 'bg-primary text-white shadow-sm red-glow' // Aktiver Zustand
                 : 'text-gray-300 hover:text-white hover:bg-white hover:bg-opacity-10 hover:shadow-md' // Inaktiver Zustand
@@ -194,6 +194,12 @@ export default function Sidebar({
             data-testid="tab-private"
           >
             Private
+            {/* Badge for new private chats */}
+            {privateRooms.length > 0 && activeTab !== 'private' && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold animate-pulse">
+                {privateRooms.length}
+              </span>
+            )}
           </button>
         </div>
       </div>

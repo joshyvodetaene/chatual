@@ -64,6 +64,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log(`[BROADCAST] Room ${roomId} has ${totalInRoom} clients, sent to ${sentCount} clients`);
   }
 
+  // Helper function to broadcast to specific user
+  function broadcastToUser(userId: string, message: any) {
+    console.log(`[BROADCAST] Broadcasting to user ${userId}, message type: ${message.type}`);
+    const client = clients.get(userId);
+    if (client && client.readyState === WebSocket.OPEN) {
+      console.log(`[BROADCAST] Sending notification to user ${userId}`);
+      client.send(JSON.stringify(message));
+      return true;
+    } else {
+      console.log(`[BROADCAST] User ${userId} not connected or connection not open`);
+      return false;
+    }
+  }
+
   // Helper functions for room user management
   function addUserToRoom(roomId: string, userId: string) {
     console.log(`[ROOM_USERS] Adding user ${userId} to room ${roomId}`);
@@ -375,8 +389,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Cannot create private chat with yourself' });
       }
       
-      const room = await storage.createPrivateRoom(user1Id, user2Id);
-      res.json({ room });
+      // Check if room already exists
+      const existingRoom = await storage.getPrivateRoom(user1Id, user2Id);
+      let room = existingRoom;
+      let isNewRoom = false;
+      
+      if (!existingRoom) {
+        room = await storage.createPrivateRoom(user1Id, user2Id);
+        isNewRoom = true;
+      }
+      
+      // Get user data for the notification
+      const user1 = await storage.getUser(user1Id);
+      const user2 = await storage.getUser(user2Id);
+      
+      // If it's a new room, notify the target user via WebSocket
+      if (isNewRoom && user1 && user2 && room) {
+        console.log(`[PRIVATE_CHAT] Notifying user ${user2Id} about new private chat from ${user1Id}`);
+        const notificationSent = broadcastToUser(user2Id, {
+          type: 'private_chat_request',
+          roomId: room.id,
+          fromUser: {
+            id: user1.id,
+            username: user1.username,
+            displayName: user1.displayName,
+            primaryPhoto: user1.primaryPhoto
+          },
+          room: room
+        });
+        console.log(`[PRIVATE_CHAT] Notification sent to ${user2Id}: ${notificationSent}`);
+      }
+      
+      res.json({ room, otherUser: user1Id === user1?.id ? user2 : user1 });
     } catch (error) {
       console.error('Private chat creation error:', error);
       res.status(400).json({ error: 'Failed to create private chat' });

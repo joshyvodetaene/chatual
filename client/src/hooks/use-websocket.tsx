@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { User, MessageWithUser } from '@shared/schema';
+import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 import { useOfflineQueue, type QueuedMessage } from './use-offline-queue';
 
 // Connection status types
@@ -38,6 +40,9 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
   const [roomOnlineUsers, setRoomOnlineUsers] = useState<Set<string>>(new Set());
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [lastError, setLastError] = useState<string | null>(null);
+  
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   // Initialize offline queue for message queuing when disconnected
   const {
@@ -193,6 +198,19 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
               }
               return newSet;
             });
+            break;
+          case 'private_chat_request':
+            console.log(`[WS_HOOK] Private chat request from ${message.fromUser?.displayName}: room ${message.roomId}`);
+            // Show notification to user
+            toast({
+              title: "New Private Chat",
+              description: `${message.fromUser?.displayName || 'Someone'} wants to start a private chat with you`,
+              duration: 5000,
+            });
+            // Refresh chat data to include the new private room
+            if (userId) {
+              queryClient.invalidateQueries({ queryKey: ['/api/chat-data', userId] });
+            }
             break;
         }
       } catch (error) {
