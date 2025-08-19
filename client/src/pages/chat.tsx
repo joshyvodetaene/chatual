@@ -168,11 +168,12 @@ export default function ChatPage() {
     }
   }, [isDesktop, currentUser]);
 
-  const handleSendMessage = async (content: string, messageType: 'text' | 'photo' = 'text', photoUrl?: string) => {
+  const handleSendMessage = (content: string, photoUrl?: string, photoFileName?: string) => {
     if (!currentUser?.id) return;
     
     if (!activeRoom?.id) return;
 
+    const messageType = photoUrl ? 'photo' : 'text';
     const tempMessage: MessageWithUser = {
       id: crypto.randomUUID(),
       roomId: activeRoom.id,
@@ -185,8 +186,8 @@ export default function ChatPage() {
       isTemporary: true,
     };
 
-    setPaginatedMessages(prev => [...prev, tempMessage]);
-    sendMessage(activeRoom.id, content, messageType, photoUrl);
+    setPaginatedMessages((prev: MessageWithUser[]) => [...prev, tempMessage]);
+    sendMessage(content, photoUrl, photoFileName);
   };
 
   const handleStartPrivateChat = async (userId: string) => {
@@ -237,6 +238,7 @@ export default function ChatPage() {
             onRoomSelect={handleRoomSelect}
             currentUser={currentUser}
             onCreateRoom={() => setShowCreateRoom(true)}
+            onStartPrivateChat={handleStartPrivateChat}
           />
         </MobileMenu>
       )}
@@ -250,6 +252,7 @@ export default function ChatPage() {
           onRoomSelect={handleRoomSelect}
           currentUser={currentUser}
           onCreateRoom={() => setShowCreateRoom(true)}
+          onStartPrivateChat={handleStartPrivateChat}
           className="w-80 border-r border-gray-200"
         />
       )}
@@ -275,6 +278,7 @@ export default function ChatPage() {
                   onRoomSelect={handleRoomSelect}
                   currentUser={currentUser}
                   onCreateRoom={() => setShowCreateRoom(true)}
+                  onStartPrivateChat={handleStartPrivateChat}
                 />
               </MobileMenu>
             )}
@@ -291,12 +295,12 @@ export default function ChatPage() {
             </h1>
             
             <ConnectionStatusIndicator 
-              isConnected={isConnected}
-              status={connectionStatus}
+              connectionStatus={connectionStatus}
+              lastError={lastError}
               queuedCount={queuedCount}
               failedCount={failedCount}
-              isProcessing={isProcessingQueue}
-              onRetry={reconnect}
+              isProcessingQueue={isProcessingQueue}
+              onReconnect={reconnect}
               onClearFailed={clearFailedMessages}
             />
           </div>
@@ -379,14 +383,12 @@ export default function ChatPage() {
         {/* Message Input */}
         <MessageInput
           onSendMessage={handleSendMessage}
-          onTyping={() => {
+          onTyping={(isTyping: boolean) => {
             if (activeRoom?.id && currentUser?.id) {
-              sendTyping(activeRoom.id);
+              sendTyping(isTyping);
             }
           }}
-          currentUser={currentUser}
           disabled={!isConnected || !activeRoom}
-          isMobile={isMobile}
         />
       </div>
 
