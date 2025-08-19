@@ -289,13 +289,16 @@ export default function MessageList({
                 isOwnMessage && "flex flex-col items-end"
               )}>
                 <div className={cn(
-                  "p-2 sm:p-3 md:p-4 rounded-2xl max-w-xs sm:max-w-md md:max-w-lg lg:max-w-xl relative",
+                  "rounded-2xl relative break-words",
+                  "p-2 sm:p-2.5 md:p-3 lg:p-4",
+                  "max-w-[85%] sm:max-w-xs md:max-w-md lg:max-w-lg xl:max-w-xl",
                   isOwnMessage
                     ? "bg-primary text-white rounded-tr-md ml-auto"
-                    : "bg-white rounded-tl-md border border-gray-200"
+                    : "bg-white rounded-tl-md border border-gray-200 shadow-sm"
                 )}>
                   <p className={cn(
-                    "text-xs sm:text-sm md:text-base",
+                    "leading-relaxed",
+                    "text-xs sm:text-sm md:text-base lg:text-lg",
                     isOwnMessage ? "text-white" : "text-gray-800"
                   )}>
                     {message.content}

@@ -496,14 +496,14 @@ export default function ChatPage() {
         {/* Header */}
         <div className={cn(
           "bg-card/80 backdrop-blur-sm border-b border-primary/20 flex items-center justify-between red-glow",
-          "px-2 py-2 sm:px-3 sm:py-2 md:px-4 md:py-3 lg:px-6 lg:py-4"
+          "px-2 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 lg:px-6 lg:py-4"
         )}>
-          <div className="flex items-center space-x-3 min-w-0">
+          <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-4 min-w-0 flex-1">
             {(isMobile || isTablet) && (
               <MobileMenu
                 side="left"
-                className="w-80"
-                triggerClassName="mr-2"
+                className="w-72 sm:w-80 md:w-96"
+                triggerClassName="mr-1 sm:mr-2"
               >
                 <Sidebar
                   rooms={roomsData?.rooms || []}
@@ -518,12 +518,12 @@ export default function ChatPage() {
             )}
             
             <Hash className={cn(
-              "text-primary",
-              isMobile ? "w-4 h-4" : "w-5 h-5"
+              "text-primary flex-shrink-0",
+              "w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6"
             )} />
             <h1 className={cn(
-              "font-semibold text-white truncate",
-              isMobile ? "text-base" : "text-lg"
+              "font-semibold text-white truncate min-w-0 flex-1",
+              "text-sm sm:text-base md:text-lg lg:text-xl"
             )}>
               {activeRoom?.name || 'Select a room'}
             </h1>
@@ -624,7 +624,7 @@ export default function ChatPage() {
       {(isMobile || isTablet) && showUserList && activeRoomData?.room && (
         <MobileMenu
           side="right"
-          className="w-80"
+          className="w-72 sm:w-80 md:w-96"
         >
           <UserList
             room={activeRoomData.room}

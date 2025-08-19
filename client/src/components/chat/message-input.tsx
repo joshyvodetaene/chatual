@@ -35,7 +35,7 @@ export default function MessageInput({
       onSendMessage(message.trim());
       setMessage('');
       handleStopTyping();
-      
+
       // Reset textarea height
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
@@ -55,12 +55,12 @@ export default function MessageInput({
       setIsTyping(true);
       onTyping(true);
     }
-    
+
     // Clear existing timeout
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
-    
+
     // Set new timeout to stop typing after 2 seconds
     typingTimeoutRef.current = setTimeout(() => {
       handleStopTyping();
@@ -72,7 +72,7 @@ export default function MessageInput({
       setIsTyping(false);
       onTyping(false);
     }
-    
+
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
@@ -81,12 +81,12 @@ export default function MessageInput({
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setMessage(value);
-    
+
     // Auto-resize textarea
     const textarea = e.target;
     textarea.style.height = 'auto';
     textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
-    
+
     // Handle typing indicator
     if (value.trim()) {
       handleStartTyping();
@@ -120,16 +120,16 @@ export default function MessageInput({
       if (result.successful && result.successful.length > 0) {
         const uploadedFile = result.successful[0];
         const photoUrl = uploadedFile.uploadURL;
-        
+
         if (!photoUrl) {
           throw new Error('No upload URL received');
         }
-        
+
         // Use the original filename for display, not the storage UUID filename
         const photoFileName = uploadedFile.name || 'photo.jpg';
-        
+
         console.log('Photo upload completed:', { photoUrl, photoFileName, originalName: uploadedFile.name });
-        
+
         // Send the photo as a message
         console.log('Calling onSendMessage with:', {
           content: message.trim() || '',
@@ -139,12 +139,12 @@ export default function MessageInput({
         onSendMessage(message.trim() || '', photoUrl, photoFileName);
         setMessage('');
         handleStopTyping();
-        
+
         // Reset textarea height
         if (textareaRef.current) {
           textareaRef.current.style.height = 'auto';
         }
-        
+
         toast({
           title: "Photo Sent",
           description: "Your photo has been shared successfully.",
@@ -174,30 +174,30 @@ export default function MessageInput({
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
       const currentMessage = message;
-      
+
       // Insert emoji at cursor position
       const newMessage = currentMessage.slice(0, start) + emoji + currentMessage.slice(end);
       setMessage(newMessage);
-      
+
       // Set cursor position after the inserted emoji
       setTimeout(() => {
         const newCursorPosition = start + emoji.length;
         textarea.setSelectionRange(newCursorPosition, newCursorPosition);
         textarea.focus();
-        
+
         // Auto-resize textarea
         textarea.style.height = 'auto';
         textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
       }, 0);
     }
-    
+
     setShowEmojiPicker(false);
   };
 
   // Handle click outside emoji picker
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (emojiButtonRef.current && 
+      if (emojiButtonRef.current &&
           !emojiButtonRef.current.contains(event.target as Node) &&
           showEmojiPicker) {
         // Check if click is inside emoji picker
@@ -223,40 +223,46 @@ export default function MessageInput({
     };
   }, []);
 
+  // Renamed handleInputChange to handleChange for consistency with the changes provided
+  const handleChange = handleInputChange;
+  // Renamed handlePhotoUploadComplete to handlePhotoUpload for consistency with the changes provided
+  const handlePhotoUpload = handlePhotoUploadComplete;
+
+
   return (
     <div className={cn(
-      "border-t border-gray-200 bg-white mobile-safe-area",
+      "border-t border-primary/20 bg-card/80 backdrop-blur-sm red-glow",
       "p-2 sm:p-3 md:p-4 lg:p-6"
     )} data-testid="message-input">
-      <div className="flex items-end space-x-1 sm:space-x-2 md:space-x-3 lg:space-x-4">
-        <PhotoUploader
-          maxNumberOfFiles={1}
-          maxFileSize={10485760} // 10MB
-          onGetUploadParameters={handleGetUploadParameters}
-          onComplete={handlePhotoUploadComplete}
-          buttonClassName="hover:bg-gray-100 rounded-lg transition-all duration-200 ease-in-out transform hover:scale-105 active:scale-95 hover:shadow-md tap-target p-1 sm:p-2 md:p-3"
-        >
-          <Image className="text-gray-500 w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
-        </PhotoUploader>
-        
-        <div className="flex-1">
+      <div className="flex space-x-1.5 sm:space-x-2 md:space-x-3 lg:space-x-4 items-end">
+        <div className="flex-1 relative">
           <div className="relative">
             <Textarea
               ref={textareaRef}
               value={message}
-              onChange={handleInputChange}
+              onChange={handleChange}
               onKeyDown={handleKeyDown}
               placeholder="Type a message..."
-              className="resize-none border border-gray-300 rounded-2xl focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-20 placeholder-gray-500 touch-manipulation px-3 sm:px-4 md:px-5 py-2 sm:py-3 md:py-4 pr-10 sm:pr-12 md:pr-14 text-sm sm:text-base md:text-lg min-h-[40px] sm:min-h-[44px] md:min-h-[48px] max-h-[100px] sm:max-h-[120px] md:max-h-[140px]"
-              rows={1}
               disabled={disabled}
+              className={cn(
+                "resize-none border-0 bg-white/90 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-primary/50 placeholder:text-gray-500 min-h-[36px] max-h-24 sm:min-h-[40px] sm:max-h-28 md:min-h-[44px] md:max-h-32 overflow-y-auto transition-all duration-200 rounded-lg",
+                "text-sm sm:text-base md:text-lg",
+                "py-2 sm:py-2.5 md:py-3",
+                "pr-12 sm:pr-14 md:pr-16 lg:pr-20",
+                "pl-2 sm:pl-3 md:pl-4"
+              )}
               data-testid="input-message"
             />
             <Button
               ref={emojiButtonRef}
               variant="ghost"
               size="sm"
-              className="absolute right-2 sm:right-3 md:right-4 bottom-2 sm:bottom-3 md:bottom-4 h-auto hover:bg-gray-100 transition-all duration-200 ease-in-out transform hover:scale-110 active:scale-95 hover:shadow-sm tap-target p-1 sm:p-2 md:p-3"
+              className={cn(
+                "absolute bottom-1 sm:bottom-1.5 md:bottom-2 hover:bg-gray-100 transition-all duration-200 ease-in-out transform hover:scale-110 active:scale-95 hover:shadow-sm rounded-lg",
+                "right-1 sm:right-1.5 md:right-2",
+                "p-1 sm:p-1.5 md:p-2",
+                "w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10"
+              )}
               disabled={disabled}
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
               data-testid="button-emoji"
@@ -266,7 +272,7 @@ export default function MessageInput({
                 "w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6"
               )} />
             </Button>
-            
+
             <EmojiPicker
               isOpen={showEmojiPicker}
               onEmojiSelect={handleEmojiSelect}
@@ -274,15 +280,30 @@ export default function MessageInput({
             />
           </div>
         </div>
-        
+
         <Button
           onClick={handleSendMessage}
           disabled={!message.trim() || disabled}
-          className="bg-primary text-white rounded-2xl hover:bg-primary/90 transition-all duration-300 ease-in-out transform hover:scale-110 active:scale-95 hover:shadow-xl hover:shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100 tap-target touch-manipulation p-2 sm:p-3 md:p-4 min-h-[40px] sm:min-h-[44px] md:min-h-[48px] min-w-[40px] sm:min-w-[44px] md:min-w-[48px]"
-          data-testid="button-send"
+          className={cn(
+            "bg-primary hover:bg-primary/90 text-white shadow-sm transition-all duration-200 ease-in-out transform hover:scale-105 active:scale-95 hover:shadow-md rounded-lg",
+            "p-2 sm:p-2.5 md:p-3 lg:p-4",
+            "w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 lg:w-14 lg:h-14",
+            "flex-shrink-0"
+          )}
+          data-testid="button-send-message"
         >
           <Send className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
         </Button>
+
+        <PhotoUploader
+          onUpload={handlePhotoUpload}
+          disabled={disabled}
+          className={cn(
+            "p-2 sm:p-2.5 md:p-3 lg:p-4",
+            "w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 lg:w-14 lg:h-14",
+            "flex-shrink-0 rounded-lg"
+          )}
+        />
       </div>
     </div>
   );

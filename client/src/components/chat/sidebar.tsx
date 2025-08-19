@@ -114,31 +114,31 @@ export default function Sidebar({
   return (
     /* Haupt-Container der Sidebar */
     <div className={cn(
-      "w-full sm:w-80 md:w-96 h-full bg-card/90 backdrop-blur-sm border-r border-primary/20 flex flex-col",
+      "w-full sm:w-72 md:w-80 lg:w-96 h-full bg-card/90 backdrop-blur-sm border-r border-primary/20 flex flex-col",
       className
     )} data-testid="sidebar">
       {/* Header-Bereich mit App-Logo und Raum-erstellen Button */}
-      <div className="p-3 sm:p-4 md:p-6 border-b border-primary/20 bg-primary text-white red-glow">
+      <div className="p-2 sm:p-3 md:p-4 lg:p-6 border-b border-primary/20 bg-primary text-white red-glow">
         <div className="flex items-center justify-between">
           {/* App-Logo und Name */}
-          <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-4 min-w-0 flex-1">
             {/* Chat-Icon */}
-            <div className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-              <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+            <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-10 lg:h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center flex-shrink-0">
+              <MessageCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 lg:w-5 lg:h-5" />
             </div>
             {/* App-Name */}
-            <h1 className="text-lg sm:text-xl md:text-2xl font-semibold">Chatual</h1>
-            {/* Search Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowSearch(true)}
-              className="ml-auto h-8 w-8 p-0 hover:bg-white/20 rounded-lg"
-              data-testid="button-open-search"
-            >
-              <Search className="w-4 h-4" />
-            </Button>
+            <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-semibold truncate">Chatual</h1>
           </div>
+          {/* Search Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowSearch(true)}
+            className="h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0 hover:bg-white/20 rounded-lg flex-shrink-0 ml-2"
+            data-testid="button-open-search"
+          >
+            <Search className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+          </Button>
         </div>
       </div>
 
