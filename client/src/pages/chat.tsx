@@ -183,9 +183,16 @@ export default function ChatPage() {
     console.log('All messages with types:', paginatedMessages.map(m => ({ id: m.id, type: m.messageType, hasPhoto: !!m.photoUrl, content: m.content?.substring(0, 20) })));
   }, [roomOnlineUsers, activeRoom, paginatedMessages]);
 
+  // Debug: Track activeRoom state changes
+  useEffect(() => {
+    console.log('ActiveRoom changed:', activeRoom ? { id: activeRoom.id, name: activeRoom.name } : 'null');
+  }, [activeRoom]);
+
   // Set initial active room
   useEffect(() => {
+    console.log('Active room effect - roomsData:', roomsData?.rooms?.length, 'activeRoom:', activeRoom?.name, 'currentUser:', !!currentUser);
     if (roomsData?.rooms && roomsData.rooms.length > 0 && !activeRoom && currentUser) {
+      console.log('Setting initial active room to:', roomsData.rooms[0].name);
       setActiveRoom(roomsData.rooms[0]);
     }
   }, [roomsData?.rooms, activeRoom, currentUser]);
@@ -204,7 +211,8 @@ export default function ChatPage() {
       photoUrl: photoUrl?.substring(photoUrl.length - 30),
       photoFileName,
       currentUser: currentUser?.id,
-      activeRoom: activeRoom?.id
+      activeRoom: activeRoom?.id,
+      activeRoomName: activeRoom?.name
     });
     
     if (!currentUser?.id) {
@@ -213,12 +221,25 @@ export default function ChatPage() {
     }
     
     if (!activeRoom?.id) {
-      console.log('No active room, aborting send');
+      console.log('No active room, aborting send. activeRoom state:', activeRoom);
+      console.log('Available rooms:', roomsData?.rooms?.map(r => ({ id: r.id, name: r.name })));
+      
+      // Try to find and set a default room if we have rooms available
+      if (roomsData?.rooms && roomsData.rooms.length > 0) {
+        console.log('Setting fallback active room to:', roomsData.rooms[0].name);
+        setActiveRoom(roomsData.rooms[0]);
+        // Retry sending after setting active room
+        setTimeout(() => {
+          console.log('Retrying send with fallback room');
+          sendMessage(content, photoUrl, photoFileName);
+        }, 100);
+        return;
+      }
       return;
     }
 
     // Send message via WebSocket without temporary message
-    console.log('About to call sendMessage via WebSocket');
+    console.log('About to call sendMessage via WebSocket for room:', activeRoom.name);
     sendMessage(content, photoUrl, photoFileName);
   };
 
