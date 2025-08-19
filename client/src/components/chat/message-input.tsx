@@ -285,14 +285,16 @@ export default function MessageInput({
           onClick={handleSendMessage}
           disabled={!message.trim() || disabled}
           className={cn(
-            "bg-primary hover:bg-primary/90 text-white shadow-sm transition-all duration-200 ease-in-out transform hover:scale-105 active:scale-95 hover:shadow-md rounded-lg",
+            "bg-primary hover:bg-primary/90 text-white shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95 hover:shadow-xl rounded-xl red-glow hover-lift",
             "p-2 sm:p-2.5 md:p-3 lg:p-4",
             "w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 lg:w-14 lg:h-14",
-            "flex-shrink-0"
+            "flex-shrink-0 relative overflow-hidden",
+            !message.trim() || disabled ? "opacity-50" : "pulse-glow"
           )}
           data-testid="button-send-message"
         >
-          <Send className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
+          <div className="absolute inset-0 shimmer"></div>
+          <Send className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 relative z-10" />
         </Button>
 
         <PhotoUploader

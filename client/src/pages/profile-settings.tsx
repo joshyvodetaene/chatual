@@ -102,42 +102,48 @@ export default function ProfileSettings() {
 
       <Tabs defaultValue="photos" className="w-full">
         <TabsList className={cn(
-          "grid w-full",
-          isMobile ? "grid-cols-2 gap-1 h-auto" : "grid-cols-4",
-          isMobile && "p-1"
+          "grid w-full glass-effect backdrop-blur-glass rounded-2xl p-2 shadow-lg",
+          isMobile ? "grid-cols-2 gap-2 h-auto" : "grid-cols-4 gap-1",
         )} data-testid="settings-tabs">
           <TabsTrigger 
             value="photos" 
             data-testid="tab-photos"
             className={cn(
-              "flex items-center justify-center",
-              isMobile ? "flex-col gap-1 h-16 text-xs" : "flex-row gap-2"
+              "flex items-center justify-center rounded-xl transition-all duration-300 hover-lift",
+              isMobile ? "flex-col gap-1 h-18 text-xs p-3" : "flex-row gap-2 h-12",
+              "data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg"
             )}
           >
             <Camera className={cn(
-              isMobile ? "w-5 h-5" : "w-4 h-4"
+              isMobile ? "w-6 h-6" : "w-4 h-4"
             )} />
-            <span className={isMobile ? "leading-tight" : ""}>Photos</span>
+            <span className={cn(
+              isMobile ? "leading-tight font-medium" : "font-medium",
+            )}>Photos</span>
           </TabsTrigger>
           <TabsTrigger 
             value="location" 
             data-testid="tab-location"
             className={cn(
-              "flex items-center justify-center",
-              isMobile ? "flex-col gap-1 h-16 text-xs" : "flex-row gap-2"
+              "flex items-center justify-center rounded-xl transition-all duration-300 hover-lift",
+              isMobile ? "flex-col gap-1 h-18 text-xs p-3" : "flex-row gap-2 h-12",
+              "data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg"
             )}
           >
             <MapPin className={cn(
-              isMobile ? "w-5 h-5" : "w-4 h-4"
+              isMobile ? "w-6 h-6" : "w-4 h-4"
             )} />
-            <span className={isMobile ? "leading-tight" : ""}>Location</span>
+            <span className={cn(
+              isMobile ? "leading-tight font-medium" : "font-medium",
+            )}>Location</span>
           </TabsTrigger>
           <TabsTrigger 
             value="blocked" 
             data-testid="tab-blocked"
             className={cn(
-              "flex items-center justify-center",
-              isMobile ? "flex-col gap-1 h-16 text-xs" : "flex-row gap-2"
+              "flex items-center justify-center rounded-xl transition-all duration-300 hover-lift",
+              isMobile ? "flex-col gap-1 h-18 text-xs p-3" : "flex-row gap-2 h-12",
+              "data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg"
             )}
           >
             <Shield className={cn(

@@ -67,18 +67,19 @@ export default function AdminStats({ stats }: AdminStatsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
       {statsCards.map(({ title, value, description, icon: Icon, color, bgColor, testId }) => (
-        <Card key={title} data-testid={testId}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{title}</CardTitle>
-            <div className={`${bgColor} p-2 rounded-md`}>
-              <Icon className={`w-4 h-4 ${color}`} />
+        <Card key={title} data-testid={testId} className="card-gradient border-gradient interactive-card hover-lift">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-medium text-shadow-sm">{title}</CardTitle>
+            <div className={`${bgColor} p-3 rounded-xl shadow-md relative overflow-hidden`}>
+              <div className="absolute inset-0 shimmer"></div>
+              <Icon className={`w-5 h-5 ${color} relative z-10`} />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid={`${testId}-value`}>
+          <CardContent className="pt-2">
+            <div className="text-3xl font-bold gradient-text mb-1" data-testid={`${testId}-value`}>
               {value.toLocaleString()}
             </div>
-            <CardDescription className="text-xs text-muted-foreground">
+            <CardDescription className="text-xs text-muted-foreground font-medium">
               {description}
             </CardDescription>
           </CardContent>
