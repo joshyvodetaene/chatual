@@ -118,7 +118,7 @@ export default function MessageList({
   return (
     <div 
       ref={containerRef}
-      className="flex-1 overflow-y-auto p-4 space-y-4" 
+      className="flex-1 overflow-y-auto p-4 space-y-2" 
       data-testid="message-list"
     >
       {/* Loading indicator for initial load */}
@@ -178,7 +178,7 @@ export default function MessageList({
           <div
             key={message.id}
             className={cn(
-              "flex items-start space-x-3",
+              "flex items-start space-x-2",
               isOwnMessage && "flex-row-reverse space-x-reverse"
             )}
             data-testid={`message-${message.id}`}
@@ -206,7 +206,7 @@ export default function MessageList({
             </UserProfileMenu>
             <div className={cn("flex-1", isOwnMessage && "text-right")}>
               <div className={cn(
-                "flex items-baseline space-x-2 mb-1",
+                "flex items-baseline space-x-2 mb-0.5",
                 isOwnMessage && "justify-end"
               )}>
                 {!isOwnMessage && (
@@ -228,7 +228,7 @@ export default function MessageList({
                 )}
               </div>
               <div className={cn(
-                "p-3 rounded-2xl max-w-lg",
+                "p-2 rounded-2xl max-w-lg",
                 isOwnMessage
                   ? "bg-primary text-white rounded-tr-md ml-auto"
                   : "bg-white rounded-tl-md border border-gray-200"
@@ -263,7 +263,7 @@ export default function MessageList({
         if (!typingUser || userId === currentUser.id) return null;
 
         return (
-          <div key={userId} className="flex items-start space-x-3" data-testid="typing-indicator">
+          <div key={userId} className="flex items-start space-x-2" data-testid="typing-indicator">
             <UserProfileMenu
               user={typingUser}
               currentUser={currentUser}
@@ -285,7 +285,7 @@ export default function MessageList({
               )}
             </UserProfileMenu>
             <div className="flex-1">
-              <div className="flex items-baseline space-x-2 mb-1">
+              <div className="flex items-baseline space-x-2 mb-0.5">
                 <UserProfileMenu
                   user={typingUser}
                   currentUser={currentUser}
@@ -297,7 +297,7 @@ export default function MessageList({
                 </UserProfileMenu>
                 <span className="text-xs text-gray-500">typing...</span>
               </div>
-              <div className="bg-white p-3 rounded-2xl rounded-tl-md border border-gray-200 w-16 h-8 flex items-center justify-center">
+              <div className="bg-white p-2 rounded-2xl rounded-tl-md border border-gray-200 w-16 h-8 flex items-center justify-center">
                 <div className="flex space-x-1">
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
