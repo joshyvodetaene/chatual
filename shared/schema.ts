@@ -8,6 +8,7 @@ export const users = pgTable("users", {
   username: varchar("username").notNull().unique(),
   displayName: varchar("display_name").notNull(),
   password: varchar("password").notNull(),
+  age: integer("age").notNull(),
   gender: varchar("gender").notNull(),
   location: varchar("location").notNull(),
   latitude: varchar("latitude"),
@@ -112,6 +113,7 @@ export const registerUserSchema = createInsertSchema(users).omit({
   lastSeen: true,
 }).extend({
   confirmPassword: z.string().min(6),
+  age: z.number().min(18, "You must be at least 18 years old").max(100, "Please enter a valid age"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],

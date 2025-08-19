@@ -106,9 +106,16 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                       <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-accent border-2 border-white rounded-full"></div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {member.displayName}
-                      </p>
+                      <div className="flex items-center space-x-2">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {member.displayName}
+                        </p>
+                        {member.age && (
+                          <span className="text-xs text-gray-500 font-normal">
+                            {member.age}
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2">
                         <p className="text-xs text-gray-500">Member</p>
                         {currentUser && (
@@ -161,9 +168,16 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                       <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-gray-400 border-2 border-white rounded-full"></div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-700 truncate">
-                        {member.displayName}
-                      </p>
+                      <div className="flex items-center space-x-2">
+                        <p className="text-sm font-medium text-gray-700 truncate">
+                          {member.displayName}
+                        </p>
+                        {member.age && (
+                          <span className="text-xs text-gray-400 font-normal">
+                            {member.age}
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2">
                         <p className="text-xs text-gray-400">Last seen recently</p>
                         {currentUser && (

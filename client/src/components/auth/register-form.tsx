@@ -51,6 +51,7 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
       displayName: '',
       password: '',
       confirmPassword: '',
+      age: 18,
       gender: '',
       location: '',
       avatar: '',
@@ -196,6 +197,29 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
                       placeholder="Your display name"
                       {...field}
                       data-testid="input-display-name"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="age"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Age</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="18"
+                      max="100"
+                      placeholder="Enter your age"
+                      {...field}
+                      onChange={(e) => field.onChange(parseInt(e.target.value) || 18)}
+                      value={field.value || ''}
+                      data-testid="input-age"
                     />
                   </FormControl>
                   <FormMessage />

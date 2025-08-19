@@ -232,12 +232,12 @@ export default function UserProfilePage() {
                     </div>
                   )}
                   
-                  {user.dateOfBirth && (
+                  {user.age && (
                     <div className="flex items-center space-x-1">
                       <Calendar className={cn(
                         isMobile ? "w-3 h-3" : "w-4 h-4"
                       )} />
-                      <span>{formatAge(user.dateOfBirth)} years old</span>
+                      <span>{user.age} years old</span>
                     </div>
                   )}
                   

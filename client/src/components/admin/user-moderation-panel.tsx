@@ -204,8 +204,15 @@ export default function UserModerationPanel() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <div className="text-sm text-gray-600 dark:text-gray-400">
-                  <span className="font-medium">Location:</span> {user.location}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600 dark:text-gray-400">
+                  <div>
+                    <span className="font-medium">Location:</span> {user.location}
+                  </div>
+                  {user.age && (
+                    <div>
+                      <span className="font-medium">Age:</span> {user.age} years old
+                    </div>
+                  )}
                 </div>
                 
                 {user.isBanned && user.banReason && (
@@ -243,7 +250,7 @@ export default function UserModerationPanel() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleModerateUser(user, 'warn')}
-                        disabled={user.isBanned}
+                        disabled={!!user.isBanned}
                         data-testid={`button-warn-${user.id}`}
                       >
                         <AlertTriangle className="w-4 h-4 mr-2" />
@@ -254,7 +261,7 @@ export default function UserModerationPanel() {
                         variant="destructive"
                         size="sm"
                         onClick={() => handleModerateUser(user, 'ban')}
-                        disabled={user.isBanned}
+                        disabled={!!user.isBanned}
                         data-testid={`button-ban-${user.id}`}
                       >
                         <Ban className="w-4 h-4 mr-2" />
@@ -418,7 +425,7 @@ export default function UserModerationPanel() {
                       {action.actionType}
                     </Badge>
                     <span className="text-xs text-gray-500">
-                      {formatDate(action.performedAt)}
+                      {formatDate(action.performedAt || new Date())}
                     </span>
                   </div>
                   <div>
