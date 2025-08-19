@@ -87,14 +87,6 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                   <div
                     className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
                     data-testid={`online-user-${member.id}`}
-                    onClick={(e) => {
-                      console.log('Online user clicked:', member.displayName);
-                      e.stopPropagation();
-                    }}
-                    onContextMenu={(e) => {
-                      console.log('Online user context menu:', member.displayName);
-                      e.preventDefault();
-                    }}
                   >
                     <div className="relative">
                       {member.primaryPhoto?.photoUrl ? (
@@ -160,14 +152,6 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                   <div
                     className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors opacity-60"
                     data-testid={`offline-user-${member.id}`}
-                    onClick={(e) => {
-                      console.log('Offline user clicked:', member.displayName);
-                      e.stopPropagation();
-                    }}
-                    onContextMenu={(e) => {
-                      console.log('Offline user context menu:', member.displayName);
-                      e.preventDefault();
-                    }}
                   >
                     <div className="relative">
                       {member.primaryPhoto?.photoUrl ? (
