@@ -51,30 +51,30 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
 
   return (
     <div className={cn(
-      "bg-white border-l border-gray-200 flex flex-col h-full",
+      "bg-black border-l border-gray-800 flex flex-col h-full",
       isMobile ? "w-full" : "w-64"
     )} data-testid="user-list">
       <div className={cn(
-        "border-b border-gray-200",
+        "border-b border-gray-800",
         isMobile ? "p-6" : "p-4"
       )}>
         <h3 className={cn(
-          "font-semibold text-gray-900",
+          "font-semibold text-white",
           isMobile ? "text-lg" : "text-sm"
         )}>Online in Room</h3>
         <p className={cn(
-          "text-gray-500 mt-1",
+          "text-gray-300 mt-1",
           isMobile ? "text-sm" : "text-xs"
         )} data-testid="online-count">
           {onlineMembers.length} online • {filteredMembers.length} visible
         </p>
       </div>
       
-      <div className="flex-1 overflow-y-auto overflow-x-visible min-h-0 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+      <div className="flex-1 overflow-y-auto overflow-x-visible min-h-0 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
         {/* Online Members */}
         {onlineMembers.length > 0 && (
           <div className="p-4">
-            <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">
+            <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">
               Online — {onlineMembers.length}
             </h4>
             
@@ -82,7 +82,7 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
               {onlineMembers.map((member) => (
                 <div
                   key={`online-${member.id}`}
-                  className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-800 transition-colors"
                   data-testid={`online-user-${member.id}`}
                 >
                   <div className="relative">
@@ -90,7 +90,7 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                       <img 
                         src={member.primaryPhoto.photoUrl}
                         alt={`${member.displayName} profile`}
-                        className="w-8 h-8 rounded-full object-cover border-2 border-white"
+                        className="w-8 h-8 rounded-full object-cover border-2 border-black"
                       />
                     ) : (
                       <div className={cn(
@@ -100,21 +100,21 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                         {getInitials(member.displayName)}
                       </div>
                     )}
-                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-accent border-2 border-white rounded-full"></div>
+                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-accent border-2 border-black rounded-full"></div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-2">
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className="text-sm font-medium text-white truncate">
                         {member.displayName}
                       </p>
                       {member.age && (
-                        <span className="text-xs text-gray-500 font-normal">
+                        <span className="text-xs text-gray-400 font-normal">
                           {member.age}
                         </span>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <p className="text-xs text-gray-500">Member</p>
+                      <p className="text-xs text-gray-400">Member</p>
                       {currentUser && (
                         <UserDistance 
                           currentUserId={currentUser.id} 
@@ -146,8 +146,8 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
 
         {/* Offline Members */}
         {offlineMembers.length > 0 && (
-          <div className={cn("p-4", onlineMembers.length > 0 && "border-t border-gray-100")}>
-            <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">
+          <div className={cn("p-4", onlineMembers.length > 0 && "border-t border-gray-800")}>
+            <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">
               Offline — {offlineMembers.length}
             </h4>
             
@@ -155,7 +155,7 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
               {offlineMembers.map((member) => (
                 <div
                   key={`offline-${member.id}`}
-                  className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors opacity-60"
+                  className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-800 transition-colors opacity-60"
                   data-testid={`offline-user-${member.id}`}
                 >
                   <div className="relative">
@@ -163,28 +163,28 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                       <img 
                         src={member.primaryPhoto.photoUrl}
                         alt={`${member.displayName} profile`}
-                        className="w-8 h-8 rounded-full object-cover border-2 border-white opacity-60"
+                        className="w-8 h-8 rounded-full object-cover border-2 border-black opacity-60"
                       />
                     ) : (
                       <div className="w-8 h-8 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center text-white text-xs font-medium">
                         {getInitials(member.displayName)}
                       </div>
                     )}
-                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-gray-400 border-2 border-white rounded-full"></div>
+                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-gray-400 border-2 border-black rounded-full"></div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-2">
-                      <p className="text-sm font-medium text-gray-700 truncate">
+                      <p className="text-sm font-medium text-gray-300 truncate">
                         {member.displayName}
                       </p>
                       {member.age && (
-                        <span className="text-xs text-gray-400 font-normal">
+                        <span className="text-xs text-gray-500 font-normal">
                           {member.age}
                         </span>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <p className="text-xs text-gray-400">Last seen recently</p>
+                      <p className="text-xs text-gray-500">Last seen recently</p>
                       {currentUser && (
                         <UserDistance 
                           currentUserId={currentUser.id} 
