@@ -144,8 +144,10 @@ export function UserProfileMenu({
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger className="w-full h-full flex items-center justify-start bg-transparent border-none p-0 m-0 cursor-pointer outline-none focus:outline-none">
-          {children}
+        <DropdownMenuTrigger asChild>
+          <div role="button" tabIndex={0} className="w-full cursor-pointer">
+            {children}
+          </div>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-48 z-50">
           <DropdownMenuItem onClick={handleSendMessage} data-testid="menu-send-message">
