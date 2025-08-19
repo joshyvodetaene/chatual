@@ -175,7 +175,7 @@ export default function MessageList({
   return (
     <div 
       ref={containerRef}
-      className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 lg:p-6 space-y-1 sm:space-y-2 md:space-y-3" 
+      className="flex-1 overflow-y-auto hide-scrollbar p-2 sm:p-3 md:p-4 lg:p-6 space-y-1 sm:space-y-2 md:space-y-3" 
       data-testid="message-list"
     >
       {/* Loading indicator for initial load */}
