@@ -144,7 +144,7 @@ export function UserProfileMenu({
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+        <DropdownMenuTrigger className="w-full h-full flex items-center justify-start bg-transparent border-none p-0 m-0 cursor-pointer outline-none focus:outline-none">
           {children}
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-48 z-50">
