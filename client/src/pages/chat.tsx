@@ -138,17 +138,17 @@ export default function ChatPage() {
     }
   }, [paginatedMessages, messages, setMessages, currentUser]);
 
-  // Handle new messages from WebSocket
+  // Handle new messages from WebSocket (filter by current room)
   useEffect(() => {
-    if (!currentUser || messages.length === 0) return;
+    if (!currentUser || messages.length === 0 || !activeRoom?.id) return;
 
     messages.forEach((newMessage) => {
-      // Only add message if it doesn't already exist
-      if (!paginatedMessages.find(m => m.id === newMessage.id)) {
+      // Only add message if it's for the current room and doesn't already exist
+      if (newMessage.roomId === activeRoom.id && !paginatedMessages.find(m => m.id === newMessage.id)) {
         addMessage(newMessage);
       }
     });
-  }, [messages, paginatedMessages, addMessage, currentUser]);
+  }, [messages, paginatedMessages, addMessage, currentUser, activeRoom?.id]);
 
   // Set user ID for theme context when user is available
   useEffect(() => {
@@ -157,10 +157,14 @@ export default function ChatPage() {
     }
   }, [currentUser, setUserId]);
 
-  // Join room when active room changes
+  // Join room when active room changes and clear messages
   useEffect(() => {
     if (activeRoom?.id && currentUser?.id && currentJoinedRoom.current !== activeRoom.id) {
       currentJoinedRoom.current = activeRoom.id;
+      
+      // Clear WebSocket messages when switching rooms
+      setMessages([]);
+      
       joinRoom(activeRoom.id);
       
       // Join room on server
@@ -170,7 +174,7 @@ export default function ChatPage() {
         body: JSON.stringify({ userId: currentUser.id }),
       });
     }
-  }, [activeRoom?.id, currentUser?.id, joinRoom]);
+  }, [activeRoom?.id, currentUser?.id, joinRoom, setMessages]);
 
   // Set initial active room
   useEffect(() => {
