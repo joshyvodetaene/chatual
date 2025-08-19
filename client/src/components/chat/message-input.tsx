@@ -245,7 +245,7 @@ export default function MessageInput({
               placeholder="Type a message..."
               disabled={disabled}
               className={cn(
-                "resize-none border-0 bg-white/90 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-primary/50 placeholder:text-gray-500 min-h-[36px] max-h-24 sm:min-h-[40px] sm:max-h-28 md:min-h-[44px] md:max-h-32 overflow-y-auto transition-all duration-200 rounded-lg",
+                "resize-none border-0 bg-white/90 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-primary/50 placeholder:text-gray-500 min-h-[36px] max-h-24 sm:min-h-[40px] sm:max-h-28 md:min-h-[44px] md:max-h-32 overflow-y-auto transition-all duration-200 rounded-lg text-black",
                 "text-sm sm:text-base md:text-lg",
                 "py-2 sm:py-2.5 md:py-3",
                 "pr-12 sm:pr-14 md:pr-16 lg:pr-20",
