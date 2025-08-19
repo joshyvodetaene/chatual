@@ -147,7 +147,7 @@ export function UserProfileMenu({
         <DropdownMenuTrigger asChild>
           {children}
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-48">
+        <DropdownMenuContent align="start" className="w-48 z-50">
           <DropdownMenuItem onClick={handleSendMessage} data-testid="menu-send-message">
             <MessageCircle className="w-4 h-4 mr-2" />
             Send Message
