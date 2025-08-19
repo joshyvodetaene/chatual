@@ -246,8 +246,17 @@ export default function ChatPage() {
     console.log(`[CHAT_PAGE] Switching to room: ${roomId}`);
     currentJoinedRoom.current = roomId;
     
-    // Clear WebSocket messages when switching rooms
-    setMessages([]);
+    // For private chats, preserve message history - only clear messages for public rooms
+    // Private chats should maintain their full conversation history
+    const currentRoomData = activeRoomData?.room || activeRoom;
+    const isPrivateChat = currentRoomData?.isPrivate || false;
+    
+    if (!isPrivateChat) {
+      console.log(`[CHAT_PAGE] Clearing messages for public room`);
+      setMessages([]);
+    } else {
+      console.log(`[CHAT_PAGE] Preserving message history for private chat`);
+    }
     
     // Join room via WebSocket
     joinRoom(roomId);

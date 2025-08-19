@@ -16,13 +16,35 @@ export function usePaginatedMessages({
   const [allMessages, setAllMessages] = useState<MessageWithUser[]>([]);
   const [cursors, setCursors] = useState<{ nextCursor?: string; prevCursor?: string }>({});
   const [hasMorePages, setHasMorePages] = useState(true);
+  
+  // Cache for preserving messages per room (especially important for private chats)
+  const [messageCache, setMessageCache] = useState<Map<string, {
+    messages: MessageWithUser[];
+    cursors: { nextCursor?: string; prevCursor?: string };
+    hasMorePages: boolean;
+  }>>(new Map());
 
-  // Clear messages when switching rooms
+  // Handle room switching with message preservation for private chats
   useEffect(() => {
-    setAllMessages([]);
-    setCursors({});
-    setHasMorePages(true);
-  }, [roomId]);
+    if (!roomId) return;
+    
+    // Check if we have cached data for this room
+    const cachedData = messageCache.get(roomId);
+    
+    if (cachedData) {
+      // Restore cached messages for this room (preserving private chat history)
+      console.log(`[PAGINATED_MESSAGES] Restoring ${cachedData.messages.length} cached messages for room ${roomId}`);
+      setAllMessages(cachedData.messages);
+      setCursors(cachedData.cursors);
+      setHasMorePages(cachedData.hasMorePages);
+    } else {
+      // New room, start fresh
+      console.log(`[PAGINATED_MESSAGES] Starting fresh for new room ${roomId}`);
+      setAllMessages([]);
+      setCursors({});
+      setHasMorePages(true);
+    }
+  }, [roomId, messageCache]);
 
   // Query for initial messages
   const { 
@@ -37,17 +59,28 @@ export function usePaginatedMessages({
     staleTime: 0, // Always fresh
   });
 
-  // Handle initial data updates
+  // Handle initial data updates and cache them
   useEffect(() => {
-    if (initialData) {
-      setAllMessages(initialData.items);
-      setCursors({
+    if (initialData && roomId) {
+      const newMessages = initialData.items;
+      const newCursors = {
         nextCursor: initialData.nextCursor,
         prevCursor: initialData.prevCursor
-      });
-      setHasMorePages(initialData.hasMore);
+      };
+      const newHasMorePages = initialData.hasMore;
+      
+      setAllMessages(newMessages);
+      setCursors(newCursors);
+      setHasMorePages(newHasMorePages);
+      
+      // Cache the data for this room to preserve history (especially for private chats)
+      setMessageCache(prev => new Map(prev).set(roomId, {
+        messages: newMessages,
+        cursors: newCursors,
+        hasMorePages: newHasMorePages
+      }));
     }
-  }, [initialData]);
+  }, [initialData, roomId]);
 
   // Query for loading more messages (pagination)
   const { 
@@ -75,18 +108,29 @@ export function usePaginatedMessages({
     enabled: false, // Only fetch when manually triggered
   });
 
-  // Handle more data updates
+  // Handle more data updates and cache them
   useEffect(() => {
-    if (moreData) {
+    if (moreData && roomId) {
       // Prepend older messages to the beginning of the list
-      setAllMessages(prev => [...moreData.items, ...prev]);
-      setCursors(prev => ({
-        ...prev,
+      const updatedMessages = [...moreData.items, ...allMessages];
+      const updatedCursors = {
+        ...cursors,
         nextCursor: moreData.nextCursor,
+      };
+      const updatedHasMorePages = moreData.hasMore;
+      
+      setAllMessages(updatedMessages);
+      setCursors(updatedCursors);
+      setHasMorePages(updatedHasMorePages);
+      
+      // Update cache with new messages
+      setMessageCache(prev => new Map(prev).set(roomId, {
+        messages: updatedMessages,
+        cursors: updatedCursors,
+        hasMorePages: updatedHasMorePages
       }));
-      setHasMorePages(moreData.hasMore);
     }
-  }, [moreData]);
+  }, [moreData, roomId, allMessages, cursors]);
 
   const loadMoreMessages = useCallback(async () => {
     if (!hasMorePages || isLoadingMore || !cursors.nextCursor) return;
@@ -98,18 +142,50 @@ export function usePaginatedMessages({
     }
   }, [hasMorePages, isLoadingMore, cursors.nextCursor, fetchMoreMessages]);
 
-  // Add new message (from WebSocket) to the end
+  // Add new message (from WebSocket) to the end and cache it
   const addMessage = useCallback((message: MessageWithUser) => {
-    setAllMessages(prev => [...prev, message]);
-  }, []);
+    if (!roomId) return;
+    
+    const updatedMessages = [...allMessages, message];
+    setAllMessages(updatedMessages);
+    
+    // Update cache with the new message to preserve it (important for private chats)
+    setMessageCache(prev => {
+      const current = prev.get(roomId);
+      if (current) {
+        return new Map(prev).set(roomId, {
+          ...current,
+          messages: updatedMessages
+        });
+      }
+      return prev;
+    });
+  }, [roomId, allMessages]);
 
-  // Replace all messages (when switching rooms)
+  // Replace all messages (when switching rooms) and cache them
   const setMessages = useCallback((messages: MessageWithUser[]) => {
+    if (!roomId) return;
+    
     setAllMessages(messages);
-    // Reset pagination state when setting new messages
-    setCursors({});
-    setHasMorePages(true);
-  }, []);
+    
+    // Update cache with the new message set to preserve it (important for private chats)
+    setMessageCache(prev => {
+      const current = prev.get(roomId);
+      if (current) {
+        return new Map(prev).set(roomId, {
+          ...current,
+          messages: messages
+        });
+      } else {
+        // Create new cache entry for this room
+        return new Map(prev).set(roomId, {
+          messages: messages,
+          cursors: {},
+          hasMorePages: true
+        });
+      }
+    });
+  }, [roomId]);
 
   return {
     messages: allMessages,
