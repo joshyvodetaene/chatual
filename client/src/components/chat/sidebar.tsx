@@ -114,16 +114,7 @@ export default function Sidebar({
             {/* App-Name */}
             <h1 className="text-xl font-semibold">Chatual</h1>
           </div>
-          {/* Button zum Erstellen neuer Räume */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-white hover:bg-white hover:bg-opacity-10"
-            onClick={onCreateRoom}
-            data-testid="button-create-room"
-          >
-            <Plus className="w-4 h-4" />
-          </Button>
+          
         </div>
       </div>
 
