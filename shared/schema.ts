@@ -230,6 +230,7 @@ export type BanUser = z.infer<typeof banUserSchema>;
 
 export type MessageWithUser = Message & {
   user: User;
+  isTemporary?: boolean;
 };
 
 export type UserWithDistance = User & {

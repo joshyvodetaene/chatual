@@ -217,14 +217,15 @@ export default function ChatPage() {
       userId: currentUser.id,
       content,
       messageType,
-      photoUrl,
+      photoUrl: photoUrl || null,
+      photoFileName: photoFileName || null,
       createdAt: new Date(),
       user: currentUser,
       isTemporary: true,
     };
 
     // Add temporary message optimistically
-    setPaginatedMessages((prev: MessageWithUser[]) => [...prev, tempMessage]);
+    setPaginatedMessages(prev => [...prev, tempMessage]);
     
     // Send message via WebSocket
     sendMessage(content, photoUrl, photoFileName);
