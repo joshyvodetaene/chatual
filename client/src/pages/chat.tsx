@@ -469,8 +469,8 @@ export default function ChatPage() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <div className={cn(
-          "bg-card/80 backdrop-blur-sm border-b border-primary/20 px-4 py-3 flex items-center justify-between red-glow",
-          isMobile && "px-3 py-2"
+          "bg-card/80 backdrop-blur-sm border-b border-primary/20 flex items-center justify-between red-glow",
+          "px-2 py-2 sm:px-3 sm:py-2 md:px-4 md:py-3 lg:px-6 lg:py-4"
         )}>
           <div className="flex items-center space-x-3 min-w-0">
             {(isMobile || isTablet) && (
@@ -513,10 +513,7 @@ export default function ChatPage() {
             />
           </div>
 
-          <div className={cn(
-            "flex items-center",
-            isMobile ? "space-x-1" : "space-x-2"
-          )}>
+          <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3">
             <Button
               variant="ghost"
               size="sm"
@@ -527,7 +524,7 @@ export default function ChatPage() {
               )}
               data-testid="button-toggle-user-list"
             >
-              <Users className="w-4 h-4" />
+              <Users className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
             </Button>
 
             <Link href="/settings">
@@ -537,9 +534,7 @@ export default function ChatPage() {
                 className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
                 data-testid="button-settings"
               >
-                <Settings className={cn(
-                  isMobile ? "w-4 h-4" : "w-4 h-4"
-                )} />
+                <Settings className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
               </Button>
             </Link>
 
@@ -551,9 +546,7 @@ export default function ChatPage() {
                   className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
                   data-testid="button-admin"
                 >
-                  <Shield className={cn(
-                    isMobile ? "w-4 h-4" : "w-4 h-4"
-                  )} />
+                  <Shield className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
                 </Button>
               </Link>
             )}
@@ -570,9 +563,7 @@ export default function ChatPage() {
               className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
               data-testid="button-logout"
             >
-              <LogOut className={cn(
-                isMobile ? "w-4 h-4" : "w-4 h-4"
-              )} />
+              <LogOut className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
             </Button>
           </div>
         </div>

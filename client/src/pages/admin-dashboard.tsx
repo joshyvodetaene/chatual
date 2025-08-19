@@ -180,50 +180,25 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-background sensual-gradient" data-testid="admin-dashboard">
-      <div className={cn(
-        "container mx-auto",
-        isMobile ? "p-4" : "p-6"
-      )}>
+      <div className="container mx-auto p-3 sm:p-4 md:p-6 lg:p-8">
         {/* Header */}
-        <div className={cn(
-          "flex items-center justify-between",
-          isMobile ? "mb-6" : "mb-8"
-        )}>
-          <div className={cn(
-            "flex items-center",
-            isMobile ? "space-x-2" : "space-x-3"
-          )}>
-            <BackButton className={cn(
-              isMobile ? "mr-1" : "mr-2"
-            )} />
-            <div className={cn(
-              "bg-primary rounded flex items-center justify-center",
-              isMobile ? "w-5 h-5" : "w-6 h-6"
-            )}>
-              <Shield className={cn(
-                "text-white",
-                isMobile ? "w-3 h-3" : "w-4 h-4"
-              )} />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 md:mb-8 gap-3 sm:gap-4">
+          <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-4">
+            <BackButton className="mr-1 sm:mr-2 md:mr-3" />
+            <div className="bg-primary rounded flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7">
+              <Shield className="text-white w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
             </div>
-            <h1 className={cn(
-              "font-bold text-white",
-              isMobile ? "text-xl" : "text-2xl"
-            )}>Admin Panel</h1>
+            <h1 className="font-bold text-white text-lg sm:text-xl md:text-2xl lg:text-3xl">Admin Panel</h1>
           </div>
-          <div className={cn(
-            "flex items-center",
-            isMobile ? "space-x-2" : "space-x-3"
-          )}>
-            {!isMobile && (
-              <>
-                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                  <Search className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                  <Settings className="w-4 h-4" />
-                </Button>
-              </>
-            )}
+          <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-4">
+            <div className="hidden sm:flex items-center space-x-2 sm:space-x-3">
+              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                <Search className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+              </Button>
+              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                <Settings className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+              </Button>
+            </div>
             <div className={cn(
               "flex items-center",
               isMobile ? "space-x-1" : "space-x-1"

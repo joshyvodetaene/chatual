@@ -226,26 +226,17 @@ export default function MessageInput({
   return (
     <div className={cn(
       "border-t border-gray-200 bg-white mobile-safe-area",
-      isMobile || isTablet ? "p-3" : "p-4"
+      "p-2 sm:p-3 md:p-4 lg:p-6"
     )} data-testid="message-input">
-      <div className={cn(
-        "flex items-end",
-        isMobile ? "space-x-2" : "space-x-3"
-      )}>
+      <div className="flex items-end space-x-1 sm:space-x-2 md:space-x-3 lg:space-x-4">
         <PhotoUploader
           maxNumberOfFiles={1}
           maxFileSize={10485760} // 10MB
           onGetUploadParameters={handleGetUploadParameters}
           onComplete={handlePhotoUploadComplete}
-          buttonClassName={cn(
-            "hover:bg-gray-100 rounded-lg transition-all duration-200 ease-in-out transform hover:scale-105 active:scale-95 hover:shadow-md tap-target",
-            isMobile ? "p-2" : "p-2"
-          )}
+          buttonClassName="hover:bg-gray-100 rounded-lg transition-all duration-200 ease-in-out transform hover:scale-105 active:scale-95 hover:shadow-md tap-target p-1 sm:p-2 md:p-3"
         >
-          <Image className={cn(
-            "text-gray-500",
-            isMobile ? "w-5 h-5" : "w-4 h-4"
-          )} />
+          <Image className="text-gray-500 w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
         </PhotoUploader>
         
         <div className="flex-1">
@@ -256,12 +247,7 @@ export default function MessageInput({
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder="Type a message..."
-              className={cn(
-                "resize-none border border-gray-300 rounded-2xl focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-20 placeholder-gray-500 touch-manipulation",
-                isMobile 
-                  ? "px-4 py-3 pr-12 text-base min-h-[44px] max-h-[120px]" 
-                  : "px-4 py-3 pr-12 text-sm min-h-[44px] max-h-[120px]"
-              )}
+              className="resize-none border border-gray-300 rounded-2xl focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-20 placeholder-gray-500 touch-manipulation px-3 sm:px-4 md:px-5 py-2 sm:py-3 md:py-4 pr-10 sm:pr-12 md:pr-14 text-sm sm:text-base md:text-lg min-h-[40px] sm:min-h-[44px] md:min-h-[48px] max-h-[100px] sm:max-h-[120px] md:max-h-[140px]"
               rows={1}
               disabled={disabled}
               data-testid="input-message"
@@ -270,17 +256,14 @@ export default function MessageInput({
               ref={emojiButtonRef}
               variant="ghost"
               size="sm"
-              className={cn(
-                "absolute right-3 bottom-3 h-auto hover:bg-gray-100 transition-all duration-200 ease-in-out transform hover:scale-110 active:scale-95 hover:shadow-sm tap-target",
-                isMobile ? "p-2" : "p-1"
-              )}
+              className="absolute right-2 sm:right-3 md:right-4 bottom-2 sm:bottom-3 md:bottom-4 h-auto hover:bg-gray-100 transition-all duration-200 ease-in-out transform hover:scale-110 active:scale-95 hover:shadow-sm tap-target p-1 sm:p-2 md:p-3"
               disabled={disabled}
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
               data-testid="button-emoji"
             >
               <Smile className={cn(
                 showEmojiPicker ? 'text-primary' : 'text-gray-500',
-                isMobile ? "w-5 h-5" : "w-4 h-4"
+                "w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6"
               )} />
             </Button>
             
@@ -295,15 +278,10 @@ export default function MessageInput({
         <Button
           onClick={handleSendMessage}
           disabled={!message.trim() || disabled}
-          className={cn(
-            "bg-primary text-white rounded-2xl hover:bg-primary/90 transition-all duration-300 ease-in-out transform hover:scale-110 active:scale-95 hover:shadow-xl hover:shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100 tap-target touch-manipulation",
-            isMobile ? "p-3 min-h-[44px] min-w-[44px]" : "p-3"
-          )}
+          className="bg-primary text-white rounded-2xl hover:bg-primary/90 transition-all duration-300 ease-in-out transform hover:scale-110 active:scale-95 hover:shadow-xl hover:shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100 tap-target touch-manipulation p-2 sm:p-3 md:p-4 min-h-[40px] sm:min-h-[44px] md:min-h-[48px] min-w-[40px] sm:min-w-[44px] md:min-w-[48px]"
           data-testid="button-send"
         >
-          <Send className={cn(
-            isMobile ? "w-5 h-5" : "w-4 h-4"
-          )} />
+          <Send className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
         </Button>
       </div>
     </div>

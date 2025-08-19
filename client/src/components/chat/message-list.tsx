@@ -118,22 +118,22 @@ export default function MessageList({
   return (
     <div 
       ref={containerRef}
-      className="flex-1 overflow-y-auto p-4 space-y-2" 
+      className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 lg:p-6 space-y-1 sm:space-y-2 md:space-y-3" 
       data-testid="message-list"
     >
       {/* Loading indicator for initial load */}
       {isLoading && messages.length === 0 && (
         <div className="flex justify-center items-center h-32">
-          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-          <span className="ml-2 text-gray-500">Loading messages...</span>
+          <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 animate-spin text-gray-400" />
+          <span className="ml-1 sm:ml-2 md:ml-3 text-xs sm:text-sm md:text-base text-gray-500">Loading messages...</span>
         </div>
       )}
       
       {/* Load more indicator */}
       {isLoadingMore && (
         <div className="flex justify-center items-center py-4" ref={messagesStartRef}>
-          <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
-          <span className="ml-2 text-gray-500 text-sm">Loading more messages...</span>
+          <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 animate-spin text-gray-400" />
+          <span className="ml-1 sm:ml-2 md:ml-3 text-gray-500 text-xs sm:text-sm md:text-base">Loading more messages...</span>
         </div>
       )}
       
@@ -178,7 +178,7 @@ export default function MessageList({
           <div
             key={message.id}
             className={cn(
-              "flex items-start space-x-2",
+              "flex items-start space-x-1 sm:space-x-2 md:space-x-3",
               isOwnMessage && "flex-row-reverse space-x-reverse"
             )}
             data-testid={`message-${message.id}`}
@@ -193,11 +193,11 @@ export default function MessageList({
                 <img 
                   src={message.user.primaryPhoto.photoUrl}
                   alt={`${message.user.displayName} profile`}
-                  className="w-10 h-10 rounded-full object-cover flex-shrink-0 cursor-pointer border-2 border-white"
+                  className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full object-cover flex-shrink-0 cursor-pointer border-2 border-white"
                 />
               ) : (
                 <div className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium flex-shrink-0 cursor-pointer",
+                  "w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white text-xs sm:text-sm md:text-base font-medium flex-shrink-0 cursor-pointer",
                   isOwnMessage ? "bg-primary" : getAvatarColor(message.user.displayName)
                 )}>
                   {getInitials(message.user.displayName)}
@@ -206,7 +206,7 @@ export default function MessageList({
             </UserProfileMenu>
             <div className={cn("flex-1", isOwnMessage && "text-right")}>
               <div className={cn(
-                "flex items-baseline space-x-2 mb-0.5",
+                "flex items-baseline space-x-1 sm:space-x-2 md:space-x-3 mb-0.5",
                 isOwnMessage && "justify-end"
               )}>
                 {!isOwnMessage && (
@@ -215,7 +215,7 @@ export default function MessageList({
                     currentUser={currentUser}
                     onStartPrivateChat={onStartPrivateChat}
                   >
-                    <span className="text-sm font-semibold text-gray-900 cursor-pointer hover:text-primary transition-colors">
+                    <span className="text-xs sm:text-sm md:text-base font-semibold text-gray-900 cursor-pointer hover:text-primary transition-colors">
                       {message.user.displayName}
                     </span>
                   </UserProfileMenu>
@@ -228,13 +228,13 @@ export default function MessageList({
                 )}
               </div>
               <div className={cn(
-                "p-2 rounded-2xl max-w-lg",
+                "p-2 sm:p-3 md:p-4 rounded-2xl max-w-xs sm:max-w-md md:max-w-lg lg:max-w-xl",
                 isOwnMessage
                   ? "bg-primary text-white rounded-tr-md ml-auto"
                   : "bg-white rounded-tl-md border border-gray-200"
               )}>
                 <p className={cn(
-                  "text-sm",
+                  "text-xs sm:text-sm md:text-base",
                   isOwnMessage ? "text-white" : "text-gray-800"
                 )}>
                   {message.content}
@@ -273,11 +273,11 @@ export default function MessageList({
                 <img 
                   src={typingUser.primaryPhoto.photoUrl}
                   alt={`${typingUser.displayName} profile`}
-                  className="w-10 h-10 rounded-full object-cover flex-shrink-0 cursor-pointer border-2 border-white"
+                  className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full object-cover flex-shrink-0 cursor-pointer border-2 border-white"
                 />
               ) : (
                 <div className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium flex-shrink-0 cursor-pointer",
+                  "w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white text-xs sm:text-sm md:text-base font-medium flex-shrink-0 cursor-pointer",
                   getAvatarColor(typingUser.displayName)
                 )}>
                   {getInitials(typingUser.displayName)}

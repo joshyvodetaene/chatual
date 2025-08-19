@@ -112,37 +112,37 @@ export default function Sidebar({
   return (
     /* Haupt-Container der Sidebar */
     <div className={cn(
-      "w-80 h-full bg-card/90 backdrop-blur-sm border-r border-primary/20 flex flex-col",
+      "w-full sm:w-80 md:w-96 h-full bg-card/90 backdrop-blur-sm border-r border-primary/20 flex flex-col",
       className
     )} data-testid="sidebar">
       {/* Header-Bereich mit App-Logo und Raum-erstellen Button */}
-      <div className="p-4 border-b border-primary/20 bg-primary text-white red-glow">
+      <div className="p-3 sm:p-4 md:p-6 border-b border-primary/20 bg-primary text-white red-glow">
         <div className="flex items-center justify-between">
           {/* App-Logo und Name */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-4">
             {/* Chat-Icon */}
-            <div className="w-8 h-8 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-              <MessageCircle className="w-4 h-4" />
+            <div className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+              <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
             </div>
             {/* App-Name */}
-            <h1 className="text-xl font-semibold">Chatual</h1>
+            <h1 className="text-lg sm:text-xl md:text-2xl font-semibold">Chatual</h1>
           </div>
         </div>
       </div>
 
       {/* Benutzer-Profil Bereich */}
-      <div className="p-4 border-b border-primary/20 bg-card/60 backdrop-blur-sm">
-        <div className="flex items-center space-x-3">
+      <div className="p-3 sm:p-4 md:p-6 border-b border-primary/20 bg-card/60 backdrop-blur-sm">
+        <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-4">
           {/* Benutzer-Avatar */}
           {currentUser.primaryPhoto?.photoUrl ? (
             <img 
               src={currentUser.primaryPhoto.photoUrl}
               alt={`${currentUser.displayName} profile`}
-              className="w-10 h-10 rounded-full object-cover border-2 border-white"
+              className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full object-cover border-2 border-white"
             />
           ) : (
             <div className={cn(
-              "w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium",
+              "w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white text-xs sm:text-sm md:text-base font-medium",
               getAvatarColor(currentUser.displayName)
             )}>
               {getInitials(currentUser.displayName)}
@@ -151,11 +151,11 @@ export default function Sidebar({
           {/* Benutzer-Informationen */}
           <div className="flex-1 min-w-0">
             {/* Anzeigename */}
-            <p className="text-sm font-medium text-white truncate">
+            <p className="text-xs sm:text-sm md:text-base font-medium text-white truncate">
               {currentUser.displayName}
             </p>
             {/* Benutzername mit @ Symbol */}
-            <p className="text-xs text-gray-300 truncate">
+            <p className="text-xs sm:text-sm md:text-base text-gray-300 truncate">
               @{currentUser.username}
             </p>
           </div>
@@ -164,7 +164,7 @@ export default function Sidebar({
       </div>
 
       {/* Tab-Navigation zwischen Räumen und privaten Chats */}
-      <div className="px-4 pt-4">
+      <div className="px-3 sm:px-4 md:px-6 pt-3 sm:pt-4 md:pt-6">
         <div className={cn(
           "flex space-x-1 rounded-lg p-1",
           isMobile ? "bg-primary/20" : "bg-card/60 backdrop-blur-sm"
@@ -200,25 +200,25 @@ export default function Sidebar({
 
       {/* Scrollbarer Inhaltsbereich */}
       <div className="flex-1 overflow-y-auto">
-        <div className="p-4">
+        <div className="p-3 sm:p-4 md:p-6">
           {/* Wenn Räume-Tab aktiv ist */}
           {activeTab === 'rooms' && (
             <>
               {/* Räume-Sektion Header */}
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2 sm:mb-3 md:mb-4">
                 {/* Sektion-Titel */}
-                <h2 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                <h2 className="text-xs sm:text-sm md:text-base font-semibold text-gray-300 uppercase tracking-wider">
                   Rooms
                 </h2>
               </div>
               
               {/* Liste aller verfügbaren Räume */}
-              <div className="space-y-1">
+              <div className="space-y-1 sm:space-y-2 md:space-y-3">
                 {rooms.map((room) => (
                   <div
                     key={room.id}
                     className={cn(
-                      "flex items-center space-x-3 p-2 rounded-lg cursor-pointer transition-colors",
+                      "flex items-center space-x-2 sm:space-x-3 md:space-x-4 p-2 sm:p-3 md:p-4 rounded-lg cursor-pointer transition-colors",
                       activeRoom?.id === room.id
                         ? "bg-primary text-white red-glow" // Aktiver Raum hervorgehoben
                         : "hover:bg-white hover:bg-opacity-10 hover:text-white text-gray-300" // Hover-Effekt für inaktive Räume
@@ -228,7 +228,7 @@ export default function Sidebar({
                   >
                     {/* Raum-Icon (öffentlich oder privat) */}
                     <div className={cn(
-                      "w-8 h-8 rounded-lg flex items-center justify-center",
+                      "w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-lg flex items-center justify-center",
                       activeRoom?.id === room.id
                         ? "bg-white bg-opacity-20"
                         : "bg-gray-100"
@@ -249,7 +249,7 @@ export default function Sidebar({
                     {/* Raum-Name */}
                     <div className="flex-1 min-w-0">
                       <p className={cn(
-                        "text-sm font-medium truncate",
+                        "text-xs sm:text-sm md:text-base font-medium truncate",
                         activeRoom?.id === room.id ? "text-white" : "text-gray-300"
                       )}>
                         {room.name}
@@ -269,15 +269,15 @@ export default function Sidebar({
           {activeTab === 'private' && (
             <>
               {/* Private-Chats-Sektion Header */}
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2 sm:mb-3 md:mb-4">
                 {/* Sektion-Titel */}
-                <h2 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                <h2 className="text-xs sm:text-sm md:text-base font-semibold text-gray-300 uppercase tracking-wider">
                   Private Chats
                 </h2>
               </div>
               
               {/* Liste aller privaten Chats */}
-              <div className="space-y-1">
+              <div className="space-y-1 sm:space-y-2 md:space-y-3">
                 {privateRooms.map((privateRoom) => (
                   <div
                     key={privateRoom.id}
@@ -325,7 +325,7 @@ export default function Sidebar({
                     <div className="flex-1 min-w-0">
                       {/* Name des Chat-Partners */}
                       <p className={cn(
-                        "text-sm font-medium truncate",
+                        "text-xs sm:text-sm md:text-base font-medium truncate",
                         activeRoom?.id === privateRoom.id ? "text-white" : "text-gray-300"
                       )}>
                         {privateRoom.participant2.displayName}
