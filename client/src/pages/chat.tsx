@@ -366,7 +366,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="h-screen flex bg-gray-50 overflow-hidden">
+    <div className="h-screen flex sensual-gradient overflow-hidden">
       {/* Mobile Sidebar */}
       {(isMobile || isTablet) && (
         <MobileMenu
@@ -395,7 +395,7 @@ export default function ChatPage() {
           currentUser={currentUser}
           onCreateRoom={() => setShowCreateRoom(true)}
           onStartPrivateChat={handleStartPrivateChat}
-          className="w-80 border-r border-gray-200"
+          className="w-80 border-r border-primary/20 bg-card/80 backdrop-blur-sm"
         />
       )}
 
@@ -403,7 +403,7 @@ export default function ChatPage() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <div className={cn(
-          "bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between",
+          "bg-card/80 backdrop-blur-sm border-b border-primary/20 px-4 py-3 flex items-center justify-between red-glow",
           isMobile && "px-3 py-2"
         )}>
           <div className="flex items-center space-x-3 min-w-0">
@@ -426,11 +426,11 @@ export default function ChatPage() {
             )}
             
             <Hash className={cn(
-              "text-gray-500",
+              "text-primary",
               isMobile ? "w-4 h-4" : "w-5 h-5"
             )} />
             <h1 className={cn(
-              "font-semibold text-gray-900 truncate",
+              "font-semibold text-white truncate",
               isMobile ? "text-base" : "text-lg"
             )}>
               {activeRoom?.name || 'Select a room'}
@@ -456,8 +456,8 @@ export default function ChatPage() {
               size="sm"
               onClick={() => setShowUserList(!showUserList)}
               className={cn(
-                "text-gray-500 hover:text-gray-700",
-                showUserList && "bg-gray-100 text-gray-700"
+                "text-white hover:bg-white hover:bg-opacity-10 hover:text-white",
+                showUserList && "bg-white bg-opacity-20 text-white"
               )}
               data-testid="button-toggle-user-list"
             >
@@ -468,7 +468,7 @@ export default function ChatPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-gray-500 hover:text-gray-700"
+                className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
                 data-testid="button-settings"
               >
                 <Settings className={cn(
@@ -482,7 +482,7 @@ export default function ChatPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
                   data-testid="button-admin"
                 >
                   <Shield className={cn(
@@ -501,7 +501,7 @@ export default function ChatPage() {
               variant="ghost"
               size="sm"
               onClick={handleLogout}
-              className="text-gray-500 hover:text-gray-700"
+              className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
               data-testid="button-logout"
             >
               <LogOut className={cn(

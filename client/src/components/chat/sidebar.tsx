@@ -99,11 +99,11 @@ export default function Sidebar({
   return (
     /* Haupt-Container der Sidebar */
     <div className={cn(
-      "w-80 bg-sidebar border-r border-border flex flex-col",
+      "w-80 bg-card/90 backdrop-blur-sm border-r border-primary/20 flex flex-col",
       className
     )} data-testid="sidebar">
       {/* Header-Bereich mit App-Logo und Raum-erstellen Button */}
-      <div className="p-4 border-b border-border bg-primary text-white red-glow">
+      <div className="p-4 border-b border-primary/20 bg-primary text-white red-glow">
         <div className="flex items-center justify-between">
           {/* App-Logo und Name */}
           <div className="flex items-center space-x-3">
@@ -114,12 +114,11 @@ export default function Sidebar({
             {/* App-Name */}
             <h1 className="text-xl font-semibold">Chatual</h1>
           </div>
-          
         </div>
       </div>
 
       {/* Benutzer-Profil Bereich */}
-      <div className="p-4 border-b border-border bg-muted">
+      <div className="p-4 border-b border-primary/20 bg-card/60 backdrop-blur-sm">
         <div className="flex items-center space-x-3">
           {/* Benutzer-Avatar */}
           {currentUser.primaryPhoto?.photoUrl ? (
@@ -139,17 +138,17 @@ export default function Sidebar({
           {/* Benutzer-Informationen */}
           <div className="flex-1 min-w-0">
             {/* Anzeigename */}
-            <p className="text-sm font-medium text-gray-900 truncate">
+            <p className="text-sm font-medium text-white truncate">
               {currentUser.displayName}
             </p>
             {/* Benutzername mit @ Symbol */}
-            <p className="text-xs text-gray-500 truncate">
+            <p className="text-xs text-gray-300 truncate">
               @{currentUser.username}
             </p>
           </div>
           {/* Einstellungen-Button */}
-          <Button variant="ghost" size="sm" data-testid="button-user-settings">
-            <Settings className="w-4 h-4 text-gray-400" />
+          <Button variant="ghost" size="sm" className="text-white hover:bg-white hover:bg-opacity-10" data-testid="button-user-settings">
+            <Settings className="w-4 h-4 text-white" />
           </Button>
         </div>
       </div>
@@ -158,15 +157,15 @@ export default function Sidebar({
       <div className="px-4 pt-4">
         <div className={cn(
           "flex space-x-1 rounded-lg p-1",
-          isMobile ? "bg-gray-800" : "bg-gray-100"
+          isMobile ? "bg-primary/20" : "bg-card/60 backdrop-blur-sm"
         )}>
           {/* Räume Tab */}
           <button
             className={cn(
               'flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
               activeTab === 'rooms'
-                ? 'bg-white text-gray-900 shadow-sm' // Aktiver Zustand
-                : 'text-gray-600 hover:text-gray-900' // Inaktiver Zustand
+                ? 'bg-primary text-white shadow-sm red-glow' // Aktiver Zustand
+                : 'text-gray-300 hover:text-white hover:bg-white hover:bg-opacity-10' // Inaktiver Zustand
             )}
             onClick={() => setActiveTab('rooms')}
             data-testid="tab-rooms"
@@ -178,8 +177,8 @@ export default function Sidebar({
             className={cn(
               'flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
               activeTab === 'private'
-                ? 'bg-white text-gray-900 shadow-sm' // Aktiver Zustand
-                : 'text-gray-600 hover:text-gray-900' // Inaktiver Zustand
+                ? 'bg-primary text-white shadow-sm red-glow' // Aktiver Zustand
+                : 'text-gray-300 hover:text-white hover:bg-white hover:bg-opacity-10' // Inaktiver Zustand
             )}
             onClick={() => setActiveTab('private')}
             data-testid="tab-private"
@@ -198,7 +197,7 @@ export default function Sidebar({
               {/* Räume-Sektion Header */}
               <div className="flex items-center justify-between mb-3">
                 {/* Sektion-Titel */}
-                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <h2 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
                   Rooms
                 </h2>
               </div>
@@ -211,8 +210,8 @@ export default function Sidebar({
                     className={cn(
                       "flex items-center space-x-3 p-2 rounded-lg cursor-pointer transition-colors",
                       activeRoom?.id === room.id
-                        ? "bg-primary text-white" // Aktiver Raum hervorgehoben
-                        : "hover:bg-gray-100" // Hover-Effekt für inaktive Räume
+                        ? "bg-primary text-white red-glow" // Aktiver Raum hervorgehoben
+                        : "hover:bg-white hover:bg-opacity-10 hover:text-white text-gray-300" // Hover-Effekt für inaktive Räume
                     )}
                     onClick={() => onRoomSelect(room)}
                     data-testid={`room-item-${room.id}`}
@@ -241,7 +240,7 @@ export default function Sidebar({
                     <div className="flex-1 min-w-0">
                       <p className={cn(
                         "text-sm font-medium truncate",
-                        activeRoom?.id === room.id ? "text-white" : "text-gray-700"
+                        activeRoom?.id === room.id ? "text-white" : "text-gray-300"
                       )}>
                         {room.name}
                       </p>
@@ -262,7 +261,7 @@ export default function Sidebar({
               {/* Private-Chats-Sektion Header */}
               <div className="flex items-center justify-between mb-3">
                 {/* Sektion-Titel */}
-                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <h2 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
                   Private Chats
                 </h2>
               </div>
@@ -275,8 +274,8 @@ export default function Sidebar({
                     className={cn(
                       "group flex items-center space-x-3 p-2 rounded-lg cursor-pointer transition-colors relative",
                       activeRoom?.id === privateRoom.id
-                        ? "bg-primary text-white" // Aktiver Chat hervorgehoben
-                        : "hover:bg-gray-100" // Hover-Effekt für inaktive Chats
+                        ? "bg-primary text-white red-glow" // Aktiver Chat hervorgehoben
+                        : "hover:bg-white hover:bg-opacity-10 hover:text-white text-gray-300" // Hover-Effekt für inaktive Chats
                     )}
                     onClick={() => {
                       // Erstellt ein Room-Objekt für den privaten Chat
@@ -317,14 +316,14 @@ export default function Sidebar({
                       {/* Name des Chat-Partners */}
                       <p className={cn(
                         "text-sm font-medium truncate",
-                        activeRoom?.id === privateRoom.id ? "text-white" : "text-gray-900"
+                        activeRoom?.id === privateRoom.id ? "text-white" : "text-gray-300"
                       )}>
                         {privateRoom.participant2.displayName}
                       </p>
                       {/* Chat-Typ Beschreibung */}
                       <p className={cn(
                         "text-xs truncate",
-                        activeRoom?.id === privateRoom.id ? "text-white text-opacity-70" : "text-gray-500"
+                        activeRoom?.id === privateRoom.id ? "text-white text-opacity-70" : "text-gray-400"
                       )}>
                         Private chat
                       </p>
@@ -349,7 +348,7 @@ export default function Sidebar({
                 
                 {/* Leerzustand wenn keine privaten Chats vorhanden */}
                 {privateRooms.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-gray-400">
                     <p className="text-sm">No private chats yet</p>
                     <p className="text-xs mt-1">Click on a user to start chatting</p>
                   </div>
