@@ -199,11 +199,26 @@ export default function ChatPage() {
   }, [isDesktop, currentUser, isMobile, isTablet]);
 
   const handleSendMessage = (content: string, photoUrl?: string, photoFileName?: string) => {
-    if (!currentUser?.id) return;
+    console.log('handleSendMessage called with:', {
+      content: content?.substring(0, 20),
+      photoUrl: photoUrl?.substring(photoUrl.length - 30),
+      photoFileName,
+      currentUser: currentUser?.id,
+      activeRoom: activeRoom?.id
+    });
     
-    if (!activeRoom?.id) return;
+    if (!currentUser?.id) {
+      console.log('No current user, aborting send');
+      return;
+    }
+    
+    if (!activeRoom?.id) {
+      console.log('No active room, aborting send');
+      return;
+    }
 
     // Send message via WebSocket without temporary message
+    console.log('About to call sendMessage via WebSocket');
     sendMessage(content, photoUrl, photoFileName);
   };
 

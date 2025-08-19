@@ -131,6 +131,11 @@ export default function MessageInput({
         console.log('Photo upload completed:', { photoUrl, photoFileName, originalName: uploadedFile.name });
         
         // Send the photo as a message
+        console.log('Calling onSendMessage with:', {
+          content: message.trim() || '',
+          photoUrl,
+          photoFileName
+        });
         onSendMessage(message.trim() || '', photoUrl, photoFileName);
         setMessage('');
         handleStopTyping();
