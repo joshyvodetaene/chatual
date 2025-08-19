@@ -187,6 +187,7 @@ export const banUserSchema = z.object({
 
 export const updateUserProfileSchema = z.object({
   displayName: z.string().min(1, "Display name is required"),
+  age: z.number().min(18, "You must be at least 18 years old").max(100, "Please enter a valid age").optional(),
   location: z.string().min(1, "Location is required"),
   latitude: z.string().optional(),
   longitude: z.string().optional(),

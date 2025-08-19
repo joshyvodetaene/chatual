@@ -27,6 +27,7 @@ export default function LocationSettings({ user }: LocationSettingsProps) {
       location: user.location,
       latitude: user.latitude || undefined,
       longitude: user.longitude || undefined,
+      age: user.age || 18,
       genderPreference: (user.genderPreference as 'all' | 'male' | 'female') || 'all',
       ageMin: user.ageMin || 18,
       ageMax: user.ageMax || 99,
@@ -61,7 +62,7 @@ export default function LocationSettings({ user }: LocationSettingsProps) {
     <div className="space-y-6" data-testid="location-settings">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit as any)} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <FormField
               control={form.control as any}
               name="displayName"
@@ -73,6 +74,29 @@ export default function LocationSettings({ user }: LocationSettingsProps) {
                       placeholder="Your display name" 
                       {...field}
                       data-testid="input-display-name"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control as any}
+              name="age"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Age</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number"
+                      min="18"
+                      max="100"
+                      placeholder="Your age" 
+                      {...field}
+                      onChange={(e) => field.onChange(parseInt(e.target.value) || 18)}
+                      value={field.value || ''}
+                      data-testid="input-age"
                     />
                   </FormControl>
                   <FormMessage />

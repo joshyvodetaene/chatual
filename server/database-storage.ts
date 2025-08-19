@@ -74,6 +74,7 @@ export class DatabaseStorage implements IStorage {
       username: user.username,
       displayName: user.displayName,
       password: hashedPassword,
+      age: user.age,
       gender: user.gender,
       location: user.location,
       latitude: user.latitude,
@@ -120,9 +121,32 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUsersWithDistance(currentUserId: string): Promise<UserWithDistance[]> {
+    // Get current user to access their preferences
+    const currentUser = await this.getUser(currentUserId);
+    if (!currentUser) {
+      return [];
+    }
+
+    // Get all users except the current user
     const allUsers = await db.select().from(users).where(ne(users.id, currentUserId));
-    // For now, return users with a mock distance - real implementation would calculate distance
-    return allUsers.map(user => ({
+    
+    // Filter users based on current user's preferences
+    const filteredUsers = allUsers.filter(user => {
+      // Check gender preference
+      if (currentUser.genderPreference !== 'all' && user.gender !== currentUser.genderPreference) {
+        return false;
+      }
+      
+      // Check age range preference
+      if (user.age < (currentUser.ageMin || 18) || user.age > (currentUser.ageMax || 99)) {
+        return false;
+      }
+      
+      return true;
+    });
+    
+    // For now, return filtered users with mock distance - real implementation would calculate distance
+    return filteredUsers.map(user => ({
       ...user,
       distance: Math.floor(Math.random() * 50) + 1 // Mock distance 1-50 miles
     }));
