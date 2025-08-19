@@ -145,7 +145,9 @@ export function UserProfileMenu({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          {children}
+          <div onClick={() => console.log('Dropdown trigger clicked for:', user.displayName)}>
+            {children}
+          </div>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-48 z-50">
           <DropdownMenuItem onClick={handleSendMessage} data-testid="menu-send-message">
