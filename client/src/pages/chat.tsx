@@ -138,35 +138,17 @@ export default function ChatPage() {
     }
   }, [paginatedMessages, messages, setMessages, currentUser]);
 
-  // Handle new messages from WebSocket and replace temporary messages
+  // Handle new messages from WebSocket
   useEffect(() => {
     if (!currentUser || messages.length === 0) return;
 
     messages.forEach((newMessage) => {
-      // Check if this message already exists in paginated messages (including temporary ones)
-      const existingMessageIndex = paginatedMessages.findIndex(m => 
-        m.id === newMessage.id || 
-        (m.isTemporary && m.userId === newMessage.userId && m.content === newMessage.content && m.roomId === newMessage.roomId)
-      );
-
-      if (existingMessageIndex >= 0) {
-        // Replace temporary message with real one
-        const existingMessage = paginatedMessages[existingMessageIndex];
-        if (existingMessage.isTemporary && !newMessage.isTemporary) {
-          setPaginatedMessages(prev => 
-            prev.map((msg, index) => 
-              index === existingMessageIndex ? newMessage : msg
-            )
-          );
-        }
-      } else {
-        // Add new message if it doesn't exist
-        if (!paginatedMessages.find(m => m.id === newMessage.id)) {
-          addMessage(newMessage);
-        }
+      // Only add message if it doesn't already exist
+      if (!paginatedMessages.find(m => m.id === newMessage.id)) {
+        addMessage(newMessage);
       }
     });
-  }, [messages, paginatedMessages, addMessage, currentUser, setPaginatedMessages]);
+  }, [messages, paginatedMessages, addMessage, currentUser]);
 
   // Set user ID for theme context when user is available
   useEffect(() => {
@@ -209,25 +191,7 @@ export default function ChatPage() {
     
     if (!activeRoom?.id) return;
 
-    const messageType = photoUrl ? 'photo' : 'text';
-    const tempId = `temp_${Date.now()}_${Math.random()}`;
-    const tempMessage: MessageWithUser = {
-      id: tempId,
-      roomId: activeRoom.id,
-      userId: currentUser.id,
-      content,
-      messageType,
-      photoUrl: photoUrl || null,
-      photoFileName: photoFileName || null,
-      createdAt: new Date(),
-      user: currentUser,
-      isTemporary: true,
-    };
-
-    // Add temporary message optimistically
-    setPaginatedMessages(prev => [...prev, tempMessage]);
-    
-    // Send message via WebSocket
+    // Send message via WebSocket without temporary message
     sendMessage(content, photoUrl, photoFileName);
   };
 
