@@ -346,9 +346,14 @@ export class DatabaseStorage implements IStorage {
 
   // Private room methods
   async createPrivateRoom(user1Id: string, user2Id: string): Promise<Room> {
+    console.log(`[DB] Creating private room between ${user1Id} and ${user2Id}`);
+    
     // Check if private room already exists
     const existingRoom = await this.getPrivateRoom(user1Id, user2Id);
-    if (existingRoom) return existingRoom;
+    if (existingRoom) {
+      console.log(`[DB] Private room already exists: ${existingRoom.id}`);
+      return existingRoom;
+    }
 
     const roomData: InsertRoom = {
       name: `Private Chat`,
@@ -358,59 +363,107 @@ export class DatabaseStorage implements IStorage {
       memberIds: [user1Id, user2Id]
     };
 
+    console.log(`[DB] Creating new private room with data:`, roomData);
     const room = await this.createRoom(roomData);
+    console.log(`[DB] Private room created with ID: ${room.id}`);
 
-    // Add both users as members
+    // Add both users as members to ensure proper tracking
+    console.log(`[DB] Adding room members for private room ${room.id}`);
     await Promise.all([
       this.addRoomMember({ roomId: room.id, userId: user1Id }),
       this.addRoomMember({ roomId: room.id, userId: user2Id })
     ]);
 
+    console.log(`[DB] Private room ${room.id} setup complete`);
     return room;
   }
 
   async getPrivateRoom(user1Id: string, user2Id: string): Promise<Room | undefined> {
-    const privateRooms = await db
-      .select({ room: rooms })
-      .from(rooms)
-      .where(eq(rooms.isPrivate, true));
+    console.log(`[DB] Looking for existing private room between ${user1Id} and ${user2Id}`);
+    
+    // Get all private rooms where user1 is a member
+    const user1Rooms = await db
+      .select({ roomId: roomMembers.roomId })
+      .from(roomMembers)
+      .innerJoin(rooms, eq(roomMembers.roomId, rooms.id))
+      .where(and(
+        eq(roomMembers.userId, user1Id),
+        eq(rooms.isPrivate, true)
+      ));
 
-    for (const { room } of privateRooms) {
-      const memberIds = room.memberIds || [];
+    console.log(`[DB] User1 is in ${user1Rooms.length} private rooms`);
+
+    // Check each room to see if user2 is also a member
+    for (const { roomId } of user1Rooms) {
+      const members = await db
+        .select({ userId: roomMembers.userId })
+        .from(roomMembers)
+        .where(eq(roomMembers.roomId, roomId));
+
+      const memberIds = members.map(m => m.userId);
+      console.log(`[DB] Room ${roomId} has members: ${memberIds}`);
+
+      // Check if this room has exactly these two users
       if (
         memberIds.includes(user1Id) && 
         memberIds.includes(user2Id) && 
         memberIds.length === 2
       ) {
+        console.log(`[DB] Found existing private room: ${roomId}`);
+        const [room] = await db.select().from(rooms).where(eq(rooms.id, roomId));
         return room;
       }
     }
+
+    console.log(`[DB] No existing private room found between ${user1Id} and ${user2Id}`);
     return undefined;
   }
 
   async getPrivateRooms(userId: string): Promise<PrivateRoom[]> {
-    const userRooms = await this.getUserRooms(userId);
-    const privateRooms = userRooms.filter(room => room.isPrivate);
+    console.log(`[DB] Getting private rooms for user: ${userId}`);
+    
+    // Get all private rooms where the user is a member
+    const privateRoomsData = await db
+      .select({
+        room: rooms,
+      })
+      .from(roomMembers)
+      .innerJoin(rooms, eq(roomMembers.roomId, rooms.id))
+      .where(and(
+        eq(roomMembers.userId, userId),
+        eq(rooms.isPrivate, true)
+      ));
+
+    console.log(`[DB] Found ${privateRoomsData.length} private rooms for user ${userId}`);
 
     const privateRoomsWithOtherUser: PrivateRoom[] = [];
     
-    for (const room of privateRooms) {
-      const otherUserId = room.memberIds?.find(id => id !== userId);
-      if (otherUserId) {
-        const otherUser = await this.getUser(otherUserId);
-        const currentUser = await this.getUser(userId);
-        if (otherUser && currentUser) {
-          privateRoomsWithOtherUser.push({
-            id: room.id,
-            participant1Id: userId,
-            participant2Id: otherUserId,
-            participant1: currentUser,
-            participant2: otherUser
-          });
-        }
+    for (const { room } of privateRoomsData) {
+      console.log(`[DB] Processing private room: ${room.id}, memberIds: ${room.memberIds}`);
+      
+      // Get all members of this room
+      const members = await this.getRoomMembers(room.id);
+      console.log(`[DB] Room ${room.id} has ${members.length} members`);
+      
+      // Find the other participant (not the current user)
+      const otherUser = members.find(member => member.id !== userId);
+      const currentUser = members.find(member => member.id === userId);
+      
+      if (otherUser && currentUser) {
+        console.log(`[DB] Private room ${room.id}: ${currentUser.displayName} <-> ${otherUser.displayName}`);
+        privateRoomsWithOtherUser.push({
+          id: room.id,
+          participant1Id: userId,
+          participant2Id: otherUser.id,
+          participant1: currentUser,
+          participant2: otherUser
+        });
+      } else {
+        console.log(`[DB] Skipping private room ${room.id} - missing participants`);
       }
     }
 
+    console.log(`[DB] Returning ${privateRoomsWithOtherUser.length} private rooms with user details`);
     return privateRoomsWithOtherUser;
   }
 

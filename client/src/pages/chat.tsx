@@ -67,9 +67,33 @@ export default function ChatPage() {
     enabled: !!currentUser,
   });
 
-  const { data: chatData } = useQuery<PrivateChatData>({
+  // Chat data loading
+  const { data: chatData, isLoading: isChatDataLoading } = useQuery({
     queryKey: ['/api/chat-data', currentUser?.id],
+    queryFn: async () => {
+      if (!currentUser?.id) return null;
+      console.log(`[CHAT_PAGE] Fetching chat data for user: ${currentUser.id}`);
+      const response = await apiRequest('GET', `/api/chat-data/${currentUser.id}`);
+      const data = await response.json();
+      console.log(`[CHAT_PAGE] Chat data received:`, {
+        roomCount: data.rooms?.length || 0,
+        privateRoomCount: data.privateRooms?.length || 0
+      });
+
+      // Ensure private rooms are always maintained
+      if (data.privateRooms && data.privateRooms.length > 0) {
+        console.log(`[CHAT_PAGE] Private rooms found:`, data.privateRooms.map((pr: any) => ({
+          id: pr.id,
+          participant: pr.participant2?.displayName
+        })));
+      }
+
+      return data as PrivateChatData;
+    },
     enabled: !!currentUser?.id,
+    staleTime: 5000, // Reduced to 5 seconds for better consistency
+    refetchOnWindowFocus: true,
+    refetchOnMount: true, // Always refetch when component mounts
   });
 
   const { data: blockedUsersData } = useQuery<BlockedUserWithDetails[]>({
@@ -168,16 +192,32 @@ export default function ChatPage() {
     logoutMutation.mutate();
   };
 
-  // Handle chat data changes
+  // Update rooms and private rooms when chat data changes
   useEffect(() => {
     console.log(`[CHAT_PAGE] Chat data effect triggered:`, {
       hasChatData: !!chatData,
       hasCurrentUser: !!currentUser,
       privateRoomsCount: chatData?.privateRooms?.length || 0
     });
+
     if (chatData && currentUser) {
+      console.log(`[CHAT_PAGE] Setting ${chatData.rooms?.length || 0} rooms`);
+      setRooms(chatData.rooms || []);
+
+      // Always set private rooms, even if empty array
       console.log(`[CHAT_PAGE] Setting ${chatData.privateRooms?.length || 0} private rooms`);
       setPrivateRooms(chatData.privateRooms || []);
+
+      // Log each private room for debugging
+      if (chatData.privateRooms && chatData.privateRooms.length > 0) {
+        chatData.privateRooms.forEach((pr, index) => {
+          console.log(`[CHAT_PAGE] Private room ${index + 1}:`, {
+            id: pr.id,
+            participant1: pr.participant1?.displayName,
+            participant2: pr.participant2?.displayName
+          });
+        });
+      }
     }
   }, [chatData, currentUser]);
 
@@ -263,16 +303,12 @@ export default function ChatPage() {
 
     // Join room on server asynchronously
     try {
-      const response = await fetch(`/api/rooms/${roomId}/join`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
-      });
+      const response = await apiRequest('POST', `/api/rooms/${roomId}/join`, { userId });
       console.log(`[CHAT_PAGE] Room join response status: ${response.status}`);
     } catch (error) {
       console.error(`[CHAT_PAGE] Room join error:`, error);
     }
-  }, [joinRoom, setMessages]);
+  }, [joinRoom, setMessages, activeRoomData?.room, activeRoom]);
 
   useEffect(() => {
     if (activeRoom?.id && currentUser?.id && currentJoinedRoom.current !== activeRoom.id) {
