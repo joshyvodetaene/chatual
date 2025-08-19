@@ -60,6 +60,17 @@ export default function ChatPage() {
     onSuccess: () => {
       setCurrentUser(null);
       localStorage.removeItem('chatual_user');
+      // Clear all query cache to prevent stale data issues
+      queryClient.clear();
+      // Force a page reload to reset all state cleanly
+      window.location.reload();
+    },
+    onError: () => {
+      // Even if logout fails on server, clear local state
+      setCurrentUser(null);
+      localStorage.removeItem('chatual_user');
+      queryClient.clear();
+      window.location.reload();
     },
   });
 
