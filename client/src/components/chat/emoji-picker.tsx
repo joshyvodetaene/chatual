@@ -110,13 +110,13 @@ export default function EmojiPicker({ onEmojiSelect, isOpen, onToggle }: EmojiPi
 
   return (
     <div className={cn(
-      "absolute bottom-12 z-50 bg-white border border-gray-200 rounded-lg shadow-lg",
+      "absolute bottom-12 z-50 bg-red-900/95 border border-red-800 rounded-lg shadow-lg backdrop-blur-sm",
       "w-72 h-56 sm:w-80 sm:h-64 md:w-96 md:h-72",
       "right-0 sm:right-2 md:right-4"
     )} data-testid="emoji-picker">
       <div className="flex flex-col h-full">
         {/* Category tabs */}
-        <div className="flex border-b border-gray-100 overflow-x-auto scrollbar-hide">
+        <div className="flex border-b border-red-800/50 overflow-x-auto scrollbar-hide">
           {Object.keys(emojiCategories).map((category) => (
             <Button
               key={category}
@@ -124,10 +124,10 @@ export default function EmojiPicker({ onEmojiSelect, isOpen, onToggle }: EmojiPi
               size="sm"
               onClick={() => setActiveCategory(category)}
               className={cn(
-                "flex-shrink-0 px-1.5 py-1 text-xs rounded-none border-b-2 border-transparent whitespace-nowrap",
+                "flex-shrink-0 px-1.5 py-1 text-xs rounded-none border-b-2 border-transparent whitespace-nowrap text-red-100 hover:text-white",
                 "sm:px-2 sm:text-sm",
                 "md:px-3 md:text-base",
-                activeCategory === category && "border-primary bg-primary/5"
+                activeCategory === category && "border-red-400 bg-red-800/30 text-white"
               )}
               data-testid={`emoji-category-${category.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
             >
@@ -149,7 +149,7 @@ export default function EmojiPicker({ onEmojiSelect, isOpen, onToggle }: EmojiPi
                 size="sm"
                 onClick={() => handleEmojiClick(emoji)}
                 className={cn(
-                  "p-0 hover:bg-gray-100 rounded",
+                  "p-0 hover:bg-red-800/50 rounded transition-colors",
                   "w-6 h-6 text-sm sm:w-8 sm:h-8 sm:text-base md:w-10 md:h-10 md:text-lg"
                 )}
                 data-testid={`emoji-${emoji}`}
@@ -161,12 +161,12 @@ export default function EmojiPicker({ onEmojiSelect, isOpen, onToggle }: EmojiPi
         </div>
 
         {/* Close button */}
-        <div className="p-1.5 sm:p-2 md:p-3 border-t border-gray-100">
+        <div className="p-1.5 sm:p-2 md:p-3 border-t border-red-800/50">
           <Button
             variant="outline"
             size="sm"
             onClick={onToggle}
-            className="w-full text-xs sm:text-sm md:text-base"
+            className="w-full text-xs sm:text-sm md:text-base bg-red-800/20 border-red-700 text-red-100 hover:bg-red-800/40 hover:text-white"
             data-testid="button-close-emoji-picker"
           >
             Close
