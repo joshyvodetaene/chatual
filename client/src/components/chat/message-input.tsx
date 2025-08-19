@@ -298,14 +298,18 @@ export default function MessageInput({
         </Button>
 
         <PhotoUploader
-          onUpload={handlePhotoUpload}
-          disabled={disabled}
-          className={cn(
+          onGetUploadParameters={handleGetUploadParameters}
+          onComplete={handlePhotoUpload}
+          buttonClassName={cn(
+            "bg-white/90 hover:bg-gray-100 border-0 shadow-sm transition-all duration-200 ease-in-out transform hover:scale-105 active:scale-95 hover:shadow-md rounded-lg",
             "p-2 sm:p-2.5 md:p-3 lg:p-4",
             "w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 lg:w-14 lg:h-14",
-            "flex-shrink-0 rounded-lg"
+            "flex-shrink-0 flex items-center justify-center",
+            disabled ? "opacity-50 cursor-not-allowed" : ""
           )}
-        />
+        >
+          <Image className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-gray-600" />
+        </PhotoUploader>
       </div>
     </div>
   );
