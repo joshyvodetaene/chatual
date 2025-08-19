@@ -18,6 +18,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Hash, Users, Search, Settings, LogOut, Shield, Menu } from 'lucide-react';
 import { BackButton } from '@/components/ui/back-button';
 import { ConnectionStatusIndicator } from '@/components/chat/connection-status';
+import { useToast } from '@/hooks/use-toast';
 import { Link } from 'wouter';
 import { cn } from '@/lib/utils';
 
@@ -31,6 +32,7 @@ export default function ChatPage() {
   const [showUserList, setShowUserList] = useState(false);
   const [showSidebarMobile, setShowSidebarMobile] = useState(false);
   const { isMobile, isTablet, isDesktop } = useResponsive();
+  const { toast } = useToast();
   const [showCreateRoom, setShowCreateRoom] = useState(false);
   const { setUserId } = useTheme();
   const [privateRooms, setPrivateRooms] = useState<PrivateRoom[]>([]);
@@ -88,6 +90,39 @@ export default function ChatPage() {
   } = usePaginatedMessages({
     roomId: activeRoom?.id,
     enabled: !!activeRoom?.id && !!currentUser
+  });
+
+  const createRoomMutation = useMutation({
+    mutationFn: async (roomData: { name: string; description: string }) => {
+      const response = await apiRequest('POST', '/api/rooms', roomData);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create room');
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rooms'] });
+      setShowCreateRoom(false);
+      toast({
+        title: "Room Created",
+        description: `Successfully created room "${data.room.name}". You can now start chatting!`,
+        variant: "default",
+      });
+      // Switch to the newly created room
+      if (data.room) {
+        setActiveRoom(data.room);
+        activeRoomRef.current = data.room;
+        localStorage.setItem('chatual_active_room', JSON.stringify({ id: data.room.id, name: data.room.name }));
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Create Room",
+        description: error.message || "Something went wrong while creating the room. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   const logoutMutation = useMutation({
@@ -177,21 +212,9 @@ export default function ChatPage() {
     }
   }, [activeRoom?.id, currentUser?.id, joinRoom, setMessages]);
 
-  // Debug: Log room online users state and messages
-  useEffect(() => {
-    console.log('Room online users:', roomOnlineUsers, 'Active room:', activeRoom?.name);
-    console.log('Paginated messages:', paginatedMessages.length, 'Photo messages:', paginatedMessages.filter(m => m.messageType === 'photo').length);
-    console.log('All messages with types:', paginatedMessages.map(m => ({ id: m.id, type: m.messageType, hasPhoto: !!m.photoUrl, content: m.content?.substring(0, 20) })));
-  }, [roomOnlineUsers, activeRoom, paginatedMessages]);
-
-  // Debug: Track activeRoom state changes
-  useEffect(() => {
-    console.log('ActiveRoom changed:', activeRoom ? { id: activeRoom.id, name: activeRoom.name } : 'null');
-  }, [activeRoom]);
 
   // Set initial active room
   useEffect(() => {
-    console.log('Active room effect - roomsData:', roomsData?.rooms?.length, 'activeRoom:', activeRoom?.name, 'currentUser:', !!currentUser);
     if (roomsData?.rooms && roomsData.rooms.length > 0 && !activeRoom && currentUser) {
       // Try to restore from localStorage first
       const savedRoom = localStorage.getItem('chatual_active_room');
@@ -203,16 +226,14 @@ export default function ChatPage() {
           const foundRoom = roomsData.rooms.find(r => r.id === parsedRoom.id);
           if (foundRoom) {
             roomToSet = foundRoom;
-            console.log('Restored active room from localStorage:', foundRoom.name);
           }
         } catch (e) {
-          console.log('Failed to parse saved room, using default');
+          // Ignore parsing errors, use default
         }
       }
       
-      console.log('Setting initial active room to:', roomToSet.name);
       setActiveRoom(roomToSet);
-      activeRoomRef.current = roomToSet; // Keep ref in sync
+      activeRoomRef.current = roomToSet;
       localStorage.setItem('chatual_active_room', JSON.stringify({ id: roomToSet.id, name: roomToSet.name }));
     }
   }, [roomsData?.rooms, activeRoom, currentUser]);
@@ -226,20 +247,7 @@ export default function ChatPage() {
   }, [isDesktop, currentUser, isMobile, isTablet]);
 
   const handleSendMessage = (content: string, photoUrl?: string, photoFileName?: string) => {
-    console.log('handleSendMessage called with:', {
-      content: content?.substring(0, 20),
-      photoUrl: photoUrl?.substring(photoUrl.length - 30),
-      photoFileName,
-      currentUser: currentUser?.id,
-      activeRoom: activeRoom?.id,
-      activeRoomRef: activeRoomRef.current?.id,
-      roomsDataLength: roomsData?.rooms?.length
-    });
-    
-    if (!currentUser?.id) {
-      console.log('No current user, aborting send');
-      return;
-    }
+    if (!currentUser?.id) return;
     
     // Use multiple fallback strategies to find a room
     let roomToUse: Room | null = null;
@@ -247,13 +255,11 @@ export default function ChatPage() {
     // Strategy 1: Use activeRoom from state
     if (activeRoom?.id) {
       roomToUse = activeRoom;
-      console.log('Using activeRoom from state:', roomToUse.name);
     }
     
     // Strategy 2: Use activeRoom from ref (more stable)
     if (!roomToUse && activeRoomRef.current?.id) {
       roomToUse = activeRoomRef.current;
-      console.log('Using activeRoom from ref:', roomToUse.name);
     }
     
     // Strategy 3: Get from localStorage and validate against available rooms
@@ -262,16 +268,12 @@ export default function ChatPage() {
       if (savedRoom) {
         try {
           const parsedRoom = JSON.parse(savedRoom);
-          // Try to find this room in current rooms data or use a cached query
           const cachedRooms = queryClient.getQueryData<{ rooms: Room[] }>(['/api/rooms']);
           if (cachedRooms?.rooms) {
             roomToUse = cachedRooms.rooms.find(r => r.id === parsedRoom.id) || null;
-            if (roomToUse) {
-              console.log('Using room from localStorage:', roomToUse.name);
-            }
           }
         } catch (e) {
-          console.log('Failed to parse saved room');
+          // Ignore parsing errors
         }
       }
     }
@@ -281,20 +283,17 @@ export default function ChatPage() {
       const cachedRooms = queryClient.getQueryData<{ rooms: Room[] }>(['/api/rooms']);
       if (cachedRooms?.rooms && cachedRooms.rooms.length > 0) {
         roomToUse = cachedRooms.rooms[0];
-        console.log('Using first cached room:', roomToUse.name);
         setActiveRoom(roomToUse);
         activeRoomRef.current = roomToUse;
       }
     }
     
     if (!roomToUse) {
-      console.log('No room available for sending message. Force refreshing room data...');
       // Force refresh room data and retry
       queryClient.invalidateQueries({ queryKey: ['/api/rooms'] }).then(() => {
         setTimeout(() => {
           const refreshedRooms = queryClient.getQueryData<{ rooms: Room[] }>(['/api/rooms']);
           if (refreshedRooms?.rooms && refreshedRooms.rooms.length > 0) {
-            console.log('Retrying send with refreshed rooms');
             setActiveRoom(refreshedRooms.rooms[0]);
             activeRoomRef.current = refreshedRooms.rooms[0];
             sendMessage(content, photoUrl, photoFileName);
@@ -304,8 +303,6 @@ export default function ChatPage() {
       return;
     }
 
-    // Send message via WebSocket
-    console.log('About to call sendMessage via WebSocket for room:', roomToUse.name);
     sendMessage(content, photoUrl, photoFileName);
   };
 
@@ -318,6 +315,11 @@ export default function ChatPage() {
         user2Id: userId,
       });
       
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create private chat');
+      }
+      
       const data = await response.json();
       
       // Invalidate chat data to refresh the room list
@@ -325,16 +327,34 @@ export default function ChatPage() {
       
       // Set the new private room as active
       setActiveRoom(data.room);
-    } catch (error) {
-      console.error('Failed to start private chat:', error);
+      
+      toast({
+        title: "Private Chat Started",
+        description: `Started a private conversation with ${data.otherUser?.username || 'user'}`
+      });
+    } catch (error: any) {
+      toast({
+        title: "Failed to Start Private Chat",
+        description: error.message || "Something went wrong while starting the private chat. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
   const handleRoomSelect = (room: Room) => {
+    const previousRoom = activeRoom;
     setActiveRoom(room);
-    activeRoomRef.current = room; // Keep ref in sync
-    // Save selected room to localStorage as backup
+    activeRoomRef.current = room;
     localStorage.setItem('chatual_active_room', JSON.stringify({ id: room.id, name: room.name }));
+    
+    // Show toast for room switching (only if switching from another room)
+    if (previousRoom && previousRoom.id !== room.id) {
+      toast({
+        title: "Switched Room",
+        description: `Now chatting in "${room.name}"`
+      });
+    }
+    
     if (isMobile || isTablet) {
       setShowSidebarMobile(false);
     }
@@ -549,6 +569,12 @@ export default function ChatPage() {
         isOpen={showCreateRoom}
         onClose={() => setShowCreateRoom(false)}
         currentUser={currentUser}
+        onSuccess={(room) => {
+          // Switch to the newly created room
+          setActiveRoom(room);
+          activeRoomRef.current = room;
+          localStorage.setItem('chatual_active_room', JSON.stringify({ id: room.id, name: room.name }));
+        }}
       />
     </div>
   );

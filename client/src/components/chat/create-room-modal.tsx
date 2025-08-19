@@ -19,12 +19,14 @@ interface CreateRoomModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentUser: User;
+  onSuccess?: (room: any) => void;
 }
 
 export default function CreateRoomModal({
   isOpen,
   onClose,
   currentUser,
+  onSuccess,
 }: CreateRoomModalProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -35,7 +37,12 @@ export default function CreateRoomModal({
 
   const createRoomMutation = useMutation({
     mutationFn: async (data: { name: string; description?: string; isPrivate: boolean; createdBy: string }) => {
-      return await apiRequest('POST', '/api/rooms', data);
+      const response = await apiRequest('POST', '/api/rooms', data);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create room');
+      }
+      return response;
     },
     onSuccess: async (response) => {
       const data = await response.json();
@@ -47,18 +54,28 @@ export default function CreateRoomModal({
       
       // Invalidate rooms query to refetch
       queryClient.invalidateQueries({ queryKey: ['/api/rooms'] });
+      if (isPrivate) {
+        queryClient.invalidateQueries({ queryKey: ['/api/chat-data', currentUser.id] });
+      }
       
       toast({
-        title: 'Room created',
-        description: `Successfully created room "${name}"`,
+        title: 'Room Created Successfully',
+        description: `${isPrivate ? 'Private' : 'Public'} room "${name}" has been created. ${isPrivate ? 'Only invited members can join.' : 'Anyone can join this room.'}`,
       });
+      
+      // Call onSuccess callback if provided
+      if (onSuccess && data.room) {
+        onSuccess(data.room);
+      }
       
       handleClose();
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
-        title: 'Error',
-        description: 'Failed to create room. Please try again.',
+        title: 'Failed to Create Room',
+        description: error.message.includes('already exists') 
+          ? `A room with the name "${name}" already exists. Please choose a different name.`
+          : error.message || 'Something went wrong while creating the room. Please check your connection and try again.',
         variant: 'destructive',
       });
     },
