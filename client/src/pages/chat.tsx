@@ -13,6 +13,7 @@ import CreateRoomModal from '@/components/chat/create-room-modal';
 import AuthScreen from '@/components/auth/auth-screen';
 import { Button } from '@/components/ui/button';
 import { MobileMenu } from '@/components/ui/mobile-menu';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Hash, Users, Search, Settings, LogOut, Shield, Menu } from 'lucide-react';
 import { BackButton } from '@/components/ui/back-button';
 import { ConnectionStatusIndicator } from '@/components/chat/connection-status';
@@ -351,6 +352,11 @@ export default function ChatPage() {
                 </Button>
               </Link>
             )}
+
+            <ThemeToggle
+              variant="ghost"
+              size="sm"
+            />
 
             <Button
               variant="ghost"
