@@ -567,29 +567,31 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Access denied: Admin privileges required');
     }
 
-    const reportedUserAlias = {
-      id: users.id,
-      username: users.username,
-      displayName: users.displayName
-    };
-    
+    // Use simpler approach - get reports first, then get user details separately
     const reportsList = await db
-      .select({
-        report: reports,
-        reporter: users,
-        reportedUser: reportedUserAlias
-      })
+      .select()
       .from(reports)
-      .innerJoin(users, eq(reports.reporterId, users.id))
-      .innerJoin(users, eq(reports.reportedUserId, users.id))
       .orderBy(desc(reports.reportedAt));
 
-    return reportsList.map(({ report, reporter, reportedUser }) => ({
-      ...report,
-      reporter,
-      reportedUser: reportedUser as User,
-      reviewedByUser: report.reviewedBy ? undefined : undefined // Will be populated separately if needed
-    }));
+    // Get user details for each report
+    const reportsWithDetails = await Promise.all(
+      reportsList.map(async (report) => {
+        const [reporter, reportedUser] = await Promise.all([
+          this.getUser(report.reporterId),
+          this.getUser(report.reportedUserId)
+        ]);
+        
+        return {
+          ...report,
+          reporter: reporter!,
+          reportedUser: reportedUser!,
+          reviewedByUser: undefined // Will be populated separately if needed
+        };
+      })
+    );
+    
+    return reportsWithDetails;
+    
   }
 
   async getReportById(reportId: string): Promise<ReportWithDetails | undefined> {
