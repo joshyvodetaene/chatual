@@ -210,16 +210,6 @@ export default function Sidebar({
                 <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Rooms
                 </h2>
-                {/* Zusätzlicher Raum-hinzufügen Button */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-primary hover:text-primary-dark h-auto p-0"
-                  onClick={onCreateRoom}
-                  data-testid="button-add-room"
-                >
-                  <Plus className="w-3 h-3" />
-                </Button>
               </div>
               
               {/* Liste aller verfügbaren Räume */}
