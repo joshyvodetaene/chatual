@@ -238,6 +238,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               console.log(`[WEBSOCKET] Cannot process typing: missing userId=${ws.userId} or roomId=${ws.roomId}`);
             }
             break;
+
+          case 'ping':
+            // Respond to ping with pong to keep connection alive
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'pong' }));
+            }
+            break;
         }
       } catch (error) {
         console.error('WebSocket message error:', error);
