@@ -238,7 +238,7 @@ export default function MessageInput({
           onGetUploadParameters={handleGetUploadParameters}
           onComplete={handlePhotoUploadComplete}
           buttonClassName={cn(
-            "hover:bg-gray-100 rounded-lg transition-colors tap-target",
+            "hover:bg-gray-100 rounded-lg transition-all duration-200 ease-in-out transform hover:scale-105 active:scale-95 hover:shadow-md tap-target",
             isMobile ? "p-2" : "p-2"
           )}
         >
@@ -271,7 +271,7 @@ export default function MessageInput({
               variant="ghost"
               size="sm"
               className={cn(
-                "absolute right-3 bottom-3 h-auto hover:bg-gray-100 tap-target",
+                "absolute right-3 bottom-3 h-auto hover:bg-gray-100 transition-all duration-200 ease-in-out transform hover:scale-110 active:scale-95 hover:shadow-sm tap-target",
                 isMobile ? "p-2" : "p-1"
               )}
               disabled={disabled}
@@ -296,7 +296,7 @@ export default function MessageInput({
           onClick={handleSendMessage}
           disabled={!message.trim() || disabled}
           className={cn(
-            "bg-primary text-white rounded-2xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed tap-target touch-manipulation",
+            "bg-primary text-white rounded-2xl hover:bg-primary/90 transition-all duration-300 ease-in-out transform hover:scale-110 active:scale-95 hover:shadow-xl hover:shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100 tap-target touch-manipulation animate-pulse",
             isMobile ? "p-3 min-h-[44px] min-w-[44px]" : "p-3"
           )}
           data-testid="button-send"

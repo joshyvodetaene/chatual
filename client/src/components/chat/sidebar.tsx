@@ -172,10 +172,10 @@ export default function Sidebar({
           {/* Räume Tab */}
           <button
             className={cn(
-              'flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
+              'flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95 hover:shadow-lg',
               activeTab === 'rooms'
-                ? 'bg-primary text-white shadow-sm red-glow' // Aktiver Zustand
-                : 'text-gray-300 hover:text-white hover:bg-white hover:bg-opacity-10' // Inaktiver Zustand
+                ? 'bg-primary text-white shadow-sm red-glow animate-pulse' // Aktiver Zustand
+                : 'text-gray-300 hover:text-white hover:bg-white hover:bg-opacity-10 hover:shadow-md' // Inaktiver Zustand
             )}
             onClick={() => setActiveTab('rooms')}
             data-testid="tab-rooms"
@@ -185,10 +185,10 @@ export default function Sidebar({
           {/* Private Chats Tab */}
           <button
             className={cn(
-              'flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
+              'flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95 hover:shadow-lg',
               activeTab === 'private'
-                ? 'bg-primary text-white shadow-sm red-glow' // Aktiver Zustand
-                : 'text-gray-300 hover:text-white hover:bg-white hover:bg-opacity-10' // Inaktiver Zustand
+                ? 'bg-primary text-white shadow-sm red-glow animate-pulse' // Aktiver Zustand
+                : 'text-gray-300 hover:text-white hover:bg-white hover:bg-opacity-10 hover:shadow-md' // Inaktiver Zustand
             )}
             onClick={() => setActiveTab('private')}
             data-testid="tab-private"
@@ -342,7 +342,7 @@ export default function Sidebar({
                     <button
                       onClick={(e) => handleClosePrivateChat(e, privateRoom.id)}
                       className={cn(
-                        "opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-red-500 hover:text-white",
+                        "opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out transform hover:scale-110 active:scale-95 hover:rotate-90 p-1 rounded-full hover:bg-red-500 hover:text-white hover:shadow-lg",
                         activeRoom?.id === privateRoom.id
                           ? "text-white hover:bg-red-500"
                           : "text-gray-400 hover:bg-red-500 hover:text-white",
