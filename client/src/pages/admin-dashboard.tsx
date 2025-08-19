@@ -16,32 +16,60 @@ export default function AdminDashboard() {
   const [showUserDetails, setShowUserDetails] = useState(false);
   const { isMobile, isTablet } = useResponsive();
 
+  // Mock admin user ID - in a real app this would come from auth context
+  const adminUserId = '7a6dab62-7327-4f79-b025-952b687688c1';
+
   const { data: statsData, isLoading: statsLoading } = useQuery<{ stats: AdminDashboardStats }>({
-    queryKey: ['/api/admin/dashboard-stats'],
+    queryKey: ['/api/admin/dashboard-stats', adminUserId],
     refetchInterval: 30000, // Refresh every 30 seconds
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/dashboard-stats?adminUserId=${adminUserId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch dashboard stats');
+      }
+      return response.json();
+    },
   });
 
   const { data: moderationData, isLoading: moderationLoading } = useQuery<ModerationData>({
-    queryKey: ['/api/admin/moderation-data'],
+    queryKey: ['/api/admin/moderation-data', adminUserId],
     refetchInterval: 15000, // Refresh every 15 seconds
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/moderation-data?adminUserId=${adminUserId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch moderation data');
+      }
+      return response.json();
+    },
   });
 
   const { data: usersData } = useQuery<{ users: User[] }>({
-    queryKey: ['/api/admin/users'],
+    queryKey: ['/api/admin/users', adminUserId],
     refetchInterval: 30000,
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/users?adminUserId=${adminUserId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch users');
+      }
+      return response.json();
+    },
+  });
+
+  const { data: roomsData } = useQuery<{ rooms: Room[] }>({
+    queryKey: ['/api/admin/rooms', adminUserId],
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/rooms?adminUserId=${adminUserId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch rooms');
+      }
+      return response.json();
+    },
   });
 
   const stats = statsData?.stats;
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  // Mock admin user ID - in a real app this would come from auth context
-  const adminUserId = '7a6dab62-7327-4f79-b025-952b687688c1';
-
-  const { data: roomsData } = useQuery<{ rooms: Room[] }>({
-    queryKey: ['/api/admin/rooms', { adminUserId }],
-    refetchInterval: 30000,
-  });
 
   const deleteRoomMutation = useMutation({
     mutationFn: async (roomId: string) => {
@@ -59,6 +87,7 @@ export default function AdminDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/dashboard-stats'] });
       toast({
         title: 'Success',
         description: 'Room deleted successfully',

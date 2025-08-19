@@ -546,6 +546,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin get all users endpoint
+  app.get('/api/admin/users', async (req, res) => {
+    try {
+      const { adminUserId } = req.query;
+      
+      if (!adminUserId) {
+        return res.status(401).json({ error: 'Admin authentication required' });
+      }
+      
+      // Verify admin privileges
+      const adminUser = await storage.getUser(adminUserId as string);
+      if (!adminUser || adminUser.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin privileges required' });
+      }
+      
+      // For now, return a simplified list of users for admin view
+      const allUsers = await storage.getOnlineUsers();
+      res.json({ users: allUsers });
+    } catch (error) {
+      console.error('Get admin users error:', error);
+      res.status(500).json({ error: 'Failed to fetch users' });
+    }
+  });
+
   // Profile settings routes
   app.get('/api/users/:userId/profile-settings', async (req, res) => {
     try {
@@ -695,25 +719,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/admin/moderation-data', async (req, res) => {
-    try {
-      const { adminUserId } = req.query;
-      
-      if (!adminUserId) {
-        return res.status(401).json({ error: 'Admin authentication required' });
-      }
-      
-      const moderationData = await storage.getModerationData(adminUserId as string);
-      res.json(moderationData);
-    } catch (error) {
-      console.error('Get moderation data error:', error);
-      if (error instanceof Error && error.message?.includes('Access denied')) {
-        res.status(403).json({ error: 'Admin privileges required' });
-      } else {
-        res.status(500).json({ error: 'Failed to fetch moderation data' });
-      }
-    }
-  });
 
   app.put('/api/admin/reports/:reportId/status', async (req, res) => {
     try {
@@ -764,9 +769,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin Dashboard Routes
   app.get('/api/admin/dashboard-stats', async (req, res) => {
     try {
-      // In a real app, you'd get the admin user from session/auth
-      // For now, using hardcoded admin ID
-      const adminUserId = req.headers.adminuserid as string || '7a6dab62-7327-4f79-b025-952b687688c1';
+      const { adminUserId } = req.query;
+      
+      if (!adminUserId) {
+        return res.status(401).json({ error: 'Admin authentication required' });
+      }
+      
+      // Verify admin privileges
+      const adminUser = await storage.getUser(adminUserId as string);
+      if (!adminUser || adminUser.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin privileges required' });
+      }
+      
       const stats = await storage.getAdminDashboardStats();
       res.json({ stats });
     } catch (error) {
@@ -777,8 +791,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/admin/moderation-data', async (req, res) => {
     try {
-      const adminUserId = req.headers.adminuserid as string || '7a6dab62-7327-4f79-b025-952b687688c1';
-      const moderationData = await storage.getModerationData(adminUserId);
+      const { adminUserId } = req.query;
+      
+      if (!adminUserId) {
+        return res.status(401).json({ error: 'Admin authentication required' });
+      }
+      
+      // Verify admin privileges
+      const adminUser = await storage.getUser(adminUserId as string);
+      if (!adminUser || adminUser.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin privileges required' });
+      }
+      
+      const moderationData = await storage.getModerationData(adminUserId as string);
       res.json(moderationData);
     } catch (error) {
       console.error('Error fetching moderation data:', error);
@@ -788,6 +813,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/admin/banned-users', async (req, res) => {
     try {
+      const { adminUserId } = req.query;
+      
+      if (!adminUserId) {
+        return res.status(401).json({ error: 'Admin authentication required' });
+      }
+      
+      // Verify admin privileges
+      const adminUser = await storage.getUser(adminUserId as string);
+      if (!adminUser || adminUser.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin privileges required' });
+      }
+      
       const bannedUsers = await storage.getBannedUsers();
       res.json({ users: bannedUsers });
     } catch (error) {
