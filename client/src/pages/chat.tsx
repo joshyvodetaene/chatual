@@ -14,6 +14,7 @@ import AuthScreen from '@/components/auth/auth-screen';
 import { Button } from '@/components/ui/button';
 import { MobileMenu } from '@/components/ui/mobile-menu';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Hash, Users, Search, Settings, LogOut, Shield, Menu } from 'lucide-react';
 import { BackButton } from '@/components/ui/back-button';
 import { ConnectionStatusIndicator } from '@/components/chat/connection-status';
@@ -30,6 +31,7 @@ export default function ChatPage() {
   const [showSidebarMobile, setShowSidebarMobile] = useState(false);
   const { isMobile, isTablet, isDesktop } = useResponsive();
   const [showCreateRoom, setShowCreateRoom] = useState(false);
+  const { setUserId } = useTheme();
   const [privateRooms, setPrivateRooms] = useState<PrivateRoom[]>([]);
   const currentJoinedRoom = useRef<string | null>(null);
 
@@ -96,6 +98,8 @@ export default function ChatPage() {
     onSuccess: () => {
       setCurrentUser(null);
       localStorage.removeItem('chatual_user');
+      // Reset theme context to login page (light theme)
+      setUserId(null);
       // Clear all query cache to prevent stale data issues
       queryClient.clear();
     },
@@ -103,6 +107,8 @@ export default function ChatPage() {
       // Even if logout fails on server, clear local state
       setCurrentUser(null);
       localStorage.removeItem('chatual_user');
+      // Reset theme context to login page (light theme)
+      setUserId(null);
       queryClient.clear();
     },
   });
@@ -110,6 +116,8 @@ export default function ChatPage() {
   const handleAuthSuccess = (user: User) => {
     setCurrentUser(user);
     localStorage.setItem('chatual_user', JSON.stringify(user));
+    // Set user ID for theme context
+    setUserId(user.id);
   };
 
   const handleLogout = () => {
@@ -139,6 +147,13 @@ export default function ChatPage() {
       }
     }
   }, [messages, paginatedMessages, addMessage, currentUser]);
+
+  // Set user ID for theme context when user is available
+  useEffect(() => {
+    if (currentUser) {
+      setUserId(currentUser.id);
+    }
+  }, [currentUser, setUserId]);
 
   // Join room when active room changes
   useEffect(() => {
