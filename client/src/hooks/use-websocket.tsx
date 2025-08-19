@@ -141,6 +141,12 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
         
         switch (message.type) {
           case 'new_message':
+            console.log('WebSocket received new_message:', {
+              messageId: message.message?.id,
+              messageType: message.message?.messageType,
+              photoUrl: message.message?.photoUrl,
+              content: message.message?.content?.substring(0, 20)
+            });
             setMessages(prev => [...prev, message.message]);
             break;
           case 'user_joined':
@@ -260,6 +266,14 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       try {
+        console.log('Sending WebSocket message:', {
+          type: 'message',
+          content: content?.substring(0, 20),
+          photoUrl: photoUrl?.substring(photoUrl.length - 30),
+          photoFileName,
+          messageType
+        });
+        
         ws.current.send(JSON.stringify({
           type: 'message',
           content,
