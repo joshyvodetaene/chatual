@@ -19,18 +19,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
   
   const getInitialTheme = (userId: string | null): Theme => {
-    // For login page (no userId), always use light theme
-    if (!userId) return 'light';
-    
-    // For logged in users, check their saved preference
+    // Check for saved preference first (for both logged in and logged out users)
     const saved = localStorage.getItem(getThemeKey(userId)) as Theme;
     if (saved) return saved;
     
-    // Default to dark for new users (matching current design)
-    if (typeof window !== 'undefined' && window.matchMedia) {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    
+    // Default to dark theme for all users (matching current design)
     return 'dark';
   };
   
