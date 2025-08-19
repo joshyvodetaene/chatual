@@ -39,67 +39,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Helper function to broadcast to room
   function broadcastToRoom(roomId: string, message: any, excludeUserId?: string) {
+    console.log(`[BROADCAST] Broadcasting to room ${roomId}, message type: ${message.type}, excludeUserId: ${excludeUserId}`);
+    let sentCount = 0;
     Array.from(clients.values()).forEach(client => {
       if (client.roomId === roomId && client.readyState === WebSocket.OPEN && client.userId !== excludeUserId) {
+        console.log(`[BROADCAST] Sending to client ${client.userId}`);
         client.send(JSON.stringify(message));
+        sentCount++;
       }
     });
+    console.log(`[BROADCAST] Message sent to ${sentCount} clients in room ${roomId}`);
   }
 
   // Helper functions for room user management
   function addUserToRoom(roomId: string, userId: string) {
+    console.log(`[ROOM_USERS] Adding user ${userId} to room ${roomId}`);
     if (!roomUsers.has(roomId)) {
+      console.log(`[ROOM_USERS] Creating new user set for room ${roomId}`);
       roomUsers.set(roomId, new Set());
     }
     roomUsers.get(roomId)!.add(userId);
+    const roomUserCount = roomUsers.get(roomId)?.size || 0;
+    console.log(`[ROOM_USERS] Room ${roomId} now has ${roomUserCount} users`);
     
     // Broadcast updated online users for this room
+    const onlineUsers = Array.from(roomUsers.get(roomId) || []);
+    console.log(`[ROOM_USERS] Broadcasting online users to room ${roomId}:`, onlineUsers);
     broadcastToRoom(roomId, {
       type: 'room_online_users',
       roomId,
-      onlineUsers: Array.from(roomUsers.get(roomId) || [])
+      onlineUsers
     });
   }
 
   function removeUserFromRoom(roomId: string, userId: string) {
+    console.log(`[ROOM_USERS] Removing user ${userId} from room ${roomId}`);
     if (roomUsers.has(roomId)) {
-      roomUsers.get(roomId)!.delete(userId);
+      const wasRemoved = roomUsers.get(roomId)!.delete(userId);
+      console.log(`[ROOM_USERS] User ${userId} ${wasRemoved ? 'successfully removed' : 'was not in room'} ${roomId}`);
+      const roomUserCount = roomUsers.get(roomId)?.size || 0;
+      console.log(`[ROOM_USERS] Room ${roomId} now has ${roomUserCount} users`);
       
       // Broadcast updated online users for this room
+      const onlineUsers = Array.from(roomUsers.get(roomId) || []);
+      console.log(`[ROOM_USERS] Broadcasting updated online users to room ${roomId}:`, onlineUsers);
       broadcastToRoom(roomId, {
         type: 'room_online_users',
         roomId,
-        onlineUsers: Array.from(roomUsers.get(roomId) || [])
+        onlineUsers
       });
+    } else {
+      console.log(`[ROOM_USERS] Room ${roomId} does not exist when trying to remove user ${userId}`);
     }
   }
 
   // WebSocket connection handling
   wss.on('connection', (ws: WebSocketClient) => {
-    console.log('WebSocket client connected');
+    console.log(`[WEBSOCKET] New WebSocket client connected at ${new Date().toISOString()}`);
+    console.log(`[WEBSOCKET] Total connected clients: ${wss.clients.size}`);
 
     ws.on('message', async (data) => {
       try {
         const message = JSON.parse(data.toString());
+        console.log(`[WEBSOCKET] Received message from ${ws.userId || 'unknown'}: type=${message.type}`);
+        console.log(`[WEBSOCKET] Full message data:`, message);
         
         switch (message.type) {
           case 'join':
+            console.log(`[WEBSOCKET] Processing join request: userId=${message.userId}, roomId=${message.roomId}`);
             // Remove user from previous room if any
             if (ws.roomId && ws.userId) {
+              console.log(`[WEBSOCKET] User ${ws.userId} leaving previous room ${ws.roomId}`);
               removeUserFromRoom(ws.roomId, ws.userId);
             }
             
             ws.userId = message.userId;
             ws.roomId = message.roomId;
             clients.set(message.userId, ws);
+            console.log(`[WEBSOCKET] User ${message.userId} stored in clients map, total clients: ${clients.size}`);
             
             // Update user online status
+            console.log(`[WEBSOCKET] Updating online status for user ${message.userId}`);
             await storage.updateUserOnlineStatus(message.userId, true);
             
             // Add user to new room
+            console.log(`[WEBSOCKET] Adding user ${message.userId} to room ${message.roomId}`);
             addUserToRoom(message.roomId, message.userId);
             
             // Broadcast user joined
+            console.log(`[WEBSOCKET] Broadcasting user_joined event for ${message.userId} in room ${message.roomId}`);
             broadcastToRoom(message.roomId, {
               type: 'user_joined',
               userId: message.userId,
@@ -107,14 +135,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             break;
 
           case 'message':
+            console.log(`[WEBSOCKET] Processing message from userId=${ws.userId}, roomId=${ws.roomId}`);
             if (ws.userId && ws.roomId) {
+              console.log(`[WEBSOCKET] Message content length: ${message.content?.length || 0}, messageType: ${message.messageType}`);
+              
               // Normalize photo URL if this is a photo message
               let normalizedPhotoUrl = message.photoUrl;
               if (message.photoUrl && message.messageType === 'photo') {
+                console.log(`[WEBSOCKET] Normalizing photo URL: ${message.photoUrl}`);
                 const objectStorageService = new ObjectStorageService();
                 normalizedPhotoUrl = objectStorageService.normalizePhotoPath(message.photoUrl);
+                console.log(`[WEBSOCKET] Normalized photo URL: ${normalizedPhotoUrl}`);
               }
               
+              console.log(`[WEBSOCKET] Creating message in storage...`);
               const newMessage = await storage.createMessage({
                 content: message.content,
                 userId: ws.userId,
@@ -124,17 +158,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 messageType: message.messageType || 'text',
               });
               
-              console.log('Created message:', {
+              console.log('[WEBSOCKET] Created message:', {
                 id: newMessage.id,
                 messageType: newMessage.messageType,
                 photoUrl: newMessage.photoUrl,
                 photoFileName: newMessage.photoFileName
               });
               
+              console.log(`[WEBSOCKET] Getting user data for ${ws.userId}`);
               const user = await storage.getUser(ws.userId);
               const messageWithUser = { ...newMessage, user };
               
-              console.log('Broadcasting message:', {
+              console.log('[WEBSOCKET] Broadcasting message:', {
                 id: messageWithUser.id,
                 messageType: messageWithUser.messageType,
                 photoUrl: messageWithUser.photoUrl
@@ -145,16 +180,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 type: 'new_message',
                 message: messageWithUser,
               });
+            } else {
+              console.log(`[WEBSOCKET] Cannot process message: missing userId=${ws.userId} or roomId=${ws.roomId}`);
             }
             break;
 
           case 'typing':
+            console.log(`[WEBSOCKET] Processing typing event: userId=${ws.userId}, roomId=${ws.roomId}, isTyping=${message.isTyping}`);
             if (ws.userId && ws.roomId) {
               broadcastToRoom(ws.roomId, {
                 type: 'user_typing',
                 userId: ws.userId,
                 isTyping: message.isTyping,
               }, ws.userId);
+            } else {
+              console.log(`[WEBSOCKET] Cannot process typing: missing userId=${ws.userId} or roomId=${ws.roomId}`);
             }
             break;
         }
@@ -182,80 +222,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Auth routes
   app.post('/api/auth/register', async (req, res) => {
+    console.log(`[AUTH] Registration attempt started at ${new Date().toISOString()}`);
+    console.log(`[AUTH] Registration data:`, { ...req.body, password: '[REDACTED]' });
     try {
       const userData = registerUserSchema.parse(req.body);
+      console.log(`[AUTH] Schema validation passed for username: ${userData.username}`);
       
       // Check if username is available
+      console.log(`[AUTH] Checking username availability: ${userData.username}`);
       const isAvailable = await storage.isUsernameAvailable(userData.username);
+      console.log(`[AUTH] Username ${userData.username} available: ${isAvailable}`);
       if (!isAvailable) {
+        console.log(`[AUTH] Registration failed - username taken: ${userData.username}`);
         return res.status(400).json({ error: 'Username is already taken' });
       }
       
+      console.log(`[AUTH] Creating user account for: ${userData.username}`);
       const user = await storage.registerUser(userData);
+      console.log(`[AUTH] User account created successfully: ${user.id}`);
       
       // Don't send password in response
       const { password, ...userWithoutPassword } = user;
+      console.log(`[AUTH] Registration successful for user: ${user.username}`);
       res.json({ user: userWithoutPassword });
     } catch (error) {
+      console.error(`[AUTH] Registration error:`, error);
       res.status(400).json({ error: 'Registration failed' });
     }
   });
 
   app.post('/api/auth/login', async (req, res) => {
+    console.log(`[AUTH] Login attempt started at ${new Date().toISOString()}`);
+    console.log(`[AUTH] Login attempt for username: ${req.body?.username}`);
     try {
       const credentials = loginSchema.parse(req.body);
+      console.log(`[AUTH] Schema validation passed for login: ${credentials.username}`);
       
+      console.log(`[AUTH] Authenticating user: ${credentials.username}`);
       const user = await storage.authenticateUser(credentials);
       if (!user) {
+        console.log(`[AUTH] Authentication failed for username: ${credentials.username}`);
         return res.status(401).json({ error: 'Invalid username or password' });
       }
       
+      console.log(`[AUTH] Authentication successful for user: ${user.id} (${user.username})`);
       // Don't send password in response
       const { password, ...userWithoutPassword } = user;
       res.json({ user: userWithoutPassword });
     } catch (error) {
+      console.error(`[AUTH] Login error:`, error);
       res.status(400).json({ error: 'Login failed' });
     }
   });
 
   app.post('/api/auth/logout', async (req, res) => {
+    console.log(`[AUTH] Logout attempt started at ${new Date().toISOString()}`);
+    console.log(`[AUTH] Logout for userId: ${req.body?.userId}`);
     try {
       const { userId } = req.body;
       if (userId) {
+        console.log(`[AUTH] Updating online status to false for user: ${userId}`);
         await storage.updateUserOnlineStatus(userId, false);
+        console.log(`[AUTH] Online status updated successfully for user: ${userId}`);
+      } else {
+        console.log(`[AUTH] No userId provided in logout request`);
       }
       res.json({ success: true });
     } catch (error) {
+      console.error(`[AUTH] Logout error:`, error);
       res.status(400).json({ error: 'Logout failed' });
     }
   });
 
   app.get('/api/auth/check-username/:username', async (req, res) => {
+    console.log(`[AUTH] Username availability check for: ${req.params.username}`);
     try {
       const { username } = req.params;
+      console.log(`[AUTH] Checking availability for username: ${username}`);
       const isAvailable = await storage.isUsernameAvailable(username);
+      console.log(`[AUTH] Username ${username} availability: ${isAvailable}`);
       res.json({ available: isAvailable });
     } catch (error) {
+      console.error(`[AUTH] Username check error:`, error);
       res.status(400).json({ error: 'Username check failed' });
     }
   });
 
   // User routes
   app.get('/api/users/online', async (req, res) => {
+    console.log(`[API] Fetching online users at ${new Date().toISOString()}`);
     try {
       const users = await storage.getOnlineUsers();
+      console.log(`[API] Found ${users.length} online users`);
       res.json({ users });
     } catch (error) {
+      console.error(`[API] Error fetching online users:`, error);
       res.status(500).json({ error: 'Failed to fetch online users' });
     }
   });
 
   app.get('/api/users/with-distance/:userId', async (req, res) => {
+    console.log(`[API] Fetching users with distance for userId: ${req.params.userId}`);
     try {
       const { userId } = req.params;
+      console.log(`[API] Getting users with distance calculation for: ${userId}`);
       const users = await storage.getUsersWithDistance(userId);
+      console.log(`[API] Found ${users.length} users with distance data`);
       res.json({ users });
     } catch (error) {
+      console.error(`[API] Error fetching users with distance:`, error);
       res.status(500).json({ error: 'Failed to fetch users with distance' });
     }
   });

@@ -54,70 +54,142 @@ export class DatabaseStorage implements IStorage {
   
   // User methods
   async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+    console.log(`[DB] Getting user by ID: ${id}`);
+    try {
+      const [user] = await db.select().from(users).where(eq(users.id, id));
+      console.log(`[DB] User lookup result: ${user ? 'found' : 'not found'} for ID ${id}`);
+      return user;
+    } catch (error) {
+      console.error(`[DB] Error getting user ${id}:`, error);
+      throw error;
+    }
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user;
+    console.log(`[DB] Getting user by username: ${username}`);
+    try {
+      const [user] = await db.select().from(users).where(eq(users.username, username));
+      console.log(`[DB] Username lookup result: ${user ? 'found' : 'not found'} for ${username}`);
+      return user;
+    } catch (error) {
+      console.error(`[DB] Error getting user by username ${username}:`, error);
+      throw error;
+    }
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    const [newUser] = await db.insert(users).values(user).returning();
-    return newUser;
+    console.log(`[DB] Creating new user: ${user.username}`);
+    try {
+      const [newUser] = await db.insert(users).values(user).returning();
+      console.log(`[DB] User created successfully: ID ${newUser.id}, username ${newUser.username}`);
+      return newUser;
+    } catch (error) {
+      console.error(`[DB] Error creating user ${user.username}:`, error);
+      throw error;
+    }
   }
 
   async registerUser(user: RegisterUser): Promise<User> {
-    const hashedPassword = await bcrypt.hash(user.password, 10);
-    const newUser: InsertUser = {
-      username: user.username,
-      displayName: user.displayName,
-      password: hashedPassword,
-      age: user.age,
-      gender: user.gender,
-      location: user.location,
-      latitude: user.latitude,
-      longitude: user.longitude,
-      genderPreference: 'all',
-      ageMin: 18,
-      ageMax: 99,
-      role: 'user',
-      avatar: null,
-    };
+    console.log(`[DB] Registering new user: ${user.username}`);
+    console.log(`[DB] Registration details:`, { ...user, password: '[REDACTED]' });
+    try {
+      console.log(`[DB] Hashing password for user: ${user.username}`);
+      const hashedPassword = await bcrypt.hash(user.password, 10);
+      console.log(`[DB] Password hashed successfully for: ${user.username}`);
+      
+      const newUser: InsertUser = {
+        username: user.username,
+        displayName: user.displayName,
+        password: hashedPassword,
+        age: user.age,
+        gender: user.gender,
+        location: user.location,
+        latitude: user.latitude,
+        longitude: user.longitude,
+        genderPreference: 'all',
+        ageMin: 18,
+        ageMax: 99,
+        role: 'user',
+        avatar: null,
+      };
 
-    return await this.createUser(newUser);
+      console.log(`[DB] Creating user record for: ${user.username}`);
+      const result = await this.createUser(newUser);
+      console.log(`[DB] User registration completed: ${result.id}`);
+      return result;
+    } catch (error) {
+      console.error(`[DB] Error registering user ${user.username}:`, error);
+      throw error;
+    }
   }
 
   async authenticateUser(credentials: LoginUser): Promise<User | null> {
-    const user = await this.getUserByUsername(credentials.username);
-    if (!user) return null;
+    console.log(`[DB] Authenticating user: ${credentials.username}`);
+    try {
+      const user = await this.getUserByUsername(credentials.username);
+      if (!user) {
+        console.log(`[DB] Authentication failed - user not found: ${credentials.username}`);
+        return null;
+      }
 
-    const isValidPassword = await bcrypt.compare(credentials.password, user.password);
-    if (!isValidPassword) return null;
+      console.log(`[DB] User found, verifying password for: ${credentials.username}`);
+      const isValidPassword = await bcrypt.compare(credentials.password, user.password);
+      if (!isValidPassword) {
+        console.log(`[DB] Authentication failed - invalid password for: ${credentials.username}`);
+        return null;
+      }
 
-    // Update online status
-    await this.updateUserOnlineStatus(user.id, true);
+      console.log(`[DB] Password verified, updating online status for: ${user.id}`);
+      // Update online status
+      await this.updateUserOnlineStatus(user.id, true);
+      console.log(`[DB] Authentication successful for user: ${user.id} (${user.username})`);
 
-    return user;
+      return user;
+    } catch (error) {
+      console.error(`[DB] Error authenticating user ${credentials.username}:`, error);
+      throw error;
+    }
   }
 
   async isUsernameAvailable(username: string): Promise<boolean> {
-    const user = await this.getUserByUsername(username);
-    return !user;
+    console.log(`[DB] Checking username availability: ${username}`);
+    try {
+      const user = await this.getUserByUsername(username);
+      const isAvailable = !user;
+      console.log(`[DB] Username ${username} is ${isAvailable ? 'available' : 'taken'}`);
+      return isAvailable;
+    } catch (error) {
+      console.error(`[DB] Error checking username availability ${username}:`, error);
+      throw error;
+    }
   }
 
   async updateUserOnlineStatus(userId: string, isOnline: boolean): Promise<void> {
-    await db.update(users)
-      .set({ 
-        isOnline,
-        lastSeen: new Date()
-      })
-      .where(eq(users.id, userId));
+    console.log(`[DB] Updating online status for user ${userId}: ${isOnline}`);
+    try {
+      await db.update(users)
+        .set({ 
+          isOnline,
+          lastSeen: new Date()
+        })
+        .where(eq(users.id, userId));
+      console.log(`[DB] Online status updated successfully for user ${userId}`);
+    } catch (error) {
+      console.error(`[DB] Error updating online status for user ${userId}:`, error);
+      throw error;
+    }
   }
 
   async getOnlineUsers(): Promise<User[]> {
-    return await db.select().from(users).where(eq(users.isOnline, true));
+    console.log(`[DB] Fetching online users`);
+    try {
+      const onlineUsers = await db.select().from(users).where(eq(users.isOnline, true));
+      console.log(`[DB] Found ${onlineUsers.length} online users`);
+      return onlineUsers;
+    } catch (error) {
+      console.error(`[DB] Error fetching online users:`, error);
+      throw error;
+    }
   }
 
   async getUsersWithDistance(currentUserId: string): Promise<UserWithDistance[]> {

@@ -58,25 +58,32 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
 
   // Connect to WebSocket with retry logic
   const connect = useCallback(() => {
-    if (!userId || ws.current?.readyState === WebSocket.OPEN) return;
+    console.log(`[WS_HOOK] Connect called: userId=${userId}, current readyState=${ws.current?.readyState}`);
+    if (!userId || ws.current?.readyState === WebSocket.OPEN) {
+      console.log(`[WS_HOOK] Connection skipped - no userId or already open`);
+      return;
+    }
 
     // Clear any existing reconnect timeout
     if (reconnectTimeoutRef.current) {
+      console.log(`[WS_HOOK] Clearing existing reconnect timeout`);
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.host;
+    console.log(`[WS_HOOK] Building WebSocket URL - protocol: ${protocol}, host: ${host}`);
     
     // Ensure host is valid and properly formatted
     if (!host || host.trim() === '') {
-      console.error('Invalid host for WebSocket connection:', host);
+      console.error('[WS_HOOK] Invalid host for WebSocket connection:', host);
       setLastError('Invalid WebSocket host');
       return;
     }
     
     const wsUrl = `${protocol}//${host}/ws`;
+    console.log(`[WS_HOOK] WebSocket URL constructed: ${wsUrl}`);
     
     // Validate the WebSocket URL
     try {
@@ -88,8 +95,9 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     }
     
     const isReconnect = isReconnectingRef.current;
+    console.log(`[WS_HOOK] ${isReconnect ? 'Reconnecting' : 'Connecting'} to WebSocket: ${wsUrl}`);
+    console.log(`[WS_HOOK] Retry attempt: ${retryCountRef.current}/${retryConfig.maxAttempts}`);
     
-    console.log(isReconnect ? 'Reconnecting to WebSocket...' : 'Connecting to WebSocket:', wsUrl);
     setConnectionStatus(isReconnect ? 'reconnecting' : 'connecting');
     setLastError(null);
     
@@ -108,13 +116,15 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     }
 
     ws.current.onopen = () => {
-      console.log('WebSocket connected successfully');
+      console.log(`[WS_HOOK] WebSocket connected successfully at ${new Date().toISOString()}`);
+      console.log(`[WS_HOOK] Connection established on attempt ${retryCountRef.current + 1}`);
       setConnectionStatus('connected');
       retryCountRef.current = 0; // Reset retry count on successful connection
       isReconnectingRef.current = false;
       
       // Rejoin current room if we were in one
       if (currentRoomRef.current) {
+        console.log(`[WS_HOOK] Rejoining room: ${currentRoomRef.current}`);
         ws.current?.send(JSON.stringify({
           type: 'join',
           userId,
@@ -124,20 +134,27 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
       
       // Process any queued messages
       if (queuedCount > 0) {
-        console.log(`Processing ${queuedCount} queued messages...`);
+        console.log(`[WS_HOOK] Processing ${queuedCount} queued messages...`);
         processQueuedMessages();
       }
     };
 
     ws.current.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      console.error('[WS_HOOK] WebSocket error occurred:', error);
+      console.error('[WS_HOOK] Error event details:', {
+        type: error.type,
+        target: error.target?.constructor.name,
+        timestamp: new Date().toISOString()
+      });
       setConnectionStatus('error');
       setLastError('Connection error occurred');
     };
 
     ws.current.onmessage = (event) => {
+      console.log(`[WS_HOOK] Raw message received:`, event.data?.substring(0, 100));
       try {
         const message = JSON.parse(event.data);
+        console.log(`[WS_HOOK] Parsed message type: ${message.type}`);
         
         switch (message.type) {
           case 'new_message':
@@ -150,9 +167,11 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
             setMessages(prev => [...prev, message.message]);
             break;
           case 'user_joined':
+            console.log(`[WS_HOOK] User joined: ${message.userId}`);
             setOnlineUsers(prev => new Set([...Array.from(prev), message.userId]));
             break;
           case 'user_left':
+            console.log(`[WS_HOOK] User left: ${message.userId}`);
             setOnlineUsers(prev => {
               const newSet = new Set(prev);
               newSet.delete(message.userId);
@@ -160,9 +179,11 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
             });
             break;
           case 'room_online_users':
+            console.log(`[WS_HOOK] Room online users update: ${message.onlineUsers?.length} users in room ${message.roomId}`);
             setRoomOnlineUsers(new Set(message.onlineUsers));
             break;
           case 'user_typing':
+            console.log(`[WS_HOOK] User typing event: ${message.userId} is ${message.isTyping ? 'typing' : 'not typing'}`);
             setTypingUsers(prev => {
               const newSet = new Set(prev);
               if (message.isTyping) {

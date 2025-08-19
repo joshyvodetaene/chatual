@@ -17,20 +17,27 @@ interface PhotoManagerProps {
 }
 
 export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoManagerProps) {
+  console.log(`[PHOTO_MANAGER] PhotoManager rendered for user: ${userId}`);
+  console.log(`[PHOTO_MANAGER] Photos count: ${photos?.length || 0}, primaryPhoto: ${primaryPhoto?.id}`);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [uploadingPhotos, setUploadingPhotos] = useState<string[]>([]);
 
   const setPrimaryMutation = useMutation({
     mutationFn: async (photoId: string) => {
-      await apiRequest('PUT', `/api/users/${userId}/photos/${photoId}/primary`, {});
+      console.log(`[PHOTO_MANAGER] Setting primary photo: ${photoId} for user: ${userId}`);
+      const response = await apiRequest('PUT', `/api/users/${userId}/photos/${photoId}/primary`, {});
+      console.log(`[PHOTO_MANAGER] Set primary photo response status: ${response.status}`);
+      return response;
     },
     onSuccess: () => {
+      console.log(`[PHOTO_MANAGER] Primary photo updated successfully`);
       toast({
         title: "Success",
         description: "Primary photo updated successfully",
       });
       // Invalidate all queries that might contain user avatar data
+      console.log(`[PHOTO_MANAGER] Invalidating user avatar queries`);
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/profile-settings`] });
       queryClient.invalidateQueries({ queryKey: ['/api/chat-data'] });
       queryClient.invalidateQueries({ queryKey: ['/api/rooms'] });
@@ -40,12 +47,14 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
       if (currentUser) {
         const user = JSON.parse(currentUser);
         if (user.id === userId) {
+          console.log(`[PHOTO_MANAGER] Refreshing localStorage user data`);
           // Update localStorage with fresh user data
           queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}`] });
         }
       }
     },
     onError: (error) => {
+      console.error(`[PHOTO_MANAGER] Error setting primary photo:`, error);
       toast({
         title: "Error",
         description: "Failed to set primary photo",
@@ -56,7 +65,10 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
 
   const deletePhotoMutation = useMutation({
     mutationFn: async (photoId: string) => {
-      await apiRequest('DELETE', `/api/users/${userId}/photos/${photoId}`);
+      console.log(`[PHOTO_MANAGER] Deleting photo: ${photoId} for user: ${userId}`);
+      const response = await apiRequest('DELETE', `/api/users/${userId}/photos/${photoId}`);
+      console.log(`[PHOTO_MANAGER] Delete photo response status: ${response.status}`);
+      return response;
     },
     onSuccess: () => {
       toast({

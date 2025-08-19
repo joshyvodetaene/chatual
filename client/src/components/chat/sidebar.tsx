@@ -30,6 +30,13 @@ export default function Sidebar({
   className,
   isMobile = false,
 }: SidebarProps) {
+  console.log(`[SIDEBAR] Sidebar rendered:`, {
+    userId: currentUser?.id,
+    roomCount: rooms?.length || 0,
+    privateRoomCount: privateRooms?.length || 0,
+    activeRoomId: activeRoom?.id,
+    isMobile
+  });
   // State für den aktiven Tab (Räume oder Private Chats)
   const [activeTab, setActiveTab] = useState<'rooms' | 'private'>('rooms');
   const { toast } = useToast();
@@ -37,19 +44,25 @@ export default function Sidebar({
   
   const deletePrivateChatMutation = useMutation({
     mutationFn: async (roomId: string) => {
-      return await apiRequest('DELETE', `/api/private-chat/${roomId}`, {
+      console.log(`[SIDEBAR] Deleting private chat: ${roomId} for user: ${currentUser.id}`);
+      const response = await apiRequest('DELETE', `/api/private-chat/${roomId}`, {
         userId: currentUser.id
       });
+      console.log(`[SIDEBAR] Delete private chat response status: ${response.status}`);
+      return response;
     },
     onSuccess: () => {
+      console.log(`[SIDEBAR] Private chat deleted successfully`);
       toast({
         title: "Chat closed",
         description: "Private chat has been closed.",
       });
       // Refresh chat data
+      console.log(`[SIDEBAR] Invalidating chat data queries`);
       queryClient.invalidateQueries({ queryKey: ['/api/chat-data', currentUser.id] });
     },
     onError: (error: any) => {
+      console.error(`[SIDEBAR] Error deleting private chat:`, error);
       toast({
         title: "Error",
         description: error?.message || "Failed to close private chat",
