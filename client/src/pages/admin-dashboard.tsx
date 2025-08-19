@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Shield, Users, AlertTriangle, Ban, Activity, TrendingUp, UserCheck, Eye, Settings, X, Search } from 'lucide-react';
-import type { AdminDashboardStats, ModerationData, User } from '@shared/schema';
+import { Shield, Users, AlertTriangle, Ban, Activity, TrendingUp, UserCheck, Eye, Settings, X, Search, Hash, Trash2 } from 'lucide-react';
+import type { AdminDashboardStats, ModerationData, User, Room } from '@shared/schema';
 import { BackButton } from '@/components/ui/back-button';
 import { useResponsive } from '@/hooks/use-responsive';
 import { cn } from '@/lib/utils';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 export default function AdminDashboard() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -30,6 +32,52 @@ export default function AdminDashboard() {
   });
 
   const stats = statsData?.stats;
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Mock admin user ID - in a real app this would come from auth context
+  const adminUserId = '7a6dab62-7327-4f79-b025-952b687688c1';
+
+  const { data: roomsData } = useQuery<{ rooms: Room[] }>({
+    queryKey: ['/api/admin/rooms', { adminUserId }],
+    refetchInterval: 30000,
+  });
+
+  const deleteRoomMutation = useMutation({
+    mutationFn: async (roomId: string) => {
+      const response = await fetch(`/api/admin/rooms/${roomId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ adminUserId }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to delete room');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rooms'] });
+      toast({
+        title: 'Success',
+        description: 'Room deleted successfully',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to delete room',
+      });
+    },
+  });
+
+  const handleDeleteRoom = (roomId: string, roomName: string) => {
+    if (confirm(`Are you sure you want to delete the room "${roomName}"? This action cannot be undone and will delete all messages in the room.`)) {
+      deleteRoomMutation.mutate(roomId);
+    }
+  };
 
   if (statsLoading || moderationLoading) {
     return (
@@ -436,7 +484,7 @@ export default function AdminDashboard() {
                   <div className="space-y-3">
                     {[
                       { label: 'Reports', count: stats?.totalReports || 0, color: 'text-red-400' },
-                      { label: 'Warnings', count: stats?.totalWarnings || 0, color: 'text-orange-400' },
+                      { label: 'Warnings', count: 0, color: 'text-orange-400' },
                       { label: 'Active Users', count: stats?.activeUsers || 0, color: 'text-green-400' },
                     ].map((item, i) => (
                       <div key={i} className="flex items-center justify-between">
@@ -449,6 +497,131 @@ export default function AdminDashboard() {
               </Card>
             </div>
           </div>
+        </div>
+
+        {/* Room Management Section */}
+        <div className={cn(
+          isMobile ? "mt-6" : "mt-8"
+        )}>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className={cn(
+              "font-semibold text-white flex items-center",
+              isMobile ? "text-base" : "text-lg"
+            )}>
+              <Hash className="w-5 h-5 mr-2" />
+              Chat Rooms
+            </h2>
+            <div className="text-sm text-gray-400">
+              {roomsData?.rooms?.length || 0} rooms
+            </div>
+          </div>
+
+          <Card className="bg-white/5 border-primary/20 mb-6">
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-primary/20">
+                      <th className={cn(
+                        "text-left font-medium text-gray-400 uppercase tracking-wider",
+                        isMobile ? "p-2 text-xs" : "p-4 text-xs"
+                      )}>Room Name</th>
+                      {!isMobile && (
+                        <>
+                          <th className="text-left p-4 text-xs font-medium text-gray-400 uppercase tracking-wider">Description</th>
+                          <th className="text-left p-4 text-xs font-medium text-gray-400 uppercase tracking-wider">Privacy</th>
+                          <th className="text-left p-4 text-xs font-medium text-gray-400 uppercase tracking-wider">Created</th>
+                        </>
+                      )}
+                      <th className={cn(
+                        "text-right font-medium text-gray-400 uppercase tracking-wider",
+                        isMobile ? "p-2 text-xs" : "p-4 text-xs"
+                      )}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-primary/10">
+                    {roomsData?.rooms?.map((room) => (
+                      <tr key={room.id} className="hover:bg-white/5 transition-colors">
+                        <td className={cn(isMobile ? "p-2" : "p-4")}>
+                          <div className="flex items-center">
+                            <div className={cn(
+                              "bg-primary/20 rounded flex items-center justify-center mr-3",
+                              isMobile ? "w-6 h-6" : "w-8 h-8"
+                            )}>
+                              <Hash className={cn(
+                                "text-primary",
+                                isMobile ? "w-3 h-3" : "w-4 h-4"
+                              )} />
+                            </div>
+                            <div>
+                              <div className={cn(
+                                "font-medium text-white",
+                                isMobile ? "text-sm" : "text-base"
+                              )}>{room.name}</div>
+                              {isMobile && room.description && (
+                                <div className="text-xs text-gray-400 truncate max-w-32">
+                                  {room.description}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        {!isMobile && (
+                          <>
+                            <td className="p-4">
+                              <span className="text-sm text-gray-300">
+                                {room.description || 'No description'}
+                              </span>
+                            </td>
+                            <td className="p-4">
+                              <Badge 
+                                variant={room.isPrivate ? "secondary" : "default"}
+                                className={room.isPrivate ? "bg-yellow-500/20 text-yellow-400" : "bg-green-500/20 text-green-400"}
+                              >
+                                {room.isPrivate ? 'Private' : 'Public'}
+                              </Badge>
+                            </td>
+                            <td className="p-4">
+                              <span className="text-sm text-gray-400">
+                                {room.createdAt ? new Date(room.createdAt).toLocaleDateString() : 'Unknown'}
+                              </span>
+                            </td>
+                          </>
+                        )}
+                        <td className={cn(
+                          "text-right",
+                          isMobile ? "p-2" : "p-4"
+                        )}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className={cn(
+                              "text-red-400 hover:text-red-300 hover:bg-red-500/10",
+                              isMobile && "p-1"
+                            )}
+                            onClick={() => handleDeleteRoom(room.id, room.name)}
+                            disabled={deleteRoomMutation.isPending}
+                            data-testid={`button-delete-room-${room.id}`}
+                          >
+                            <Trash2 className={cn(
+                              isMobile ? "w-3 h-3" : "w-4 h-4"
+                            )} />
+                            {!isMobile && <span className="ml-1">Delete</span>}
+                          </Button>
+                        </td>
+                      </tr>
+                    )) ?? []}
+                  </tbody>
+                </table>
+                {(!roomsData?.rooms || roomsData.rooms.length === 0) && (
+                  <div className="text-center py-8 text-gray-400">
+                    <Hash className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No chat rooms found</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Membered Table Section - Bottom */}

@@ -51,6 +51,7 @@ export interface IStorage {
   getRooms(): Promise<Room[]>;
   getRoom(id: string): Promise<Room | undefined>;
   getRoomWithMembers(id: string): Promise<RoomWithMembers | undefined>;
+  deleteRoom(roomId: string, adminUserId: string): Promise<boolean>;
 
   // Room member methods
   addRoomMember(roomMember: InsertRoomMember): Promise<RoomMember>;

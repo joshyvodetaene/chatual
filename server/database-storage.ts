@@ -155,6 +155,31 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  async deleteRoom(roomId: string, adminUserId: string): Promise<boolean> {
+    // Verify the user is an admin
+    const adminUser = await this.getUser(adminUserId);
+    if (!adminUser || adminUser.role !== 'admin') {
+      throw new Error('Access denied: Admin privileges required');
+    }
+
+    // Check if room exists
+    const room = await this.getRoom(roomId);
+    if (!room) {
+      return false;
+    }
+
+    // Delete all messages in the room first
+    await db.delete(messages).where(eq(messages.roomId, roomId));
+
+    // Delete all room members
+    await db.delete(roomMembers).where(eq(roomMembers.roomId, roomId));
+
+    // Delete the room itself
+    await db.delete(rooms).where(eq(rooms.id, roomId));
+
+    return true;
+  }
+
   // Room member methods
   async addRoomMember(roomMember: InsertRoomMember): Promise<RoomMember> {
     const [newMember] = await db.insert(roomMembers).values(roomMember).returning();

@@ -496,6 +496,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin get all rooms endpoint
+  app.get('/api/admin/rooms', async (req, res) => {
+    try {
+      const { adminUserId } = req.query;
+      
+      if (!adminUserId) {
+        return res.status(401).json({ error: 'Admin authentication required' });
+      }
+      
+      // Verify admin privileges
+      const adminUser = await storage.getUser(adminUserId as string);
+      if (!adminUser || adminUser.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin privileges required' });
+      }
+      
+      const rooms = await storage.getRooms();
+      res.json({ rooms });
+    } catch (error) {
+      console.error('Get admin rooms error:', error);
+      res.status(500).json({ error: 'Failed to fetch rooms' });
+    }
+  });
+
+  // Admin delete room endpoint
+  app.delete('/api/admin/rooms/:id', async (req, res) => {
+    try {
+      const { adminUserId } = req.body;
+      const roomId = req.params.id;
+      
+      if (!adminUserId) {
+        return res.status(401).json({ error: 'Admin authentication required' });
+      }
+      
+      const success = await storage.deleteRoom(roomId, adminUserId);
+      
+      if (success) {
+        res.json({ success: true, message: 'Room deleted successfully' });
+      } else {
+        res.status(404).json({ error: 'Room not found' });
+      }
+    } catch (error) {
+      console.error('Delete room error:', error);
+      if (error instanceof Error && error.message.includes('Access denied')) {
+        res.status(403).json({ error: 'Admin privileges required' });
+      } else {
+        res.status(500).json({ error: 'Failed to delete room' });
+      }
+    }
+  });
+
   // Profile settings routes
   app.get('/api/users/:userId/profile-settings', async (req, res) => {
     try {

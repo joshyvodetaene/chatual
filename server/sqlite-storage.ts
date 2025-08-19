@@ -359,6 +359,31 @@ export class SQLiteStorage implements IStorage {
     };
   }
 
+  async deleteRoom(roomId: string, adminUserId: string): Promise<boolean> {
+    // Verify the user is an admin
+    const adminUser = await this.getUser(adminUserId);
+    if (!adminUser || adminUser.role !== 'admin') {
+      throw new Error('Access denied: Admin privileges required');
+    }
+
+    // Check if room exists
+    const room = await this.getRoom(roomId);
+    if (!room) {
+      return false;
+    }
+
+    // Delete all messages in the room first
+    this.db.delete(messages).where(eq(messages.roomId, roomId)).run();
+
+    // Delete all room members
+    this.db.delete(roomMembers).where(eq(roomMembers.roomId, roomId)).run();
+
+    // Delete the room itself
+    this.db.delete(rooms).where(eq(rooms.id, roomId)).run();
+
+    return true;
+  }
+
   async addRoomMember(insertRoomMember: InsertRoomMember): Promise<RoomMember> {
     const id = randomUUID();
     const roomMember: RoomMember = { 
