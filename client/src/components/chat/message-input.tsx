@@ -296,7 +296,7 @@ export default function MessageInput({
           onClick={handleSendMessage}
           disabled={!message.trim() || disabled}
           className={cn(
-            "bg-primary text-white rounded-2xl hover:bg-primary/90 transition-all duration-300 ease-in-out transform hover:scale-110 active:scale-95 hover:shadow-xl hover:shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100 tap-target touch-manipulation animate-pulse",
+            "bg-primary text-white rounded-2xl hover:bg-primary/90 transition-all duration-300 ease-in-out transform hover:scale-110 active:scale-95 hover:shadow-xl hover:shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100 tap-target touch-manipulation",
             isMobile ? "p-3 min-h-[44px] min-w-[44px]" : "p-3"
           )}
           data-testid="button-send"

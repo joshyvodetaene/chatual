@@ -174,7 +174,7 @@ export default function Sidebar({
             className={cn(
               'flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95 hover:shadow-lg',
               activeTab === 'rooms'
-                ? 'bg-primary text-white shadow-sm red-glow animate-pulse' // Aktiver Zustand
+                ? 'bg-primary text-white shadow-sm red-glow' // Aktiver Zustand
                 : 'text-gray-300 hover:text-white hover:bg-white hover:bg-opacity-10 hover:shadow-md' // Inaktiver Zustand
             )}
             onClick={() => setActiveTab('rooms')}
@@ -187,7 +187,7 @@ export default function Sidebar({
             className={cn(
               'flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95 hover:shadow-lg',
               activeTab === 'private'
-                ? 'bg-primary text-white shadow-sm red-glow animate-pulse' // Aktiver Zustand
+                ? 'bg-primary text-white shadow-sm red-glow' // Aktiver Zustand
                 : 'text-gray-300 hover:text-white hover:bg-white hover:bg-opacity-10 hover:shadow-md' // Inaktiver Zustand
             )}
             onClick={() => setActiveTab('private')}
