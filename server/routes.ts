@@ -40,15 +40,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Helper function to broadcast to room
   function broadcastToRoom(roomId: string, message: any, excludeUserId?: string) {
     console.log(`[BROADCAST] Broadcasting to room ${roomId}, message type: ${message.type}, excludeUserId: ${excludeUserId}`);
+    console.log(`[BROADCAST] Total clients in map: ${clients.size}`);
+    
+    // Debug: show all clients and their room assignments
+    Array.from(clients.entries()).forEach(([userId, client]) => {
+      console.log(`[BROADCAST] Client ${userId}: roomId=${client.roomId}, readyState=${client.readyState}, open=${client.readyState === WebSocket.OPEN}`);
+    });
+    
     let sentCount = 0;
+    let totalInRoom = 0;
     Array.from(clients.values()).forEach(client => {
-      if (client.roomId === roomId && client.readyState === WebSocket.OPEN && client.userId !== excludeUserId) {
-        console.log(`[BROADCAST] Sending to client ${client.userId}`);
-        client.send(JSON.stringify(message));
-        sentCount++;
+      if (client.roomId === roomId) {
+        totalInRoom++;
+        if (client.readyState === WebSocket.OPEN && client.userId !== excludeUserId) {
+          console.log(`[BROADCAST] Sending to client ${client.userId}`);
+          client.send(JSON.stringify(message));
+          sentCount++;
+        } else {
+          console.log(`[BROADCAST] Skipping client ${client.userId}: readyState=${client.readyState}, excluded=${client.userId === excludeUserId}`);
+        }
       }
     });
-    console.log(`[BROADCAST] Message sent to ${sentCount} clients in room ${roomId}`);
+    console.log(`[BROADCAST] Room ${roomId} has ${totalInRoom} clients, sent to ${sentCount} clients`);
   }
 
   // Helper functions for room user management
@@ -113,10 +126,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
               removeUserFromRoom(ws.roomId, ws.userId);
             }
             
+            // Check if user already has a connection and close it
+            const existingConnection = clients.get(message.userId);
+            if (existingConnection && existingConnection !== ws) {
+              console.log(`[WEBSOCKET] Closing existing connection for user ${message.userId}`);
+              existingConnection.close();
+              clients.delete(message.userId);
+            }
+            
             ws.userId = message.userId;
             ws.roomId = message.roomId;
             clients.set(message.userId, ws);
             console.log(`[WEBSOCKET] User ${message.userId} stored in clients map, total clients: ${clients.size}`);
+            
+            // Debug: log all current connections
+            console.log(`[WEBSOCKET] Current connections:`);
+            Array.from(clients.entries()).forEach(([userId, client]) => {
+              console.log(`[WEBSOCKET]  - User ${userId}: room=${client.roomId}, state=${client.readyState}`);
+            });
             
             // Update user online status
             console.log(`[WEBSOCKET] Updating online status for user ${message.userId}`);
