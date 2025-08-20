@@ -50,7 +50,7 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
   const offlineMembers = filteredMembers.filter((member: User) => !onlineUsers.has(member.id));
 
   return (
-    <div className="bg-black border-l border-gray-800 flex flex-col h-full w-full sm:w-44 md:w-48 lg:w-52" data-testid="user-list">
+    <div className="bg-black border-l border-gray-800 flex flex-col h-full w-full sm:w-52 md:w-56 lg:w-64" data-testid="user-list">
       <div className="border-b border-gray-800 p-3 sm:p-4 md:p-6">
         <h3 className="font-semibold text-white text-sm sm:text-base md:text-lg">Online in Room</h3>
         <p className="text-gray-300 mt-1 text-xs sm:text-sm md:text-base" data-testid="online-count">
