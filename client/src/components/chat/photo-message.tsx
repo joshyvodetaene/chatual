@@ -16,7 +16,7 @@ export default function PhotoMessage({ message, isOwn }: PhotoMessageProps) {
     photoUrl: message.photoUrl,
     photoFileName: message.photoFileName
   });
-  
+
   if (!message.photoUrl || message.messageType !== 'photo') {
     console.log('PhotoMessage returning null - photoUrl:', message.photoUrl, 'messageType:', message.messageType);
     return null;
@@ -36,7 +36,8 @@ export default function PhotoMessage({ message, isOwn }: PhotoMessageProps) {
     )}>
       <div className={cn(
         "max-w-xs rounded-lg overflow-hidden shadow-md",
-        isOwn ? "bg-primary" : "bg-white border"
+        "bg-black border border-gray-700",
+        isOwn && "ml-auto"
       )}>
         {!imageError ? (
           <div className="relative">
@@ -68,19 +69,19 @@ export default function PhotoMessage({ message, isOwn }: PhotoMessageProps) {
             </div>
           </div>
         )}
-        
+
         {message.content && (
           <div className={cn(
             "p-3 text-sm",
-            isOwn ? "text-white" : "text-gray-900"
+            "text-white"
           )}>
             {message.content}
           </div>
         )}
-        
+
         <div className={cn(
           "px-3 pb-2 text-xs",
-          isOwn ? "text-white text-opacity-70" : "text-gray-500"
+          "text-white text-opacity-70"
         )}>
           {message.createdAt ? new Date(message.createdAt).toLocaleTimeString([], { 
             hour: '2-digit', 

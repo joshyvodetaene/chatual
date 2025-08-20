@@ -292,14 +292,15 @@ export default function MessageList({
                   "rounded-2xl relative break-words",
                   "p-2 sm:p-2.5 md:p-3 lg:p-4",
                   "max-w-[85%] sm:max-w-xs md:max-w-md lg:max-w-lg xl:max-w-xl",
+                  "bg-black text-white border border-gray-700 shadow-sm",
                   isOwnMessage
-                    ? "bg-primary text-white rounded-tr-md ml-auto"
-                    : "bg-white rounded-tl-md border border-gray-200 shadow-sm"
+                    ? "rounded-tr-md ml-auto"
+                    : "rounded-tl-md"
                 )}>
                   <p className={cn(
                     "leading-relaxed",
                     "text-xs sm:text-sm md:text-base lg:text-lg",
-                    isOwnMessage ? "text-white" : "text-gray-800"
+                    "text-white"
                   )}>
                     {message.content}
                   </p>
