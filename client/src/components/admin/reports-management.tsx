@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertTriangle, Eye, MessageSquare, Calendar, User as UserIcon, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -58,7 +58,7 @@ export default function ReportsManagement({ reports }: ReportsManagementProps) {
 
   const handleUpdateReport = () => {
     if (!selectedReport) return;
-    
+
     updateReportMutation.mutate({
       reportId: selectedReport.id,
       status: newStatus,
@@ -100,7 +100,7 @@ export default function ReportsManagement({ reports }: ReportsManagementProps) {
               Pending Reports ({pendingReports.length})
             </h3>
           </div>
-          
+
           <div className="grid grid-cols-1 gap-4">
             {pendingReports.map((report) => (
               <Card key={report.id} className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20">
@@ -144,7 +144,7 @@ export default function ReportsManagement({ reports }: ReportsManagementProps) {
                         {report.description}
                       </p>
                     </div>
-                    
+
                     <div className="flex justify-end space-x-2 pt-2">
                       <Button
                         variant="outline"
@@ -172,7 +172,7 @@ export default function ReportsManagement({ reports }: ReportsManagementProps) {
             All Reports ({reports.length})
           </h3>
         </div>
-        
+
         <div className="grid grid-cols-1 gap-4">
           {reports.map((report) => (
             <Card key={report.id} data-testid={`report-card-${report.id}`}>
@@ -184,7 +184,7 @@ export default function ReportsManagement({ reports }: ReportsManagementProps) {
                     </CardTitle>
                     <CardDescription className="flex items-center space-x-4 text-sm">
                       <span className="flex items-center space-x-1">
-                        <User className="w-3 h-3" />
+                        <UserIcon className="w-3 h-3" />
                         <span>By {report.reporter.displayName}</span>
                       </span>
                       <span className="flex items-center space-x-1">
@@ -222,7 +222,7 @@ export default function ReportsManagement({ reports }: ReportsManagementProps) {
                       {report.description}
                     </p>
                   </div>
-                  
+
                   {report.adminNotes && (
                     <div>
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -233,7 +233,7 @@ export default function ReportsManagement({ reports }: ReportsManagementProps) {
                       </p>
                     </div>
                   )}
-                  
+
                   <div className="flex justify-end space-x-2 pt-2">
                     <Button
                       variant="outline"
@@ -263,7 +263,7 @@ export default function ReportsManagement({ reports }: ReportsManagementProps) {
               Update the report status and add admin notes
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedReport && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -284,14 +284,14 @@ export default function ReportsManagement({ reports }: ReportsManagementProps) {
                   <p>{formatDate(selectedReport.reportedAt)}</p>
                 </div>
               </div>
-              
+
               <div>
                 <span className="text-sm font-medium block mb-2">Description:</span>
                 <p className="text-sm bg-gray-50 dark:bg-gray-800 p-3 rounded">
                   {selectedReport.description}
                 </p>
               </div>
-              
+
               <div>
                 <label className="text-sm font-medium block mb-2">
                   Status
@@ -307,7 +307,7 @@ export default function ReportsManagement({ reports }: ReportsManagementProps) {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div>
                 <label className="text-sm font-medium block mb-2">
                   Admin Notes
@@ -322,7 +322,7 @@ export default function ReportsManagement({ reports }: ReportsManagementProps) {
               </div>
             </div>
           )}
-          
+
           <DialogFooter>
             <Button
               variant="outline"

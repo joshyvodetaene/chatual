@@ -36,12 +36,12 @@ export function UserProfileMenu({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
-  
+
   // Report dialog state
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportReason, setReportReason] = useState<string>('');
   const [reportDescription, setReportDescription] = useState<string>('');
-  
+
   // Block dialog state
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
   const [blockReason, setBlockReason] = useState<string>('');
@@ -169,14 +169,14 @@ export function UserProfileMenu({
                 <MessageCircle className="w-4 h-4 mr-2" />
                 Send Message
               </DropdownMenuItem>
-              
+
               <DropdownMenuItem onClick={handleViewProfile} data-testid="menu-view-profile">
                 <UserIcon className="w-4 h-4 mr-2" />
                 View Profile
               </DropdownMenuItem>
-              
+
               <DropdownMenuSeparator />
-              
+
               <DropdownMenuItem 
                 onClick={handleBlockUser} 
                 className="text-orange-600 focus:text-orange-700"
@@ -185,7 +185,7 @@ export function UserProfileMenu({
                 <Shield className="w-4 h-4 mr-2" />
                 Block User
               </DropdownMenuItem>
-              
+
               <DropdownMenuItem 
                 onClick={handleReportUser} 
                 className="text-red-600 focus:text-red-700"
@@ -201,8 +201,12 @@ export function UserProfileMenu({
 
       {/* Block User Dialog */}
       <Dialog open={blockDialogOpen} onOpenChange={setBlockDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="sm:max-w-md">
+        <DialogTitle>User Profile</DialogTitle>
+        <DialogDescription>
+          View user details and profile information
+        </DialogDescription>
+        <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
               <Shield className="w-5 h-5 text-orange-500" />
               <span>Block User</span>
@@ -247,7 +251,11 @@ export function UserProfileMenu({
 
       {/* Report User Dialog */}
       <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
+        <DialogTitle>User Profile</DialogTitle>
+        <DialogDescription>
+          View user details and profile information
+        </DialogDescription>
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
               <AlertTriangle className="w-5 h-5 text-red-500" />

@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,7 +32,7 @@ export default function CreateRoomModal({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
-  
+
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -46,28 +47,28 @@ export default function CreateRoomModal({
     },
     onSuccess: async (response) => {
       const data = await response.json();
-      
+
       // Add user to the new room
       await apiRequest('POST', `/api/rooms/${data.room.id}/join`, {
         userId: currentUser.id,
       });
-      
+
       // Invalidate rooms query to refetch
       queryClient.invalidateQueries({ queryKey: ['/api/rooms'] });
       if (isPrivate) {
         queryClient.invalidateQueries({ queryKey: ['/api/chat-data', currentUser.id] });
       }
-      
+
       toast({
         title: 'Room Created Successfully',
         description: `${isPrivate ? 'Private' : 'Public'} room "${name}" has been created. ${isPrivate ? 'Only invited members can join.' : 'Anyone can join this room.'}`,
       });
-      
+
       // Call onSuccess callback if provided
       if (onSuccess && data.room) {
         onSuccess(data.room);
       }
-      
+
       handleClose();
     },
     onError: (error: Error) => {
@@ -83,7 +84,7 @@ export default function CreateRoomModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!name.trim()) {
       toast({
         title: 'Error',
@@ -92,7 +93,7 @@ export default function CreateRoomModal({
       });
       return;
     }
-    
+
     createRoomMutation.mutate({
       name: name.trim(),
       description: description.trim() || undefined,
@@ -110,11 +111,11 @@ export default function CreateRoomModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md" data-testid="create-room-modal">
-        <DialogHeader>
-          <DialogTitle>Create New Room</DialogTitle>
-        </DialogHeader>
-        
+      <DialogContent className="sm:max-w-md">
+        <DialogTitle>Create New Room</DialogTitle>
+        <DialogDescription>
+          Create a new chat room for public conversations
+        </DialogDescription>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="room-name">Room Name</Label>
@@ -127,7 +128,7 @@ export default function CreateRoomModal({
               data-testid="input-room-name"
             />
           </div>
-          
+
           <div>
             <Label htmlFor="room-description">Description (Optional)</Label>
             <Textarea
@@ -139,7 +140,7 @@ export default function CreateRoomModal({
               data-testid="input-room-description"
             />
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <Checkbox
               id="private-room"
@@ -149,7 +150,7 @@ export default function CreateRoomModal({
             />
             <Label htmlFor="private-room">Private room</Label>
           </div>
-          
+
           <div className="flex justify-end space-x-3 pt-4">
             <Button
               type="button"

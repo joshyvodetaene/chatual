@@ -33,17 +33,17 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
   const currentRoomRef = useRef<string | null>(null);
   const retryCountRef = useRef(0);
   const isReconnectingRef = useRef(false);
-  
+
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [messages, setMessages] = useState<MessageWithUser[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [roomOnlineUsers, setRoomOnlineUsers] = useState<Set<string>>(new Set());
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [lastError, setLastError] = useState<string | null>(null);
-  
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   // Initialize offline queue for message queuing when disconnected
   const {
     queuedMessages,
@@ -79,17 +79,17 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.host;
     console.log(`[WS_HOOK] Building WebSocket URL - protocol: ${protocol}, host: ${host}`);
-    
+
     // Ensure host is valid and properly formatted
     if (!host || host.trim() === '') {
       console.error('[WS_HOOK] Invalid host for WebSocket connection:', host);
       setLastError('Invalid WebSocket host');
       return;
     }
-    
+
     const wsUrl = `${protocol}//${host}/ws`;
     console.log(`[WS_HOOK] WebSocket URL constructed: ${wsUrl}`);
-    
+
     // Validate the WebSocket URL
     try {
       new URL(wsUrl);
@@ -98,19 +98,19 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
       setLastError('Invalid WebSocket URL');
       return;
     }
-    
+
     const isReconnect = isReconnectingRef.current;
     console.log(`[WS_HOOK] ${isReconnect ? 'Reconnecting' : 'Connecting'} to WebSocket: ${wsUrl}`);
     console.log(`[WS_HOOK] Retry attempt: ${retryCountRef.current}/${retryConfig.maxAttempts}`);
-    
+
     setConnectionStatus(isReconnect ? 'reconnecting' : 'connecting');
     setLastError(null);
-    
+
     // Close existing connection if any
     if (ws.current) {
       ws.current.close();
     }
-    
+
     try {
       ws.current = new WebSocket(wsUrl);
     } catch (error) {
@@ -126,17 +126,21 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
       setConnectionStatus('connected');
       retryCountRef.current = 0; // Reset retry count on successful connection
       isReconnectingRef.current = false;
-      
+
       // Rejoin current room if we were in one
       if (currentRoomRef.current) {
         console.log(`[WS_HOOK] Rejoining room: ${currentRoomRef.current}`);
-        ws.current?.send(JSON.stringify({
-          type: 'join',
-          userId,
-          roomId: currentRoomRef.current,
-        }));
+        try {
+          ws.current?.send(JSON.stringify({
+            type: 'join',
+            userId,
+            roomId: currentRoomRef.current,
+          }));
+        } catch (error) {
+          console.error('[WS_HOOK] Error rejoining room:', error);
+        }
       }
-      
+
       // Process any queued messages
       if (queuedCount > 0) {
         console.log(`[WS_HOOK] Processing ${queuedCount} queued messages...`);
@@ -147,8 +151,8 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     ws.current.onerror = (error) => {
       console.error('[WS_HOOK] WebSocket error occurred:', error);
       console.error('[WS_HOOK] Error event details:', {
-        type: error.type,
-        target: error.target?.constructor.name,
+        type: (error as ErrorEvent).type,
+        target: (error as ErrorEvent).target?.constructor.name,
         timestamp: new Date().toISOString()
       });
       setConnectionStatus('error');
@@ -160,7 +164,7 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
       try {
         const message = JSON.parse(event.data);
         console.log(`[WS_HOOK] Parsed message type: ${message.type}`);
-        
+
         // Use requestIdleCallback for non-critical updates to improve performance
         const processMessage = () => {
           switch (message.type) {
@@ -216,7 +220,7 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
             break;
           }
         };
-        
+
         // Use requestIdleCallback for non-critical message processing
         if (typeof window.requestIdleCallback === 'function') {
           window.requestIdleCallback(processMessage);
@@ -226,22 +230,23 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
         }
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
+        setLastError('Failed to parse incoming message');
       }
     };
 
     ws.current.onclose = (event) => {
       console.log('WebSocket closed:', event.code, event.reason);
       setConnectionStatus('disconnected');
-      
+
       // Only attempt reconnection if it wasn't a normal closure and we haven't exceeded max attempts
       if (event.code !== 1000 && retryCountRef.current < retryConfig.maxAttempts && userId) {
         isReconnectingRef.current = true;
         retryCountRef.current += 1;
         const delay = calculateRetryDelay(retryCountRef.current - 1);
-        
+
         console.log(`Reconnecting in ${delay}ms (attempt ${retryCountRef.current}/${retryConfig.maxAttempts})`);
         setLastError(`Connection lost. Retrying in ${Math.ceil(delay / 1000)}s (${retryCountRef.current}/${retryConfig.maxAttempts})`);
-        
+
         reconnectTimeoutRef.current = setTimeout(() => {
           connect();
         }, delay);
@@ -274,13 +279,17 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
 
   const joinRoom = useCallback((roomId: string) => {
     currentRoomRef.current = roomId; // Store current room for reconnection
-    
+
     if (ws.current && ws.current.readyState === WebSocket.OPEN && userId) {
-      ws.current.send(JSON.stringify({
-        type: 'join',
-        userId,
-        roomId,
-      }));
+      try {
+        ws.current.send(JSON.stringify({
+          type: 'join',
+          userId,
+          roomId,
+        }));
+      } catch (error) {
+        console.error('[WS_HOOK] Error joining room:', error);
+      }
     }
   }, [userId]);
 
@@ -290,7 +299,7 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
       if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
         return false;
       }
-      
+
       try {
         if (queuedMessage.type === 'message') {
           ws.current.send(JSON.stringify({
@@ -313,7 +322,7 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
 
   const sendMessage = useCallback((content: string, photoUrl?: string, photoFileName?: string) => {
     const messageType = photoUrl ? 'photo' : 'text';
-    
+
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       try {
         console.log('Sending WebSocket message:', {
@@ -323,7 +332,7 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
           photoFileName,
           messageType
         });
-        
+
         ws.current.send(JSON.stringify({
           type: 'message',
           content,
@@ -345,14 +354,14 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
 
   // Add debouncing for typing indicators
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   const sendTyping = useCallback((isTyping: boolean) => {
     // Clear any existing timeout
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = null;
     }
-    
+
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       try {
         // Send typing indicator immediately
@@ -360,7 +369,7 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
           type: 'typing',
           isTyping,
         }));
-        
+
         // If starting to type, set timeout to auto-stop after 3 seconds
         if (isTyping) {
           typingTimeoutRef.current = setTimeout(() => {

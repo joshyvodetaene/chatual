@@ -9,6 +9,7 @@ import type { UploadResult } from '@uppy/core';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import type { UserPhoto } from '@shared/schema';
+import { Dialog, DialogContent, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 interface PhotoManagerProps {
   userId: string;
@@ -128,9 +129,9 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
         fileName: file.name 
       });
       const data = await response.json();
-      
+
       setUploadingPhotos(prev => [...prev, 'uploading']);
-      
+
       // Upload file directly
       const uploadResponse = await fetch(data.uploadURL, {
         method: 'PUT',
@@ -155,7 +156,7 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
         title: "Success",
         description: "Profile photo uploaded successfully",
       });
-      
+
       // Invalidate all queries that might contain user avatar data
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/profile-settings`] });
       queryClient.invalidateQueries({ queryKey: ['/api/chat-data'] });
@@ -171,7 +172,7 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
         }
       }
       setUploadingPhotos([]);
-      
+
       // Reset file input
       event.target.value = '';
     } catch (error) {
@@ -220,7 +221,7 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
             </label>
           </Button>
         </div>
-        
+
         {/* Alternative dashed button */}
         <div className="relative">
           <input
@@ -259,7 +260,7 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
                   className="w-full h-full object-cover"
                   data-testid={`photo-${photo.id}`}
                 />
-                
+
                 {/* Primary Photo Badge */}
                 {photo.isPrimary && (
                   <Badge 
@@ -285,7 +286,7 @@ export default function PhotoManager({ userId, photos, primaryPhoto }: PhotoMana
                       <Star className="w-4 h-4" />
                     </Button>
                   )}
-                  
+
                   <Button
                     size="sm"
                     variant="destructive"

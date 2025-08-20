@@ -772,6 +772,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/rooms/:id/messages/initial', async (req, res) => {
+    try {
+      const { limit } = req.query;
+      const pagination = {
+        limit: limit ? parseInt(limit as string) : 20, // Default to 20 messages
+      };
+      
+      const result = await storage.getRoomMessages(req.params.id, pagination);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch initial messages' });
+    }
+  });
+
   // Admin get all rooms endpoint
   app.get('/api/admin/rooms', async (req, res) => {
     try {
