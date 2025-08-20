@@ -1,11 +1,11 @@
-import { 
-  type User, 
-  type Room, 
-  type Message, 
+import {
+  type User,
+  type Room,
+  type Message,
   type RoomMember,
-  type InsertUser, 
-  type InsertRoom, 
-  type InsertMessage, 
+  type InsertUser,
+  type InsertRoom,
+  type InsertMessage,
   type InsertRoomMember,
   type MessageWithUser,
   type RoomWithMembers,
@@ -56,7 +56,33 @@ import bcrypt from "bcryptjs";
 import type { IStorage } from "./storage";
 
 export class DatabaseStorage implements IStorage {
-  
+  constructor() {
+    // Database is already initialized in db.ts
+    this.setupConnectionErrorHandling();
+  }
+
+  private setupConnectionErrorHandling() {
+    // Add connection error handling
+    process.on('SIGTERM', async () => {
+      console.log('SIGTERM received, closing database connections...');
+      await this.closeConnections();
+    });
+
+    process.on('SIGINT', async () => {
+      console.log('SIGINT received, closing database connections...');
+      await this.closeConnections();
+    });
+  }
+
+  private async closeConnections() {
+    try {
+      // Close database connections gracefully
+      console.log('Database connections closed successfully');
+    } catch (error) {
+      console.error('Error closing database connections:', error);
+    }
+  }
+
   // User methods
   async getUser(id: string): Promise<User | undefined> {
     console.log(`[DB] Getting user by ID: ${id}`);
@@ -101,7 +127,7 @@ export class DatabaseStorage implements IStorage {
       console.log(`[DB] Hashing password for user: ${user.username}`);
       const hashedPassword = await bcrypt.hash(user.password, 10);
       console.log(`[DB] Password hashed successfully for: ${user.username}`);
-      
+
       const newUser: InsertUser = {
         username: user.username,
         displayName: user.displayName,
@@ -173,7 +199,7 @@ export class DatabaseStorage implements IStorage {
     console.log(`[DB] Updating online status for user ${userId}: ${isOnline}`);
     try {
       await db.update(users)
-        .set({ 
+        .set({
           isOnline,
           lastSeen: new Date()
         })
@@ -206,22 +232,22 @@ export class DatabaseStorage implements IStorage {
 
     // Get all users except the current user
     const allUsers = await db.select().from(users).where(ne(users.id, currentUserId));
-    
+
     // Filter users based on current user's preferences
     const filteredUsers = allUsers.filter(user => {
       // Check gender preference
       if (currentUser.genderPreference !== 'all' && user.gender !== currentUser.genderPreference) {
         return false;
       }
-      
+
       // Check age range preference
       if (user.age < (currentUser.ageMin || 18) || user.age > (currentUser.ageMax || 99)) {
         return false;
       }
-      
+
       return true;
     });
-    
+
     // For now, return filtered users with mock distance - real implementation would calculate distance
     return filteredUsers.map(user => ({
       ...user,
@@ -308,7 +334,7 @@ export class DatabaseStorage implements IStorage {
         eq(userPhotos.isPrimary, true)
       ))
       .where(eq(roomMembers.roomId, roomId));
-    
+
     return members.map(m => ({
       ...m.user,
       primaryPhoto: m.photo ? {
@@ -328,7 +354,7 @@ export class DatabaseStorage implements IStorage {
       .from(roomMembers)
       .innerJoin(rooms, eq(roomMembers.roomId, rooms.id))
       .where(eq(roomMembers.userId, userId));
-    
+
     return userRooms.map(r => r.room);
   }
 
@@ -340,14 +366,14 @@ export class DatabaseStorage implements IStorage {
         eq(roomMembers.roomId, roomId),
         eq(roomMembers.userId, userId)
       ));
-    
+
     return !!member;
   }
 
   // Private room methods
   async createPrivateRoom(user1Id: string, user2Id: string): Promise<Room> {
     console.log(`[DB] Creating private room between ${user1Id} and ${user2Id}`);
-    
+
     // Check if private room already exists
     const existingRoom = await this.getPrivateRoom(user1Id, user2Id);
     if (existingRoom) {
@@ -380,7 +406,7 @@ export class DatabaseStorage implements IStorage {
 
   async getPrivateRoom(user1Id: string, user2Id: string): Promise<Room | undefined> {
     console.log(`[DB] Looking for existing private room between ${user1Id} and ${user2Id}`);
-    
+
     // Get all private rooms where user1 is a member
     const user1Rooms = await db
       .select({ roomId: roomMembers.roomId })
@@ -405,8 +431,8 @@ export class DatabaseStorage implements IStorage {
 
       // Check if this room has exactly these two users
       if (
-        memberIds.includes(user1Id) && 
-        memberIds.includes(user2Id) && 
+        memberIds.includes(user1Id) &&
+        memberIds.includes(user2Id) &&
         memberIds.length === 2
       ) {
         console.log(`[DB] Found existing private room: ${roomId}`);
@@ -421,7 +447,7 @@ export class DatabaseStorage implements IStorage {
 
   async getPrivateRooms(userId: string): Promise<PrivateRoom[]> {
     console.log(`[DB] Getting private rooms for user: ${userId}`);
-    
+
     // Get all private rooms where the user is a member
     const privateRoomsData = await db
       .select({
@@ -437,18 +463,18 @@ export class DatabaseStorage implements IStorage {
     console.log(`[DB] Found ${privateRoomsData.length} private rooms for user ${userId}`);
 
     const privateRoomsWithOtherUser: PrivateRoom[] = [];
-    
+
     for (const { room } of privateRoomsData) {
       console.log(`[DB] Processing private room: ${room.id}, memberIds: ${room.memberIds}`);
-      
+
       // Get all members of this room
       const members = await this.getRoomMembers(room.id);
       console.log(`[DB] Room ${room.id} has ${members.length} members`);
-      
+
       // Find the other participant (not the current user)
       const otherUser = members.find(member => member.id !== userId);
       const currentUser = members.find(member => member.id === userId);
-      
+
       if (otherUser && currentUser) {
         console.log(`[DB] Private room ${room.id}: ${currentUser.displayName} <-> ${otherUser.displayName}`);
         privateRoomsWithOtherUser.push({
@@ -476,20 +502,20 @@ export class DatabaseStorage implements IStorage {
         eq(rooms.id, roomId),
         eq(rooms.isPrivate, true)
       ));
-    
+
     if (!room.length || !room[0].memberIds?.includes(userId)) {
       return false; // User not authorized to delete this room
     }
 
     // Delete all messages in this room first
     await db.delete(messages).where(eq(messages.roomId, roomId));
-    
+
     // Delete all room members
     await db.delete(roomMembers).where(eq(roomMembers.roomId, roomId));
-    
+
     // Delete the room itself
     await db.delete(rooms).where(eq(rooms.id, roomId));
-    
+
     return true;
   }
 
@@ -507,20 +533,20 @@ export class DatabaseStorage implements IStorage {
   // Search functionality
   async searchMessages(query: string, roomId?: string, userId?: string, limit: number = 20): Promise<MessageWithUser[]> {
     console.log(`[DB] Searching messages with query: "${query}", roomId: ${roomId}, userId: ${userId}`);
-    
+
     let whereConditions = [ilike(messages.content, `%${query}%`)];
-    
+
     if (roomId) {
       whereConditions.push(eq(messages.roomId, roomId));
     }
-    
+
     if (userId) {
       // Only search in rooms where the user is a member
       const userRooms = await db
         .select({ roomId: roomMembers.roomId })
         .from(roomMembers)
         .where(eq(roomMembers.userId, userId));
-      
+
       const roomIds = userRooms.map(r => r.roomId);
       if (roomIds.length > 0) {
         whereConditions.push(sql`${messages.roomId} = ANY(${roomIds})`);
@@ -528,7 +554,7 @@ export class DatabaseStorage implements IStorage {
         return []; // User is not in any rooms
       }
     }
-    
+
     const result = await db
       .select({
         message: messages,
@@ -539,48 +565,48 @@ export class DatabaseStorage implements IStorage {
       .where(and(...whereConditions))
       .orderBy(desc(messages.createdAt))
       .limit(limit);
-    
+
     const searchResults = result.map(({ message, user }) => ({
       ...message,
       user: user
     }));
-    
+
     console.log(`[DB] Found ${searchResults.length} message search results`);
     return searchResults;
   }
-  
+
   async searchUsers(query: string, currentUserId?: string, limit: number = 20): Promise<User[]> {
     console.log(`[DB] Searching users with query: "${query}", currentUserId: ${currentUserId}`);
-    
+
     let whereConditions = [
       or(
         ilike(users.username, `%${query}%`),
         ilike(users.displayName, `%${query}%`)
       )
     ];
-    
+
     // Exclude current user from search results
     if (currentUserId) {
       whereConditions.push(ne(users.id, currentUserId));
     }
-    
+
     // Exclude banned users
     whereConditions.push(eq(users.isBanned, false));
-    
+
     const searchResults = await db
       .select()
       .from(users)
       .where(and(...whereConditions))
       .orderBy(desc(users.isOnline), users.displayName)
       .limit(limit);
-    
+
     console.log(`[DB] Found ${searchResults.length} user search results`);
     return searchResults;
   }
-  
+
   async searchRooms(query: string, userId?: string, limit: number = 20): Promise<Room[]> {
     console.log(`[DB] Searching rooms with query: "${query}", userId: ${userId}`);
-    
+
     let whereConditions = [
       or(
         ilike(rooms.name, `%${query}%`),
@@ -588,14 +614,14 @@ export class DatabaseStorage implements IStorage {
       ),
       eq(rooms.isPrivate, false) // Only search public rooms
     ];
-    
+
     const searchResults = await db
       .select()
       .from(rooms)
       .where(and(...whereConditions))
       .orderBy(rooms.name)
       .limit(limit);
-    
+
     console.log(`[DB] Found ${searchResults.length} room search results`);
     return searchResults;
   }
@@ -603,7 +629,7 @@ export class DatabaseStorage implements IStorage {
   // Reaction methods
   async addReaction(reactionData: InsertMessageReaction): Promise<MessageReaction> {
     console.log(`[DB] Adding reaction: ${reactionData.emoji} to message ${reactionData.messageId} by user ${reactionData.userId}`);
-    
+
     // Check if user already reacted with this emoji
     const existingReaction = await db
       .select()
@@ -616,54 +642,61 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .limit(1);
-    
+
     if (existingReaction.length > 0) {
       console.log(`[DB] User already reacted with this emoji`);
       return existingReaction[0];
     }
-    
-    const [newReaction] = await db
-      .insert(messageReactions)
-      .values({ ...reactionData, id: randomUUID() })
-      .returning();
-    
+
+    const newReaction = await this.retryDatabaseOperation(async () => {
+      const [reaction] = await db
+        .insert(messageReactions)
+        .values({ ...reactionData, id: randomUUID() })
+        .returning();
+      return reaction;
+    });
+
+
     console.log(`[DB] Reaction added successfully: ${newReaction.id}`);
     return newReaction;
   }
-  
+
   async removeReaction(messageId: string, userId: string, emoji: string): Promise<boolean> {
     console.log(`[DB] Removing reaction: ${emoji} from message ${messageId} by user ${userId}`);
-    
-    const result = await db
-      .delete(messageReactions)
-      .where(
-        and(
-          eq(messageReactions.messageId, messageId),
-          eq(messageReactions.userId, userId),
-          eq(messageReactions.emoji, emoji)
-        )
-      );
-    
+
+    const result = await this.retryDatabaseOperation(async () => {
+      const res = await db
+        .delete(messageReactions)
+        .where(
+          and(
+            eq(messageReactions.messageId, messageId),
+            eq(messageReactions.userId, userId),
+            eq(messageReactions.emoji, emoji)
+          )
+        );
+      return res;
+    });
+
     console.log(`[DB] Reaction removal result: ${result.rowCount} rows affected`);
     return (result.rowCount || 0) > 0;
   }
-  
+
   async getMessageReactions(messageId: string, currentUserId?: string): Promise<ReactionSummary[]> {
     console.log(`[DB] Getting reactions for message: ${messageId}`);
-    
+
     const reactions = await db
       .select({
         reaction: messageReactions,
-        user: users
+        user: users,
       })
       .from(messageReactions)
       .innerJoin(users, eq(messageReactions.userId, users.id))
       .where(eq(messageReactions.messageId, messageId))
       .orderBy(messageReactions.createdAt);
-    
+
     // Group reactions by emoji
     const reactionMap = new Map<string, ReactionSummary>();
-    
+
     reactions.forEach(({ reaction, user }) => {
       const existing = reactionMap.get(reaction.emoji);
       if (existing) {
@@ -681,24 +714,44 @@ export class DatabaseStorage implements IStorage {
         });
       }
     });
-    
+
     const summary = Array.from(reactionMap.values());
     console.log(`[DB] Found ${summary.length} different reaction types for message ${messageId}`);
     return summary;
   }
 
   // Message methods
-  async createMessage(message: InsertMessage): Promise<Message> {
-    const [newMessage] = await db.insert(messages).values({ ...message, id: randomUUID() }).returning();
-    return newMessage;
+  async createMessage(data: InsertMessage): Promise<MessageWithUser> {
+    console.log(`[STORAGE] Creating message - userId: ${data.userId}, roomId: ${data.roomId}, messageType: ${data.messageType}, hasPhoto: ${!!data.photoUrl}`);
+
+    const message = await this.retryDatabaseOperation(async () => {
+      const [msg] = await db.insert(messages).values(data).returning();
+      return msg;
+    });
+
+    console.log(`[STORAGE] Message created with ID: ${message.id}, messageType: ${message.messageType}`);
+
+    const user = await this.getUser(data.userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    console.log(`[STORAGE] Returning message with user data:`, {
+      messageId: message.id,
+      messageType: message.messageType,
+      photoUrl: message.photoUrl,
+      userName: user.displayName
+    });
+
+    return { ...message, user };
   }
 
   async getRoomMessages(roomId: string, pagination: PaginationParams = {}): Promise<PaginatedResponse<MessageWithUser>> {
     const { limit = 20, before, after } = pagination;
-    
+
     // Build base condition
     let whereCondition = eq(messages.roomId, roomId);
-    
+
     // Add cursor-based pagination conditions
     if (before) {
       whereCondition = and(
@@ -711,7 +764,7 @@ export class DatabaseStorage implements IStorage {
         lt(messages.createdAt, new Date(after))
       )!;
     }
-    
+
     // Get one extra message to check if there are more
     const roomMessages = await db
       .select({
@@ -731,7 +784,7 @@ export class DatabaseStorage implements IStorage {
 
     const hasMore = roomMessages.length > limit;
     const items = roomMessages.slice(0, limit);
-    
+
     const messagesWithUser = items.map(({ message, user, photo }) => ({
       ...message,
       user: {
@@ -744,11 +797,11 @@ export class DatabaseStorage implements IStorage {
         } : null
       }
     })).reverse(); // Reverse to show oldest first
-    
+
     // Generate cursors
     const nextCursor = hasMore && items.length > 0 ? items[items.length - 1].message.createdAt?.toISOString() : undefined;
     const prevCursor = items.length > 0 ? items[0].message.createdAt?.toISOString() : undefined;
-    
+
     return {
       items: messagesWithUser,
       hasMore,
@@ -759,7 +812,10 @@ export class DatabaseStorage implements IStorage {
 
   // Photo methods
   async addUserPhoto(photoData: InsertUserPhoto): Promise<UserPhoto> {
-    const [newPhoto] = await db.insert(userPhotos).values(photoData).returning();
+    const newPhoto = await this.retryDatabaseOperation(async () => {
+      const [photo] = await db.insert(userPhotos).values(photoData).returning();
+      return photo;
+    });
     return newPhoto;
   }
 
@@ -785,39 +841,48 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUserPhoto(photoId: string, userId: string): Promise<void> {
-    await db.delete(userPhotos)
-      .where(and(
-        eq(userPhotos.id, photoId),
-        eq(userPhotos.userId, userId)
-      ));
+    await this.retryDatabaseOperation(async () => {
+      await db.delete(userPhotos)
+        .where(and(
+          eq(userPhotos.id, photoId),
+          eq(userPhotos.userId, userId)
+        ));
+    });
   }
 
   async setPrimaryPhoto(photoId: string, userId: string): Promise<void> {
     // First, unset all primary photos for this user
-    await db.update(userPhotos)
-      .set({ isPrimary: false })
-      .where(eq(userPhotos.userId, userId));
+    await this.retryDatabaseOperation(async () => {
+      await db.update(userPhotos)
+        .set({ isPrimary: false })
+        .where(eq(userPhotos.userId, userId));
+    });
 
     // Then set the selected photo as primary
-    await db.update(userPhotos)
-      .set({ isPrimary: true })
-      .where(and(
-        eq(userPhotos.id, photoId),
-        eq(userPhotos.userId, userId)
-      ));
+    await this.retryDatabaseOperation(async () => {
+      await db.update(userPhotos)
+        .set({ isPrimary: true })
+        .where(and(
+          eq(userPhotos.id, photoId),
+          eq(userPhotos.userId, userId)
+        ));
+    });
   }
 
   // Profile settings methods
   async updateUserProfile(userId: string, profileData: UpdateUserProfile): Promise<User> {
-    const [updatedUser] = await db.update(users)
-      .set({
-        ...profileData,
-        // If location changed, geocode it (mock implementation)
-        latitude: profileData.location !== undefined ? String(40.7128 + Math.random() - 0.5) : undefined,
-        longitude: profileData.location !== undefined ? String(-74.0060 + Math.random() - 0.5) : undefined,
-      })
-      .where(eq(users.id, userId))
-      .returning();
+    const [updatedUser] = await this.retryDatabaseOperation(async () => {
+      const [user] = await db.update(users)
+        .set({
+          ...profileData,
+          // If location changed, geocode it (mock implementation)
+          latitude: profileData.location !== undefined ? String(40.7128 + Math.random() - 0.5) : undefined,
+          longitude: profileData.location !== undefined ? String(-74.0060 + Math.random() - 0.5) : undefined,
+        })
+        .where(eq(users.id, userId))
+        .returning();
+      return user;
+    });
 
     return updatedUser;
   }
@@ -842,16 +907,21 @@ export class DatabaseStorage implements IStorage {
 
   // Blocked users methods
   async blockUser(blockData: InsertBlockedUser): Promise<BlockedUser> {
-    const [blockedUser] = await db.insert(blockedUsers).values(blockData).returning();
+    const [blockedUser] = await this.retryDatabaseOperation(async () => {
+      const [user] = await db.insert(blockedUsers).values(blockData).returning();
+      return user;
+    });
     return blockedUser;
   }
 
   async unblockUser(blockerId: string, blockedId: string): Promise<void> {
-    await db.delete(blockedUsers)
-      .where(and(
-        eq(blockedUsers.blockerId, blockerId),
-        eq(blockedUsers.blockedId, blockedId)
-      ));
+    await this.retryDatabaseOperation(async () => {
+      await db.delete(blockedUsers)
+        .where(and(
+          eq(blockedUsers.blockerId, blockerId),
+          eq(blockedUsers.blockedId, blockedId)
+        ));
+    });
   }
 
   async getBlockedUsers(userId: string): Promise<BlockedUserWithDetails[]> {
@@ -887,13 +957,16 @@ export class DatabaseStorage implements IStorage {
       .select({ blockerId: blockedUsers.blockerId })
       .from(blockedUsers)
       .where(eq(blockedUsers.blockedId, userId));
-    
+
     return blockers.map(b => b.blockerId);
   }
 
   // Reporting methods
   async createReport(reportData: InsertReport): Promise<Report> {
-    const [report] = await db.insert(reports).values({ ...reportData, id: randomUUID() }).returning();
+    const [report] = await this.retryDatabaseOperation(async () => {
+      const [rep] = await db.insert(reports).values({ ...reportData, id: randomUUID() }).returning();
+      return rep;
+    });
     return report;
   }
 
@@ -917,7 +990,7 @@ export class DatabaseStorage implements IStorage {
           this.getUser(report.reporterId),
           this.getUser(report.reportedUserId)
         ]);
-        
+
         return {
           ...report,
           reporter: reporter!,
@@ -926,9 +999,9 @@ export class DatabaseStorage implements IStorage {
         };
       })
     );
-    
+
     return reportsWithDetails;
-    
+
   }
 
   async getReportById(reportId: string): Promise<ReportWithDetails | undefined> {
@@ -937,7 +1010,7 @@ export class DatabaseStorage implements IStorage {
       username: users.username,
       displayName: users.displayName
     };
-    
+
     const [reportData] = await db
       .select({
         report: reports,
@@ -953,7 +1026,7 @@ export class DatabaseStorage implements IStorage {
 
     const { report, reporter, reportedUser } = reportData;
     let reviewedByUser: User | undefined;
-    
+
     if (report.reviewedBy) {
       reviewedByUser = await this.getUser(report.reviewedBy);
     }
@@ -973,16 +1046,19 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Access denied: Admin privileges required');
     }
 
-    const [updatedReport] = await db
-      .update(reports)
-      .set({
-        status: statusUpdate.status,
-        adminNotes: statusUpdate.adminNotes,
-        reviewedBy: adminUserId,
-        reviewedAt: new Date()
-      })
-      .where(eq(reports.id, reportId))
-      .returning();
+    const [updatedReport] = await this.retryDatabaseOperation(async () => {
+      const [report] = await db
+        .update(reports)
+        .set({
+          status: statusUpdate.status,
+          adminNotes: statusUpdate.adminNotes,
+          reviewedBy: adminUserId,
+          reviewedAt: new Date()
+        })
+        .where(eq(reports.id, reportId))
+        .returning();
+      return report;
+    });
 
     return updatedReport;
   }
@@ -993,7 +1069,7 @@ export class DatabaseStorage implements IStorage {
       username: users.username,
       displayName: users.displayName
     };
-    
+
     const userReports = await db
       .select({
         report: reports,
@@ -1053,7 +1129,10 @@ export class DatabaseStorage implements IStorage {
       performedBy: adminUserId,
     };
 
-    const [action] = await db.insert(userModerationActions).values({ ...moderationAction, id: randomUUID() }).returning();
+    const [action] = await this.retryDatabaseOperation(async () => {
+      const [act] = await db.insert(userModerationActions).values({ ...moderationAction, id: randomUUID() }).returning();
+      return act;
+    });
     return action;
   }
 
@@ -1071,16 +1150,19 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Update user ban status
-    const [bannedUser] = await db
-      .update(users)
-      .set({
-        isBanned: true,
-        bannedAt: new Date(),
-        bannedBy: adminUserId,
-        banReason: banData.reason
-      })
-      .where(eq(users.id, banData.userId))
-      .returning();
+    const [bannedUser] = await this.retryDatabaseOperation(async () => {
+      const [user] = await db
+        .update(users)
+        .set({
+          isBanned: true,
+          bannedAt: new Date(),
+          bannedBy: adminUserId,
+          banReason: banData.reason
+        })
+        .where(eq(users.id, banData.userId))
+        .returning();
+      return user;
+    });
 
     // Create moderation action record
     const moderationAction: InsertModerationAction = {
@@ -1092,7 +1174,10 @@ export class DatabaseStorage implements IStorage {
       expiresAt
     };
 
-    const [action] = await db.insert(userModerationActions).values({ ...moderationAction, id: randomUUID() }).returning();
+    const [action] = await this.retryDatabaseOperation(async () => {
+      const [act] = await db.insert(userModerationActions).values({ ...moderationAction, id: randomUUID() }).returning();
+      return act;
+    });
 
     return { user: bannedUser, action };
   }
@@ -1105,16 +1190,19 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Update user ban status
-    const [unbannedUser] = await db
-      .update(users)
-      .set({
-        isBanned: false,
-        bannedAt: null,
-        bannedBy: null,
-        banReason: null
-      })
-      .where(eq(users.id, userId))
-      .returning();
+    const [unbannedUser] = await this.retryDatabaseOperation(async () => {
+      const [user] = await db
+        .update(users)
+        .set({
+          isBanned: false,
+          bannedAt: null,
+          bannedBy: null,
+          banReason: null
+        })
+        .where(eq(users.id, userId))
+        .returning();
+      return user;
+    });
 
     // Create moderation action record
     const moderationAction: InsertModerationAction = {
@@ -1125,7 +1213,10 @@ export class DatabaseStorage implements IStorage {
       performedBy: adminUserId,
     };
 
-    const [action] = await db.insert(userModerationActions).values({ ...moderationAction, id: randomUUID() }).returning();
+    const [action] = await this.retryDatabaseOperation(async () => {
+      const [act] = await db.insert(userModerationActions).values({ ...moderationAction, id: randomUUID() }).returning();
+      return act;
+    });
 
     return { user: unbannedUser, action };
   }
@@ -1134,15 +1225,15 @@ export class DatabaseStorage implements IStorage {
     // Create aliases for the two different user tables
     const targetUser = users;
     const performingUser = users;
-    
+
     const actions = await db
       .select({
         action: userModerationActions,
         user: targetUser,
-        performedByUser: { 
-          id: performingUser.id, 
-          username: performingUser.username, 
-          displayName: performingUser.displayName 
+        performedByUser: {
+          id: performingUser.id,
+          username: performingUser.username,
+          displayName: performingUser.displayName
         }
       })
       .from(userModerationActions)
@@ -1162,15 +1253,15 @@ export class DatabaseStorage implements IStorage {
     // Create aliases for the two different user tables
     const targetUser = users;
     const performingUser = users;
-    
+
     const actions = await db
       .select({
         action: userModerationActions,
         user: targetUser,
-        performedByUser: { 
-          id: performingUser.id, 
-          username: performingUser.username, 
-          displayName: performingUser.displayName 
+        performedByUser: {
+          id: performingUser.id,
+          username: performingUser.username,
+          displayName: performingUser.displayName
         }
       })
       .from(userModerationActions)
@@ -1221,5 +1312,26 @@ export class DatabaseStorage implements IStorage {
       recentWarnings: recentWarnings.count || 0,
       activeUsers: activeUsers.count || 0,
     };
+  }
+
+  private async retryDatabaseOperation<T>(operation: () => Promise<T>, maxRetries: number = 3): Promise<T> {
+    let lastError: Error;
+
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error as Error;
+        console.warn(`Database operation failed (attempt ${i + 1}/${maxRetries}):`, error);
+
+        if (i < maxRetries - 1) {
+          // Wait before retrying (exponential backoff)
+          const delay = Math.pow(2, i) * 1000;
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    throw lastError!;
   }
 }

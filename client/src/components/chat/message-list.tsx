@@ -12,6 +12,7 @@ import PhotoMessage from './photo-message';
 import { Button } from '@/components/ui/button';
 import { UserProfileMenu } from './user-profile-menu';
 import { useResponsive } from '@/hooks/use-responsive';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface MessageListProps {
   messages: MessageWithUser[];
@@ -172,6 +173,9 @@ export default function MessageList({
     );
   }
 
+  // Use a separate array for mapping to ensure unique keys
+  const displayMessages = messages;
+
   return (
     <div 
       ref={containerRef}
@@ -209,7 +213,7 @@ export default function MessageList({
         </div>
       )}
 
-      {messages.map((message) => {
+      {displayMessages.map((message) => {
         const isOwnMessage = message.userId === currentUser.id;
 
         // Handle photo messages
