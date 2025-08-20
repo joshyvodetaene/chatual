@@ -208,33 +208,33 @@ export default function SearchModal({
               </TabsTrigger>
             </TabsList>
 
-            <ScrollArea className={cn(isMobile ? "h-96" : "h-64")}>
+            <ScrollArea className={cn(isMobile ? "h-80" : "h-56", "border-t border-gray-200 dark:border-gray-700 mt-4 pt-4")}>
               {/* Loading State */}
               {isLoading && debouncedQuery && (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                <div className="flex items-center justify-center py-6">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
                   <span className="ml-2 text-sm text-gray-500">Searching...</span>
                 </div>
               )}
 
               {/* No Query State */}
               {!debouncedQuery && (
-                <div className="text-center py-8">
-                  <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <div className="text-center py-6">
+                  <Search className="w-10 h-10 text-gray-300 mx-auto mb-3" />
                   <p className="text-gray-500 text-sm">Start typing to search</p>
                 </div>
               )}
 
               {/* No Results State */}
               {debouncedQuery && !isLoading && !hasResults && (
-                <div className="text-center py-8">
-                  <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <div className="text-center py-6">
+                  <Search className="w-10 h-10 text-gray-300 mx-auto mb-3" />
                   <p className="text-gray-500 text-sm">No results found for "{debouncedQuery}"</p>
                 </div>
               )}
 
               {/* All Results */}
-              <TabsContent value="all" className="space-y-4">
+              <TabsContent value="all" className="space-y-3 max-h-full overflow-hidden">
                 {/* Messages Section */}
                 {messagesData?.results && messagesData.results.length > 0 && (
                   <div>
