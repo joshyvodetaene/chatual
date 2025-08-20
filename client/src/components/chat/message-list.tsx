@@ -246,9 +246,23 @@ export default function MessageList({
               onStartPrivateChat={onStartPrivateChat}
               disabled={isOwnMessage}
             >
-              {(message.user.primaryPhoto?.photoUrl || (message.user.photos && message.user.photos.length > 0)) ? (
+              {/* Always try to show profile picture first, fallback to avatar */}
+              {message.user.primaryPhoto?.photoUrl ? (
                 <img 
-                  src={message.user.primaryPhoto?.photoUrl || message.user.photos[0]?.photoUrl}
+                  src={message.user.primaryPhoto.photoUrl}
+                  alt={`${message.user.displayName} profile`}
+                  className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full object-cover flex-shrink-0 cursor-pointer border-2 border-white shadow-sm"
+                  onError={(e) => {
+                    // Fallback to initials if image fails to load
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    const fallback = target.nextElementSibling as HTMLElement;
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+              ) : (message.user.photos && message.user.photos.length > 0) ? (
+                <img 
+                  src={message.user.photos[0].photoUrl}
                   alt={`${message.user.displayName} profile`}
                   className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full object-cover flex-shrink-0 cursor-pointer border-2 border-white shadow-sm"
                   onError={(e) => {
@@ -260,7 +274,7 @@ export default function MessageList({
                   }}
                 />
               ) : null}
-              {/* Fallback avatar - hidden by default, shown if image fails to load */}
+              {/* Fallback avatar - hidden by default, shown if image fails to load or no profile picture */}
               <div 
                 className={cn(
                   "w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white text-xs sm:text-sm md:text-base font-medium flex-shrink-0 cursor-pointer",
