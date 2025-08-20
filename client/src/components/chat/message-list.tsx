@@ -175,7 +175,7 @@ export default function MessageList({
   return (
     <div 
       ref={containerRef}
-      className="flex-1 overflow-y-auto hide-scrollbar p-2 sm:p-3 md:p-4 lg:p-6 space-y-1 sm:space-y-2 md:space-y-3" 
+      className="flex-1 overflow-y-auto hide-scrollbar p-2 sm:p-3 md:p-4 lg:p-6 space-y-0.5" 
       data-testid="message-list"
     >
       {/* Loading indicator for initial load */}
@@ -235,7 +235,7 @@ export default function MessageList({
           <div
             key={message.id}
             className={cn(
-              "flex items-start space-x-1 sm:space-x-2 md:space-x-3",
+              "flex items-start space-x-2",
               isOwnMessage && "flex-row-reverse space-x-reverse"
             )}
             data-testid={`message-${message.id}`}
@@ -263,7 +263,7 @@ export default function MessageList({
             </UserProfileMenu>
             <div className={cn("flex-1", isOwnMessage && "text-right")}>
               <div className={cn(
-                "flex items-baseline space-x-1 sm:space-x-2 md:space-x-3 mb-0.5",
+                "flex items-baseline space-x-2 mb-1",
                 isOwnMessage && "justify-end"
               )}>
                 {!isOwnMessage && (
@@ -290,7 +290,7 @@ export default function MessageList({
               )}>
                 <div className={cn(
                   "rounded-2xl relative break-words",
-                  "p-2 sm:p-2.5 md:p-3 lg:p-4",
+                  "p-2.5",
                   "max-w-[85%] sm:max-w-xs md:max-w-md lg:max-w-lg xl:max-w-xl",
                   "bg-black text-white border border-gray-700 shadow-sm",
                   isOwnMessage
@@ -299,7 +299,7 @@ export default function MessageList({
                 )}>
                   <p className={cn(
                     "leading-relaxed",
-                    "text-xs sm:text-sm md:text-base lg:text-lg",
+                    "text-sm",
                     "text-white"
                   )}>
                     {message.content}
@@ -348,7 +348,7 @@ export default function MessageList({
         if (!typingUser || userId === currentUser.id) return null;
 
         return (
-          <div key={userId} className="flex items-start space-x-2" data-testid="typing-indicator">
+          <div key={userId} className="flex items-start space-x-2 mt-1" data-testid="typing-indicator">
             <UserProfileMenu
               user={typingUser}
               currentUser={currentUser}
