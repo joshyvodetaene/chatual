@@ -246,20 +246,33 @@ export default function MessageList({
               onStartPrivateChat={onStartPrivateChat}
               disabled={isOwnMessage}
             >
-              {message.user.primaryPhoto?.photoUrl ? (
+              {(message.user.primaryPhoto?.photoUrl || (message.user.photos && message.user.photos.length > 0)) ? (
                 <img 
-                  src={message.user.primaryPhoto.photoUrl}
+                  src={message.user.primaryPhoto?.photoUrl || message.user.photos[0]?.photoUrl}
                   alt={`${message.user.displayName} profile`}
-                  className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full object-cover flex-shrink-0 cursor-pointer border-2 border-white"
+                  className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full object-cover flex-shrink-0 cursor-pointer border-2 border-white shadow-sm"
+                  onError={(e) => {
+                    // Fallback to initials if image fails to load
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    const fallback = target.nextElementSibling as HTMLElement;
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
                 />
-              ) : (
-                <div className={cn(
+              ) : null}
+              {/* Fallback avatar - hidden by default, shown if image fails to load */}
+              <div 
+                className={cn(
                   "w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white text-xs sm:text-sm md:text-base font-medium flex-shrink-0 cursor-pointer",
-                  isOwnMessage ? "bg-primary" : getAvatarColor(message.user.displayName)
-                )}>
-                  {getInitials(message.user.displayName)}
-                </div>
-              )}
+                  isOwnMessage ? "bg-primary" : getAvatarColor(message.user.displayName),
+                  (message.user.primaryPhoto?.photoUrl || (message.user.photos && message.user.photos.length > 0)) ? "hidden" : "flex"
+                )}
+                style={{ 
+                  display: (message.user.primaryPhoto?.photoUrl || (message.user.photos && message.user.photos.length > 0)) ? 'none' : 'flex' 
+                }}
+              >
+                {getInitials(message.user.displayName)}
+              </div>
             </UserProfileMenu>
             <div className={cn("flex-1", isOwnMessage && "text-right")}>
               <div className={cn(
@@ -354,20 +367,33 @@ export default function MessageList({
               currentUser={currentUser}
               onStartPrivateChat={onStartPrivateChat}
             >
-              {typingUser.primaryPhoto?.photoUrl ? (
+              {(typingUser.primaryPhoto?.photoUrl || (typingUser.photos && typingUser.photos.length > 0)) ? (
                 <img 
-                  src={typingUser.primaryPhoto.photoUrl}
+                  src={typingUser.primaryPhoto?.photoUrl || typingUser.photos[0]?.photoUrl}
                   alt={`${typingUser.displayName} profile`}
-                  className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full object-cover flex-shrink-0 cursor-pointer border-2 border-white"
+                  className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full object-cover flex-shrink-0 cursor-pointer border-2 border-white shadow-sm"
+                  onError={(e) => {
+                    // Fallback to initials if image fails to load
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    const fallback = target.nextElementSibling as HTMLElement;
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
                 />
-              ) : (
-                <div className={cn(
+              ) : null}
+              {/* Fallback avatar - hidden by default, shown if image fails to load */}
+              <div 
+                className={cn(
                   "w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white text-xs sm:text-sm md:text-base font-medium flex-shrink-0 cursor-pointer",
-                  getAvatarColor(typingUser.displayName)
-                )}>
-                  {getInitials(typingUser.displayName)}
-                </div>
-              )}
+                  getAvatarColor(typingUser.displayName),
+                  (typingUser.primaryPhoto?.photoUrl || (typingUser.photos && typingUser.photos.length > 0)) ? "hidden" : "flex"
+                )}
+                style={{ 
+                  display: (typingUser.primaryPhoto?.photoUrl || (typingUser.photos && typingUser.photos.length > 0)) ? 'none' : 'flex' 
+                }}
+              >
+                {getInitials(typingUser.displayName)}
+              </div>
             </UserProfileMenu>
             <div className="flex-1">
               <div className="flex items-baseline space-x-2 mb-0.5">
