@@ -191,7 +191,7 @@ export default function MessageInput({
       }, 0);
     }
 
-    setShowEmojiPicker(false);
+    // Keep emoji picker open for multiple selections
   };
 
   // Handle click outside emoji picker

@@ -106,6 +106,7 @@ export default function EmojiPicker({ onEmojiSelect, isOpen, onToggle }: EmojiPi
 
   const handleEmojiClick = (emoji: string) => {
     onEmojiSelect(emoji);
+    // Keep picker open for multiple emoji selection
   };
 
   return (
