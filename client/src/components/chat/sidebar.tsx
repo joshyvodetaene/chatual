@@ -1,12 +1,9 @@
 import { User, Room, PrivateRoom } from '@shared/schema';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Hash, Lock, Plus, Settings, X, Search } from 'lucide-react';
+import { MessageCircle, Hash, Lock, Plus, Settings, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import SearchModal from '@/components/search/search-modal';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
 
 interface SidebarProps {
   currentUser: User;
@@ -41,51 +38,7 @@ export default function Sidebar({
   // State für den aktiven Tab (Räume oder Private Chats)
   const [activeTab, setActiveTab] = useState<'rooms' | 'private'>('rooms');
   const [showSearch, setShowSearch] = useState(false);
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
   
-  const deletePrivateChatMutation = useMutation({
-    mutationFn: async (roomId: string) => {
-      console.log(`[SIDEBAR] Deleting private chat: ${roomId} for user: ${currentUser.id}`);
-      const response = await apiRequest('DELETE', `/api/private-chat/${roomId}`, {
-        userId: currentUser.id
-      });
-      console.log(`[SIDEBAR] Delete private chat response status: ${response.status}`);
-      return response;
-    },
-    onSuccess: () => {
-      console.log(`[SIDEBAR] Private chat deleted successfully`);
-      toast({
-        title: "Chat closed",
-        description: "Private chat has been closed.",
-      });
-      // Refresh chat data
-      console.log(`[SIDEBAR] Invalidating chat data queries`);
-      queryClient.invalidateQueries({ queryKey: ['/api/chat-data', currentUser.id] });
-    },
-    onError: (error: any) => {
-      console.error(`[SIDEBAR] Error deleting private chat:`, error);
-      toast({
-        title: "Error",
-        description: error?.message || "Failed to close private chat",
-        variant: "destructive",
-      });
-    },
-  });
-  
-  const handleClosePrivateChat = (e: React.MouseEvent, roomId: string) => {
-    e.stopPropagation(); // Prevent triggering the chat selection
-    
-    // If closing the currently active private chat, switch to general room
-    if (activeRoom?.id === roomId) {
-      const generalRoom = rooms.find(room => !room.isPrivate);
-      if (generalRoom) {
-        onRoomSelect(generalRoom);
-      }
-    }
-    
-    deletePrivateChatMutation.mutate(roomId);
-  };
 
   // Hilfsfunktion: Erstellt Initialen aus dem Namen (z.B. "John Doe" → "JD")
   const getInitials = (name: string) => {
@@ -356,21 +309,6 @@ export default function Sidebar({
                         Private chat
                       </p>
                     </div>
-                    {/* Close Button */}
-                    <button
-                      onClick={(e) => handleClosePrivateChat(e, privateRoom.id)}
-                      className={cn(
-                        "opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out transform hover:scale-110 active:scale-95 hover:rotate-90 p-1 rounded-full hover:bg-red-500 hover:text-white hover:shadow-lg",
-                        activeRoom?.id === privateRoom.id
-                          ? "text-white hover:bg-red-500"
-                          : "text-gray-400 hover:bg-red-500 hover:text-white",
-                        deletePrivateChatMutation.isPending && "opacity-50 cursor-not-allowed"
-                      )}
-                      disabled={deletePrivateChatMutation.isPending}
-                      data-testid={`close-private-chat-${privateRoom.id}`}
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
                   </div>
                 ))}
                 
