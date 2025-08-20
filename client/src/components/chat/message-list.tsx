@@ -290,7 +290,7 @@ export default function MessageList({
                     currentUser={currentUser}
                     onStartPrivateChat={onStartPrivateChat}
                   >
-                    <span className="text-xs sm:text-sm md:text-base font-semibold text-gray-900 cursor-pointer hover:text-primary transition-colors">
+                    <span className="text-xs sm:text-sm md:text-base font-semibold text-white cursor-pointer hover:text-primary transition-colors">
                       {message.user.displayName}
                     </span>
                   </UserProfileMenu>
@@ -299,7 +299,7 @@ export default function MessageList({
                   {formatTime(message.createdAt!)}
                 </span>
                 {isOwnMessage && (
-                  <span className="text-sm font-semibold text-gray-900">You</span>
+                  <span className="text-sm font-semibold text-white">You</span>
                 )}
               </div>
               <div className={cn(
@@ -407,7 +407,7 @@ export default function MessageList({
                   currentUser={currentUser}
                   onStartPrivateChat={onStartPrivateChat}
                 >
-                  <span className="text-sm font-semibold text-gray-900 cursor-pointer hover:text-primary transition-colors">
+                  <span className="text-sm font-semibold text-white cursor-pointer hover:text-primary transition-colors">
                     {typingUser.displayName}
                   </span>
                 </UserProfileMenu>
