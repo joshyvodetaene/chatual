@@ -260,29 +260,16 @@ export default function MessageList({
                     if (fallback) fallback.style.display = 'flex';
                   }}
                 />
-              ) : (message.user.photos && message.user.photos.length > 0) ? (
-                <img 
-                  src={message.user.photos[0].photoUrl}
-                  alt={`${message.user.displayName} profile`}
-                  className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full object-cover flex-shrink-0 cursor-pointer border-2 border-white shadow-sm"
-                  onError={(e) => {
-                    // Fallback to initials if image fails to load
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                    const fallback = target.nextElementSibling as HTMLElement;
-                    if (fallback) fallback.style.display = 'flex';
-                  }}
-                />
               ) : null}
               {/* Fallback avatar - hidden by default, shown if image fails to load or no profile picture */}
               <div 
                 className={cn(
                   "w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white text-xs sm:text-sm md:text-base font-medium flex-shrink-0 cursor-pointer",
                   isOwnMessage ? "bg-primary" : getAvatarColor(message.user.displayName),
-                  (message.user.primaryPhoto?.photoUrl || (message.user.photos && message.user.photos.length > 0)) ? "hidden" : "flex"
+                  message.user.primaryPhoto?.photoUrl ? "hidden" : "flex"
                 )}
                 style={{ 
-                  display: (message.user.primaryPhoto?.photoUrl || (message.user.photos && message.user.photos.length > 0)) ? 'none' : 'flex' 
+                  display: message.user.primaryPhoto?.photoUrl ? 'none' : 'flex' 
                 }}
               >
                 {getInitials(message.user.displayName)}
@@ -381,9 +368,9 @@ export default function MessageList({
               currentUser={currentUser}
               onStartPrivateChat={onStartPrivateChat}
             >
-              {(typingUser.primaryPhoto?.photoUrl || (typingUser.photos && typingUser.photos.length > 0)) ? (
+              {typingUser.primaryPhoto?.photoUrl ? (
                 <img 
-                  src={typingUser.primaryPhoto?.photoUrl || typingUser.photos[0]?.photoUrl}
+                  src={typingUser.primaryPhoto.photoUrl}
                   alt={`${typingUser.displayName} profile`}
                   className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full object-cover flex-shrink-0 cursor-pointer border-2 border-white shadow-sm"
                   onError={(e) => {
@@ -400,10 +387,10 @@ export default function MessageList({
                 className={cn(
                   "w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white text-xs sm:text-sm md:text-base font-medium flex-shrink-0 cursor-pointer",
                   getAvatarColor(typingUser.displayName),
-                  (typingUser.primaryPhoto?.photoUrl || (typingUser.photos && typingUser.photos.length > 0)) ? "hidden" : "flex"
+                  typingUser.primaryPhoto?.photoUrl ? "hidden" : "flex"
                 )}
                 style={{ 
-                  display: (typingUser.primaryPhoto?.photoUrl || (typingUser.photos && typingUser.photos.length > 0)) ? 'none' : 'flex' 
+                  display: typingUser.primaryPhoto?.photoUrl ? 'none' : 'flex' 
                 }}
               >
                 {getInitials(typingUser.displayName)}

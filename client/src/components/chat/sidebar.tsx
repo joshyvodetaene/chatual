@@ -114,7 +114,7 @@ export default function Sidebar({
   return (
     /* Haupt-Container der Sidebar */
     <div className={cn(
-      "w-full sm:w-72 md:w-80 lg:w-96 h-full bg-card/90 backdrop-blur-sm border-r border-primary/20 flex flex-col",
+      "w-full sm:w-60 md:w-64 lg:w-72 h-full bg-card/90 backdrop-blur-sm border-r border-primary/20 flex flex-col",
       className
     )} data-testid="sidebar">
       {/* Header-Bereich mit App-Logo und Raum-erstellen Button */}
