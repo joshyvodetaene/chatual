@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { MobileMenu } from '@/components/ui/mobile-menu';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useTheme } from '@/contexts/ThemeContext';
-import { Hash, Users, Search, Settings, LogOut, Shield, Menu } from 'lucide-react';
+import { Hash, Search, Settings, LogOut, Shield, Menu } from 'lucide-react';
 import { BackButton } from '@/components/ui/back-button';
 import { ConnectionStatusIndicator } from '@/components/chat/connection-status';
 import { useToast } from '@/hooks/use-toast';
@@ -33,7 +33,6 @@ export default function ChatPage() {
   });
   const [activeRoom, setActiveRoom] = useState<Room | null>(null);
   const activeRoomRef = useRef<Room | null>(null);
-  const [showUserList, setShowUserList] = useState(false);
   const [showSidebarMobile, setShowSidebarMobile] = useState(false);
   const { isMobile, isTablet, isDesktop, isSmallMobile, isLargeMobile } = useResponsive();
   const { toast } = useToast();
@@ -387,13 +386,6 @@ export default function ChatPage() {
     }
   }, [roomsData?.rooms, activeRoom, currentUser]);
 
-  // Auto-show user list on desktop, hide on mobile/tablet
-  useEffect(() => {
-    if (currentUser) {
-      setShowUserList(isDesktop);
-      console.log('Setting showUserList to:', isDesktop, 'for device type:', { isMobile, isTablet, isDesktop });
-    }
-  }, [isDesktop, currentUser, isMobile, isTablet]);
 
   const handleSendMessage = (content: string, photoUrl?: string, photoFileName?: string) => {
     if (!currentUser?.id) return;
@@ -614,19 +606,6 @@ export default function ChatPage() {
           </div>
 
           <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowUserList(!showUserList)}
-              className={cn(
-                "text-white hover:bg-white hover:bg-opacity-10 hover:text-white",
-                showUserList && "bg-white bg-opacity-20 text-white"
-              )}
-              data-testid="button-toggle-user-list"
-            >
-              <Users className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
-            </Button>
-
             <Link href="/settings">
               <Button
                 variant="ghost"
@@ -694,32 +673,6 @@ export default function ChatPage() {
         />
       </div>
 
-      {/* Mobile User List Modal */}
-      {(isMobile || isTablet) && showUserList && activeRoomData?.room && (
-        <MobileMenu
-          side="right"
-          className="w-72 sm:w-80 md:w-96"
-        >
-          <UserList
-            room={activeRoomData.room}
-            onlineUsers={roomOnlineUsers}
-            currentUser={currentUser}
-            onStartPrivateChat={handleStartPrivateChat}
-            blockedUserIds={new Set(blockedUsersData?.map(bu => bu.blockedId) || [])}
-          />
-        </MobileMenu>
-      )}
-
-      {/* Desktop User List */}
-      {isDesktop && showUserList && activeRoomData?.room && (
-        <UserList
-          room={activeRoomData.room}
-          onlineUsers={roomOnlineUsers}
-          currentUser={currentUser}
-          onStartPrivateChat={handleStartPrivateChat}
-          blockedUserIds={new Set(blockedUsersData?.map(bu => bu.blockedId) || [])}
-        />
-      )}
 
       {/* Create Room Modal */}
       <CreateRoomModal
