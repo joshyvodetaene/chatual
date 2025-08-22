@@ -153,6 +153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 photoUrl: normalizedPhotoUrl,
                 photoFileName: message.photoFileName,
                 messageType: message.messageType || 'text',
+                mentionedUserIds: message.mentionedUserIds || [],
               });
               
               console.log('[WEBSOCKET] Created message:', {

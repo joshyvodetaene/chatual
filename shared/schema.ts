@@ -47,6 +47,7 @@ export const messages = pgTable("messages", {
   photoUrl: varchar("photo_url"),
   photoFileName: varchar("photo_file_name"),
   messageType: varchar("message_type").notNull().default("text"), // "text", "photo"
+  mentionedUserIds: varchar("mentioned_user_ids").array(), // Array of mentioned user IDs
 });
 
 // Message reactions table

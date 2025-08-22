@@ -7,7 +7,7 @@ import { useResponsive } from '@/hooks/use-responsive';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import Sidebar from '@/components/chat/sidebar';
 import MessageList from '@/components/chat/message-list';
-import MessageInput from '@/components/chat/message-input';
+import MessageInputEnhanced from '@/components/chat/message-input-enhanced';
 import UserList from '@/components/chat/user-list';
 import CreateRoomModal from '@/components/chat/create-room-modal';
 import AuthScreen from '@/components/auth/auth-screen';
@@ -335,7 +335,7 @@ export default function ChatPage() {
     }
   }, [isDesktop, currentUser, isMobile, isTablet]);
 
-  const handleSendMessage = (content: string, photoUrl?: string, photoFileName?: string) => {
+  const handleSendMessage = (content: string, photoUrl?: string, photoFileName?: string, mentionedUserIds?: string[]) => {
     if (!currentUser?.id) return;
 
     // Use multiple fallback strategies to find a room
@@ -392,7 +392,7 @@ export default function ChatPage() {
       return;
     }
 
-    sendMessage(content, photoUrl, photoFileName);
+    sendMessage(content, photoUrl, photoFileName, mentionedUserIds);
   };
 
   const handleStartPrivateChat = async (userId: string) => {
@@ -623,7 +623,7 @@ export default function ChatPage() {
         />
 
         {/* Message Input */}
-        <MessageInput
+        <MessageInputEnhanced
           onSendMessage={handleSendMessage}
           onTyping={(isTyping: boolean) => {
             if (activeRoom?.id && currentUser?.id) {
@@ -631,6 +631,8 @@ export default function ChatPage() {
             }
           }}
           disabled={!isConnected || !activeRoom}
+          currentUser={currentUser}
+          roomId={activeRoom?.id}
         />
       </div>
 
