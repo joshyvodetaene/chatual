@@ -71,11 +71,6 @@ export function PhotoUploader({
         console.log('Photo upload complete:', result);
         onComplete?.(result);
         setShowModal(false);
-        
-        // Reset Uppy for next upload
-        setTimeout(() => {
-          uppy.reset();
-        }, 100);
       })
       .on("upload", () => {
         console.log('Photo upload started');
