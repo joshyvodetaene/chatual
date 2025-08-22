@@ -39,59 +39,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Helper function to broadcast to room
   function broadcastToRoom(roomId: string, message: any, excludeUserId?: string) {
-    console.log(`[BROADCAST] Broadcasting to room ${roomId}, message type: ${message.type}, excludeUserId: ${excludeUserId}`);
-    console.log(`[BROADCAST] Total clients in map: ${clients.size}`);
-    
-    // Debug: show all clients and their room assignments
-    Array.from(clients.entries()).forEach(([userId, client]) => {
-      console.log(`[BROADCAST] Client ${userId}: roomId=${client.roomId}, readyState=${client.readyState}, open=${client.readyState === WebSocket.OPEN}`);
-    });
-    
     let sentCount = 0;
     let totalInRoom = 0;
     Array.from(clients.values()).forEach(client => {
       if (client.roomId === roomId) {
         totalInRoom++;
         if (client.readyState === WebSocket.OPEN && client.userId !== excludeUserId) {
-          console.log(`[BROADCAST] Sending to client ${client.userId}`);
           client.send(JSON.stringify(message));
           sentCount++;
-        } else {
-          console.log(`[BROADCAST] Skipping client ${client.userId}: readyState=${client.readyState}, excluded=${client.userId === excludeUserId}`);
         }
       }
     });
-    console.log(`[BROADCAST] Room ${roomId} has ${totalInRoom} clients, sent to ${sentCount} clients`);
+    // Broadcast completed
   }
 
   // Helper function to broadcast to specific user
   function broadcastToUser(userId: string, message: any) {
-    console.log(`[BROADCAST] Broadcasting to user ${userId}, message type: ${message.type}`);
     const client = clients.get(userId);
     if (client && client.readyState === WebSocket.OPEN) {
-      console.log(`[BROADCAST] Sending notification to user ${userId}`);
       client.send(JSON.stringify(message));
       return true;
     } else {
-      console.log(`[BROADCAST] User ${userId} not connected or connection not open`);
       return false;
     }
   }
 
   // Helper functions for room user management
   function addUserToRoom(roomId: string, userId: string) {
-    console.log(`[ROOM_USERS] Adding user ${userId} to room ${roomId}`);
     if (!roomUsers.has(roomId)) {
-      console.log(`[ROOM_USERS] Creating new user set for room ${roomId}`);
       roomUsers.set(roomId, new Set());
     }
     roomUsers.get(roomId)!.add(userId);
-    const roomUserCount = roomUsers.get(roomId)?.size || 0;
-    console.log(`[ROOM_USERS] Room ${roomId} now has ${roomUserCount} users`);
     
     // Broadcast updated online users for this room
     const onlineUsers = Array.from(roomUsers.get(roomId) || []);
-    console.log(`[ROOM_USERS] Broadcasting online users to room ${roomId}:`, onlineUsers);
     broadcastToRoom(roomId, {
       type: 'room_online_users',
       roomId,
@@ -100,50 +81,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   function removeUserFromRoom(roomId: string, userId: string) {
-    console.log(`[ROOM_USERS] Removing user ${userId} from room ${roomId}`);
     if (roomUsers.has(roomId)) {
       const wasRemoved = roomUsers.get(roomId)!.delete(userId);
-      console.log(`[ROOM_USERS] User ${userId} ${wasRemoved ? 'successfully removed' : 'was not in room'} ${roomId}`);
-      const roomUserCount = roomUsers.get(roomId)?.size || 0;
-      console.log(`[ROOM_USERS] Room ${roomId} now has ${roomUserCount} users`);
       
       // Broadcast updated online users for this room
       const onlineUsers = Array.from(roomUsers.get(roomId) || []);
-      console.log(`[ROOM_USERS] Broadcasting updated online users to room ${roomId}:`, onlineUsers);
       broadcastToRoom(roomId, {
         type: 'room_online_users',
         roomId,
         onlineUsers
       });
-    } else {
-      console.log(`[ROOM_USERS] Room ${roomId} does not exist when trying to remove user ${userId}`);
     }
   }
 
   // WebSocket connection handling
   wss.on('connection', (ws: WebSocketClient) => {
-    console.log(`[WEBSOCKET] New WebSocket client connected at ${new Date().toISOString()}`);
-    console.log(`[WEBSOCKET] Total connected clients: ${wss.clients.size}`);
-
     ws.on('message', async (data) => {
       try {
         const message = JSON.parse(data.toString());
-        console.log(`[WEBSOCKET] Received message from ${ws.userId || 'unknown'}: type=${message.type}`);
-        console.log(`[WEBSOCKET] Full message data:`, message);
         
         switch (message.type) {
           case 'join':
-            console.log(`[WEBSOCKET] Processing join request: userId=${message.userId}, roomId=${message.roomId}`);
             // Remove user from previous room if any
             if (ws.roomId && ws.userId) {
-              console.log(`[WEBSOCKET] User ${ws.userId} leaving previous room ${ws.roomId}`);
               removeUserFromRoom(ws.roomId, ws.userId);
             }
             
             // Check if user already has a connection and close it
             const existingConnection = clients.get(message.userId);
             if (existingConnection && existingConnection !== ws) {
-              console.log(`[WEBSOCKET] Closing existing connection for user ${message.userId}`);
               existingConnection.close();
               clients.delete(message.userId);
             }
@@ -151,24 +117,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ws.userId = message.userId;
             ws.roomId = message.roomId;
             clients.set(message.userId, ws);
-            console.log(`[WEBSOCKET] User ${message.userId} stored in clients map, total clients: ${clients.size}`);
-            
-            // Debug: log all current connections
-            console.log(`[WEBSOCKET] Current connections:`);
-            Array.from(clients.entries()).forEach(([userId, client]) => {
-              console.log(`[WEBSOCKET]  - User ${userId}: room=${client.roomId}, state=${client.readyState}`);
-            });
             
             // Update user online status
-            console.log(`[WEBSOCKET] Updating online status for user ${message.userId}`);
             await storage.updateUserOnlineStatus(message.userId, true);
             
             // Add user to new room
-            console.log(`[WEBSOCKET] Adding user ${message.userId} to room ${message.roomId}`);
             addUserToRoom(message.roomId, message.userId);
             
             // Broadcast user joined
-            console.log(`[WEBSOCKET] Broadcasting user_joined event for ${message.userId} in room ${message.roomId}`);
             broadcastToRoom(message.roomId, {
               type: 'user_joined',
               userId: message.userId,

@@ -66,7 +66,6 @@ export function useOfflineQueue(config: OfflineQueueConfig = DEFAULT_CONFIG) {
       const newQueue = [...prev, queuedMessage];
       // Enforce max queue size
       if (newQueue.length > config.maxQueueSize) {
-        console.warn(`Offline queue exceeded max size (${config.maxQueueSize}). Removing oldest messages.`);
         return newQueue.slice(-config.maxQueueSize);
       }
       return newQueue;
@@ -113,20 +112,17 @@ export function useOfflineQueue(config: OfflineQueueConfig = DEFAULT_CONFIG) {
     setIsProcessing(true);
     const messagesToSend = getMessagesForSending();
     
-    console.log(`Processing ${messagesToSend.length} queued messages...`);
+    // Processing queued messages
 
     for (const message of messagesToSend) {
       try {
         const success = await sendFunction(message);
         if (success) {
           dequeueMessage(message.id);
-          console.log(`Sent queued message: ${message.id}`);
         } else {
           markMessageFailed(message.id);
-          console.warn(`Failed to send queued message: ${message.id}`);
         }
       } catch (error) {
-        console.error(`Error sending queued message ${message.id}:`, error);
         markMessageFailed(message.id);
       }
     }

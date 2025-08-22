@@ -33,13 +33,11 @@ export function usePaginatedMessages({
     
     if (cachedData) {
       // Restore cached messages for this room (preserving private chat history)
-      console.log(`[PAGINATED_MESSAGES] Restoring ${cachedData.messages.length} cached messages for room ${roomId}`);
       setAllMessages(cachedData.messages);
       setCursors(cachedData.cursors);
       setHasMorePages(cachedData.hasMorePages);
     } else {
       // New room, start fresh
-      console.log(`[PAGINATED_MESSAGES] Starting fresh for new room ${roomId}`);
       setAllMessages([]);
       setCursors({});
       setHasMorePages(true);

@@ -85,48 +85,38 @@ export class DatabaseStorage implements IStorage {
 
   // User methods
   async getUser(id: string): Promise<User | undefined> {
-    console.log(`[DB] Getting user by ID: ${id}`);
     try {
       const [user] = await db.select().from(users).where(eq(users.id, id));
-      console.log(`[DB] User lookup result: ${user ? 'found' : 'not found'} for ID ${id}`);
       return user;
     } catch (error) {
-      console.error(`[DB] Error getting user ${id}:`, error);
+      console.error(`Error getting user ${id}:`, error);
       throw error;
     }
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    console.log(`[DB] Getting user by username: ${username}`);
     try {
       const [user] = await db.select().from(users).where(eq(users.username, username));
-      console.log(`[DB] Username lookup result: ${user ? 'found' : 'not found'} for ${username}`);
       return user;
     } catch (error) {
-      console.error(`[DB] Error getting user by username ${username}:`, error);
+      console.error(`Error getting user by username ${username}:`, error);
       throw error;
     }
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    console.log(`[DB] Creating new user: ${user.username}`);
     try {
       const [newUser] = await db.insert(users).values(user).returning();
-      console.log(`[DB] User created successfully: ID ${newUser.id}, username ${newUser.username}`);
       return newUser;
     } catch (error) {
-      console.error(`[DB] Error creating user ${user.username}:`, error);
+      console.error(`Error creating user ${user.username}:`, error);
       throw error;
     }
   }
 
   async registerUser(user: RegisterUser): Promise<User> {
-    console.log(`[DB] Registering new user: ${user.username}`);
-    console.log(`[DB] Registration details:`, { ...user, password: '[REDACTED]' });
     try {
-      console.log(`[DB] Hashing password for user: ${user.username}`);
       const hashedPassword = await bcrypt.hash(user.password, 10);
-      console.log(`[DB] Password hashed successfully for: ${user.username}`);
 
       const newUser: InsertUser = {
         username: user.username,
@@ -144,12 +134,10 @@ export class DatabaseStorage implements IStorage {
         avatar: null,
       };
 
-      console.log(`[DB] Creating user record for: ${user.username}`);
       const result = await this.createUser(newUser);
-      console.log(`[DB] User registration completed: ${result.id}`);
       return result;
     } catch (error) {
-      console.error(`[DB] Error registering user ${user.username}:`, error);
+      console.error(`Error registering user ${user.username}:`, error);
       throw error;
     }
   }

@@ -23,12 +23,9 @@ import { Link } from 'wouter';
 import { cn } from '@/lib/utils';
 
 export default function ChatPage() {
-  console.log(`[CHAT_PAGE] ChatPage component initializing at ${new Date().toISOString()}`);
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    console.log(`[CHAT_PAGE] Loading user from localStorage`);
     const saved = localStorage.getItem('chatual_user');
     const user = saved ? JSON.parse(saved) : null;
-    console.log(`[CHAT_PAGE] User loaded:`, user ? `${user.username} (${user.id})` : 'none');
     return user;
   });
   const [activeRoom, setActiveRoom] = useState<Room | null>(null);
@@ -72,21 +69,11 @@ export default function ChatPage() {
     queryKey: ['/api/chat-data', currentUser?.id],
     queryFn: async () => {
       if (!currentUser?.id) return null;
-      console.log(`[CHAT_PAGE] Fetching chat data for user: ${currentUser.id}`);
       const response = await apiRequest('GET', `/api/chat-data/${currentUser.id}`);
       const data = await response.json();
-      console.log(`[CHAT_PAGE] Chat data received:`, {
-        roomCount: data.rooms?.length || 0,
-        privateRoomCount: data.privateRooms?.length || 0
-      });
 
-      // Ensure private rooms are always maintained
+      // Store private rooms in localStorage for persistence
       if (data.privateRooms && data.privateRooms.length > 0) {
-        console.log(`[CHAT_PAGE] Private rooms found:`, data.privateRooms.map((pr: any) => ({
-          id: pr.id,
-          participant: pr.participant2?.displayName
-        })));
-        // Store private rooms in localStorage for persistence
         localStorage.setItem(`chatual_private_rooms_${currentUser.id}`, JSON.stringify(data.privateRooms));
       }
 
@@ -171,7 +158,6 @@ export default function ChatPage() {
       setUserId(null);
       // Clear query cache but preserve specific keys for private rooms
       queryClient.clear();
-      console.log(`[CHAT_PAGE] Logout completed, private rooms preserved for user: ${userId}`);
     },
     onError: () => {
       // Even if logout fails on server, clear local state but preserve private rooms
@@ -181,45 +167,27 @@ export default function ChatPage() {
       // Reset theme context to login page (light theme)
       setUserId(null);
       queryClient.clear();
-      console.log(`[CHAT_PAGE] Logout failed but state cleared, private rooms preserved for user: ${userId}`);
     },
   });
 
   const handleAuthSuccess = (user: User) => {
-    console.log(`[CHAT_PAGE] Authentication successful for user: ${user.username} (${user.id})`);
     setCurrentUser(user);
     localStorage.setItem('chatual_user', JSON.stringify(user));
-    console.log(`[CHAT_PAGE] User data saved to localStorage`);
     // Set user ID for theme context
     setUserId(user.id);
-    console.log(`[CHAT_PAGE] Theme context userId set: ${user.id}`);
   };
 
   const handleLogout = () => {
-    console.log(`[CHAT_PAGE] Logout initiated for user: ${currentUser?.username}`);
     logoutMutation.mutate();
   };
 
   // Update rooms and private rooms when chat data changes
   useEffect(() => {
-    console.log(`[CHAT_PAGE] Chat data effect triggered:`, {
-      hasChatData: !!chatData,
-      hasCurrentUser: !!currentUser,
-      privateRoomsCount: chatData?.privateRooms?.length || 0
-    });
-
     if (currentUser) {
-      // Set rooms from chat data or fallback to empty array
-      if (chatData?.rooms) {
-        console.log(`[CHAT_PAGE] Setting ${chatData.rooms.length} rooms`);
-        // Rooms are handled by React Query cache
-      }
-
       // Handle private rooms with localStorage fallback
       let privateRoomsToSet: PrivateRoom[] = [];
       
       if (chatData?.privateRooms && chatData.privateRooms.length > 0) {
-        console.log(`[CHAT_PAGE] Setting ${chatData.privateRooms.length} private rooms from API`);
         privateRoomsToSet = chatData.privateRooms;
       } else {
         // Try to restore from localStorage if API doesn't return private rooms
@@ -228,27 +196,15 @@ export default function ChatPage() {
           try {
             const storedRooms = JSON.parse(stored);
             if (Array.isArray(storedRooms) && storedRooms.length > 0) {
-              console.log(`[CHAT_PAGE] Restoring ${storedRooms.length} private rooms from localStorage`);
               privateRoomsToSet = storedRooms;
             }
           } catch (e) {
-            console.log(`[CHAT_PAGE] Error parsing stored private rooms:`, e);
+            // Silent error handling for localStorage parsing
           }
         }
       }
 
       setPrivateRooms(privateRoomsToSet);
-
-      // Log each private room for debugging
-      if (privateRoomsToSet.length > 0) {
-        privateRoomsToSet.forEach((pr, index) => {
-          console.log(`[CHAT_PAGE] Private room ${index + 1}:`, {
-            id: pr.id,
-            participant1: pr.participant1?.displayName,
-            participant2: pr.participant2?.displayName
-          });
-        });
-      }
     }
   }, [chatData, currentUser]);
 
@@ -264,7 +220,6 @@ export default function ChatPage() {
                       !Array.from(paginatedIds).every(id => wsIds.has(id));
 
     if (needsSync && paginatedMessages.length > 0) {
-      console.log(`[CHAT_PAGE] Syncing ${paginatedMessages.length} paginated messages to WebSocket`);
       return paginatedMessages;
     }
 
@@ -280,14 +235,7 @@ export default function ChatPage() {
 
   // Handle new messages from WebSocket (filter by current room)
   useEffect(() => {
-    console.log(`[CHAT_PAGE] WebSocket message handling effect:`, {
-      hasCurrentUser: !!currentUser,
-      wsMessageCount: messages.length,
-      activeRoomId: activeRoom?.id,
-      paginatedMessageCount: paginatedMessages.length
-    });
     if (!currentUser || messages.length === 0 || !activeRoom?.id) {
-      console.log(`[CHAT_PAGE] Skipping message handling - missing requirements`);
       return;
     }
 
@@ -298,23 +246,19 @@ export default function ChatPage() {
     );
 
     if (newMessages.length > 0) {
-      console.log(`[CHAT_PAGE] Adding ${newMessages.length} new WebSocket messages`);
       newMessages.forEach(msg => addMessage(msg));
     }
   }, [messages, paginatedMessages, addMessage, currentUser, activeRoom?.id]);
 
   // Set user ID for theme context when user is available
   useEffect(() => {
-    console.log(`[CHAT_PAGE] Theme context effect - setting userId:`, currentUser?.id);
     if (currentUser) {
       setUserId(currentUser.id);
-      console.log(`[CHAT_PAGE] Theme userId set: ${currentUser.id}`);
     }
   }, [currentUser, setUserId]);
 
   // Optimize room join with async handling
   const handleRoomJoin = useCallback(async (roomId: string, userId: string) => {
-    console.log(`[CHAT_PAGE] Switching to room: ${roomId}`);
     currentJoinedRoom.current = roomId;
 
     // For private chats, preserve message history - only clear messages for public rooms
@@ -323,10 +267,7 @@ export default function ChatPage() {
     const isPrivateChat = currentRoomData?.isPrivate || false;
 
     if (!isPrivateChat) {
-      console.log(`[CHAT_PAGE] Clearing messages for public room`);
       setMessages([]);
-    } else {
-      console.log(`[CHAT_PAGE] Preserving message history for private chat`);
     }
 
     // Join room via WebSocket
@@ -335,9 +276,8 @@ export default function ChatPage() {
     // Join room on server asynchronously
     try {
       const response = await apiRequest('POST', `/api/rooms/${roomId}/join`, { userId });
-      console.log(`[CHAT_PAGE] Room join response status: ${response.status}`);
     } catch (error) {
-      console.error(`[CHAT_PAGE] Room join error:`, error);
+      console.error('Room join error:', error);
     }
   }, [joinRoom, setMessages, activeRoomData?.room, activeRoom]);
 

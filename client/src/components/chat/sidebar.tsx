@@ -28,13 +28,6 @@ export default function Sidebar({
   className,
   isMobile = false,
 }: SidebarProps) {
-  console.log(`[SIDEBAR] Sidebar rendered:`, {
-    userId: currentUser?.id,
-    roomCount: rooms?.length || 0,
-    privateRoomCount: privateRooms?.length || 0,
-    activeRoomId: activeRoom?.id,
-    isMobile
-  });
   // State für den aktiven Tab (Räume oder Private Chats)
   const [activeTab, setActiveTab] = useState<'rooms' | 'private'>('rooms');
   const [showSearch, setShowSearch] = useState(false);

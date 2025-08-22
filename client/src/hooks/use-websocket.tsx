@@ -63,15 +63,12 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
 
   // Connect to WebSocket with retry logic
   const connect = useCallback(() => {
-    console.log(`[WS_HOOK] Connect called: userId=${userId}, current readyState=${ws.current?.readyState}`);
     if (!userId || ws.current?.readyState === WebSocket.OPEN) {
-      console.log(`[WS_HOOK] Connection skipped - no userId or already open`);
       return;
     }
 
     // Clear any existing reconnect timeout
     if (reconnectTimeoutRef.current) {
-      console.log(`[WS_HOOK] Clearing existing reconnect timeout`);
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
