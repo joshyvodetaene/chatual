@@ -50,11 +50,6 @@ export function PhotoUploader({
   const [showModal, setShowModal] = useState(false);
   const { isMobile } = useResponsive();
   
-  const handleButtonClick = () => {
-    // Clear any existing files before opening modal
-    uppy.getFiles().forEach(file => uppy.removeFile(file.id));
-    setShowModal(true);
-  };
   const [uppy] = useState(() =>
     new Uppy({
       restrictions: {
@@ -79,6 +74,12 @@ export function PhotoUploader({
       })
   );
 
+  const handleButtonClick = () => {
+    // Clear any existing files before opening modal
+    uppy.getFiles().forEach(file => uppy.removeFile(file.id));
+    setShowModal(true);
+  };
+
   return (
     <div>
       <Button 
@@ -91,17 +92,19 @@ export function PhotoUploader({
         {children}
       </Button>
 
-      {showModal && (
-        <DashboardModal
-          uppy={uppy}
-          open={showModal}
-          onRequestClose={() => {
-            setShowModal(false);
-          }}
-          proudlyDisplayPoweredByUppy={false}
-          note="Images only, up to 10MB each"
-        />
-      )}
+      <DashboardModal
+        uppy={uppy}
+        open={showModal}
+        onRequestClose={() => {
+          setShowModal(false);
+        }}
+        proudlyDisplayPoweredByUppy={false}
+        note="Images only, up to 10MB each"
+        closeModalOnClickOutside={true}
+        showLinkToFileUploadResult={false}
+        showProgressDetails={true}
+        hideUploadButton={false}
+      />
     </div>
   );
 }
