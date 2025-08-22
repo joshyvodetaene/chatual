@@ -408,3 +408,26 @@
     font-size: 17px; /* Prevent zoom on iOS */
   }
 }
+
+/* Uppy modal styles to ensure proper visibility */
+.uppy-Dashboard--modal {
+  z-index: 9999 !important;
+}
+
+.uppy-Dashboard--modal .uppy-Dashboard-inner {
+  width: 90vw !important;
+  max-width: 700px !important;
+  height: 70vh !important;
+  min-height: 400px !important;
+}
+
+.uppy-Dashboard-overlay {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+@media (max-width: 768px) {
+  .uppy-Dashboard--modal .uppy-Dashboard-inner {
+    width: 95vw !important;
+    height: 80vh !important;
+  }
+}

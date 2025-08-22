@@ -61,7 +61,7 @@ export function PhotoUploader({
         maxFileSize,
         allowedFileTypes: ['image/*'],
       },
-      autoProceed: false,
+      autoProceed: true, // Automatically start upload when files are added
     })
       .use(AwsS3, {
         shouldUseMultipart: false,
@@ -92,16 +92,18 @@ export function PhotoUploader({
         {children}
       </Button>
 
-      <DashboardModal
-        uppy={uppy}
-        open={showModal}
-        onRequestClose={() => {
-          console.log('Photo upload modal closed');
-          setShowModal(false);
-        }}
-        proudlyDisplayPoweredByUppy={false}
-        note="Images only, up to 10MB each"
-      />
+      {showModal && (
+        <DashboardModal
+          uppy={uppy}
+          open={showModal}
+          onRequestClose={() => {
+            console.log('Photo upload modal closed');
+            setShowModal(false);
+          }}
+          proudlyDisplayPoweredByUppy={false}
+          note="Images only, up to 10MB each"
+        />
+      )}
     </div>
   );
 }
