@@ -67,6 +67,10 @@ export function PhotoUploader({
         if (result.successful && result.successful.length > 0) {
           onComplete?.(result);
           setShowModal(false);
+          // Restore scrolling when modal closes
+          if (isMobile) {
+            document.body.style.overflow = '';
+          }
         }
       })
       .on("upload-error", (file, error) => {
@@ -78,6 +82,11 @@ export function PhotoUploader({
     // Clear any existing files before opening modal
     uppy.getFiles().forEach(file => uppy.removeFile(file.id));
     setShowModal(true);
+    
+    // Prevent background scrolling on mobile when modal is open
+    if (isMobile) {
+      document.body.style.overflow = 'hidden';
+    }
   };
 
   return (
@@ -97,6 +106,10 @@ export function PhotoUploader({
         open={showModal}
         onRequestClose={() => {
           setShowModal(false);
+          // Restore scrolling when modal closes
+          if (isMobile) {
+            document.body.style.overflow = '';
+          }
         }}
         proudlyDisplayPoweredByUppy={false}
         note="Images only, up to 10MB each"
