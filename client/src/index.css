@@ -381,26 +381,12 @@
 
   /* Better tap highlighting */
   * {
-    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
-  }
-
-  /* Dark mode tap highlighting */
-  .dark * {
     -webkit-tap-highlight-color: rgba(255, 255, 255, 0.1);
   }
 
   /* Optimize viewport */
   body {
     overflow-x: hidden;
-  }
-
-  /* Improve button spacing */
-  .flex.items-center.gap-1 {
-    gap: 0.5rem;
-  }
-
-  .flex.items-center.gap-2 {
-    gap: 0.75rem;
   }
 }
 
@@ -446,10 +432,9 @@
   min-height: 350px !important;
   position: relative !important;
   margin: 0 !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
-  border-radius: 16px !important;
-  background: hsl(var(--background)) !important;
-  border: 1px solid hsl(var(--border)) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3) !important;
+  border-radius: 12px !important;
+  background: white !important;
   overflow: hidden !important;
 }
 
@@ -465,18 +450,7 @@
 
 /* Ensure the modal appears on top and is centered */
 .uppy-Dashboard--modal .uppy-Dashboard {
-  border-radius: 16px !important;
-  background: hsl(var(--background)) !important;
-  color: hsl(var(--foreground)) !important;
-}
-
-/* Dark mode styles for uppy components */
-.dark .uppy-Dashboard--modal .uppy-Dashboard-inner {
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
-}
-
-.dark .uppy-Dashboard-overlay {
-  background-color: rgba(0, 0, 0, 0.8) !important;
+  border-radius: 12px !important;
 }
 
 @media (max-width: 768px) {
@@ -490,50 +464,4 @@
     max-height: 80vh !important;
     min-height: 300px !important;
   }
-}
-
-/* Enhanced touch targets for mobile */
-@media (max-width: 768px) {
-  .uppy-Dashboard button,
-  .uppy-Dashboard input[type="file"] {
-    min-height: 44px !important;
-    min-width: 44px !important;
-  }
-}
-
-/* Uppy dashboard text styling for better dark mode */
-.uppy-Dashboard .uppy-Dashboard-inner,
-.uppy-Dashboard .uppy-Dashboard-content,
-.uppy-Dashboard .uppy-Dashboard-addFiles,
-.uppy-Dashboard .uppy-Dashboard-files,
-.uppy-Dashboard .uppy-Dashboard-progressindicators {
-  background: hsl(var(--background)) !important;
-  color: hsl(var(--foreground)) !important;
-}
-
-.uppy-Dashboard .uppy-Dashboard-note {
-  color: hsl(var(--muted-foreground)) !important;
-}
-
-/* Better button styling for message input area */
-.message-input-button {
-  transition: all 0.2s ease-in-out;
-}
-
-.message-input-button:hover {
-  transform: scale(1.05);
-}
-
-.message-input-button:active {
-  transform: scale(0.95);
-}
-
-/* Improved scrollbar styling for emoji picker */
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
 }

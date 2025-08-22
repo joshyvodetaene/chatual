@@ -92,21 +92,19 @@ export function PhotoUploader({
         {children}
       </Button>
 
-      {showModal && (
-        <DashboardModal
-          uppy={uppy}
-          open={true}
-          onRequestClose={() => {
-            setShowModal(false);
-          }}
-          proudlyDisplayPoweredByUppy={false}
-          note="Images only, up to 10MB each"
-          closeModalOnClickOutside={true}
-          showLinkToFileUploadResult={false}
-          showProgressDetails={true}
-          hideUploadButton={false}
-        />
-      )}
+      <DashboardModal
+        uppy={uppy}
+        open={showModal}
+        onRequestClose={() => {
+          setShowModal(false);
+        }}
+        proudlyDisplayPoweredByUppy={false}
+        note="Images only, up to 10MB each"
+        closeModalOnClickOutside={true}
+        showLinkToFileUploadResult={false}
+        showProgressDetails={true}
+        hideUploadButton={false}
+      />
     </div>
   );
 }

@@ -53,7 +53,7 @@ export default function MentionDropdown({
   return (
     <div 
       ref={dropdownRef}
-      className="absolute bg-background border border-border rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto"
+      className="absolute bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto"
       style={{ 
         top: position.top, 
         left: position.left,
@@ -64,8 +64,8 @@ export default function MentionDropdown({
         <div
           key={user.id}
           className={cn(
-            "flex items-center space-x-2 px-3 py-2 cursor-pointer hover:bg-muted text-foreground",
-            index === selectedIndex && "bg-primary/10 text-primary"
+            "flex items-center space-x-2 px-3 py-2 cursor-pointer hover:bg-gray-50",
+            index === selectedIndex && "bg-blue-50"
           )}
           onClick={() => onSelectUser(user)}
           data-testid={`mention-user-${user.id}`}
