@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Smile, Image } from 'lucide-react';
-import { PhotoUploader } from './photo-uploader';
+import { EnhancedPhotoUploader } from './enhanced-photo-uploader';
 import EmojiPicker from './emoji-picker';
 import { apiRequest } from '@/lib/queryClient';
 import type { UploadResult } from '@uppy/core';
@@ -127,6 +127,33 @@ export default function MessageInputEnhanced({
       }
     } catch (error) {
       console.error('Error handling photo upload:', error);
+      toast({
+        title: "Upload Error",
+        description: "Failed to send photo. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle enhanced photo uploader completion
+  const handleEnhancedUploadComplete = (photoUrl: string, fileName: string) => {
+    try {
+      const mentionedUserIds = mentionedUsers.map(user => user.id);
+
+      console.log('Photo upload completed:', { photoUrl, photoFileName: fileName, mentionedUserIds });
+
+      // Send the photo as a message with mentions
+      onSendMessage(message.trim() || '', photoUrl, fileName, mentionedUserIds);
+      setMessage('');
+      setMentionedUsers([]);
+      handleStopTyping();
+
+      // Reset textarea height
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
+    } catch (error) {
+      console.error('Error handling enhanced photo upload:', error);
       toast({
         title: "Upload Error",
         description: "Failed to send photo. Please try again.",
@@ -384,20 +411,14 @@ export default function MessageInputEnhanced({
           <Smile className="w-4 h-4 sm:w-5 sm:h-5" />
         </Button>
 
-        {/* Photo Upload Button */}
-        <PhotoUploader
-          maxNumberOfFiles={1}
-          maxFileSize={10485760} // 10MB
-          onGetUploadParameters={handleGetUploadParameters}
-          onComplete={handlePhotoUploadComplete}
-          buttonClassName={cn(
-            "text-gray-500 hover:text-primary transition-colors duration-200 flex-shrink-0",
-            "p-1.5 sm:p-2 md:p-2.5",
-            "w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10"
-          )}
-        >
-          <Image className="w-4 h-4 sm:w-5 sm:h-5" />
-        </PhotoUploader>
+        {/* Photo Upload */}
+        <div className="flex-shrink-0">
+          <EnhancedPhotoUploader
+            onUploadComplete={handleEnhancedUploadComplete}
+            disabled={disabled}
+            className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10"
+          />
+        </div>
 
         <div className="flex-1 relative">
           <div className="relative">
