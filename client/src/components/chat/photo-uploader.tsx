@@ -7,6 +7,7 @@ import "@uppy/dashboard/dist/style.min.css";
 import AwsS3 from "@uppy/aws-s3";
 import type { UploadResult } from "@uppy/core";
 import { Button } from "@/components/ui/button";
+import { useResponsive } from "@/hooks/use-responsive";
 
 interface PhotoUploaderProps {
   maxNumberOfFiles?: number;
@@ -47,6 +48,12 @@ export function PhotoUploader({
   children,
 }: PhotoUploaderProps) {
   const [showModal, setShowModal] = useState(false);
+  const { isMobile } = useResponsive();
+  
+  const handleButtonClick = () => {
+    console.log('Photo upload button clicked');
+    setShowModal(true);
+  };
   const [uppy] = useState(() =>
     new Uppy({
       restrictions: {
@@ -61,21 +68,37 @@ export function PhotoUploader({
         getUploadParameters: onGetUploadParameters,
       })
       .on("complete", (result) => {
+        console.log('Photo upload complete:', result);
         onComplete?.(result);
         setShowModal(false);
+      })
+      .on("upload", () => {
+        console.log('Photo upload started');
+      })
+      .on("upload-error", (file, error) => {
+        console.error('Photo upload error:', error);
       })
   );
 
   return (
     <div>
-      <Button onClick={() => setShowModal(true)} className={buttonClassName}>
+      <Button 
+        type="button"
+        variant="ghost"
+        onClick={handleButtonClick} 
+        className={buttonClassName}
+        data-testid="button-photo-upload"
+      >
         {children}
       </Button>
 
       <DashboardModal
         uppy={uppy}
         open={showModal}
-        onRequestClose={() => setShowModal(false)}
+        onRequestClose={() => {
+          console.log('Photo upload modal closed');
+          setShowModal(false);
+        }}
         proudlyDisplayPoweredByUppy={false}
         note="Images only, up to 10MB each"
       />
