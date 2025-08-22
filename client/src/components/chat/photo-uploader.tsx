@@ -101,23 +101,25 @@ export function PhotoUploader({
         {children}
       </Button>
 
-      <DashboardModal
-        uppy={uppy}
-        open={showModal}
-        onRequestClose={() => {
-          setShowModal(false);
-          // Restore scrolling when modal closes
-          if (isMobile) {
-            document.body.style.overflow = '';
-          }
-        }}
-        proudlyDisplayPoweredByUppy={false}
-        note="Images only, up to 10MB each"
-        closeModalOnClickOutside={true}
-        showLinkToFileUploadResult={false}
-        showProgressDetails={true}
-        hideUploadButton={false}
-      />
+      {showModal && (
+        <DashboardModal
+          uppy={uppy}
+          open={showModal}
+          onRequestClose={() => {
+            setShowModal(false);
+            // Restore scrolling when modal closes
+            if (isMobile) {
+              document.body.style.overflow = '';
+            }
+          }}
+          proudlyDisplayPoweredByUppy={false}
+          note="Images only, up to 10MB each"
+          closeModalOnClickOutside={true}
+          showLinkToFileUploadResult={false}
+          showProgressDetails={true}
+          hideUploadButton={false}
+        />
+      )}
     </div>
   );
 }
