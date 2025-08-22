@@ -1,6 +1,5 @@
 import React from 'react';
 import { MessageWithUser } from '@shared/schema';
-import MessageBubble from './message-bubble';
 import MentionHighlight from './mention-highlight';
 
 interface MessageWithMentionsProps {
@@ -38,7 +37,9 @@ export default function MessageWithMentions({
               className="max-w-xs max-h-64 rounded-lg object-cover cursor-pointer"
               onClick={() => {
                 // Could add lightbox functionality here
-                window.open(message.photoUrl, '_blank');
+                if (message.photoUrl) {
+                  window.open(message.photoUrl, '_blank');
+                }
               }}
             />
           )}
@@ -55,14 +56,8 @@ export default function MessageWithMentions({
   };
 
   return (
-    <MessageBubble
-      message={message}
-      isCurrentUser={isCurrentUser}
-      onReaction={onReaction}
-      onStartPrivateChat={onStartPrivateChat}
-      isMobile={isMobile}
-    >
+    <div className="message-container">
       {renderMessageContent()}
-    </MessageBubble>
+    </div>
   );
 }
