@@ -351,7 +351,7 @@ export default function MessageInputEnhanced({
 
   return (
     <div className={cn(
-      "flex flex-col space-y-2 p-2 sm:p-3 md:p-4 bg-card/90 backdrop-blur-sm border-t border-primary/20",
+      "flex flex-col space-y-2 p-2 sm:p-3 md:p-4 bg-background/95 backdrop-blur-sm border-t border-border",
       // Adjust position when mobile keyboard is open
       isMobile && isKeyboardOpen && "fixed bottom-0 left-0 right-0 z-30"
     )}>
@@ -374,9 +374,10 @@ export default function MessageInputEnhanced({
           size={isMobile ? "sm" : "default"}
           onClick={() => setShowEmojiPicker(!showEmojiPicker)}
           className={cn(
-            "text-gray-500 hover:text-primary transition-colors duration-200 flex-shrink-0",
+            "text-muted-foreground hover:text-primary transition-colors duration-200 flex-shrink-0",
             "p-1.5 sm:p-2 md:p-2.5",
             "w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10",
+            "hover:bg-muted/50 rounded-md",
             showEmojiPicker && "text-primary bg-primary/10"
           )}
           data-testid="button-emoji-picker"
@@ -391,9 +392,10 @@ export default function MessageInputEnhanced({
           onGetUploadParameters={handleGetUploadParameters}
           onComplete={handlePhotoUploadComplete}
           buttonClassName={cn(
-            "text-gray-500 hover:text-primary transition-colors duration-200 flex-shrink-0",
+            "text-muted-foreground hover:text-primary transition-colors duration-200 flex-shrink-0",
             "p-1.5 sm:p-2 md:p-2.5",
-            "w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10"
+            "w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10",
+            "hover:bg-muted/50 rounded-md"
           )}
         >
           <Image className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -409,7 +411,7 @@ export default function MessageInputEnhanced({
               placeholder="Type a message... Use @ to mention users"
               disabled={disabled}
               className={cn(
-                "resize-none border-0 bg-white/90 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-primary/50 placeholder:text-gray-500 overflow-y-auto transition-all duration-200 rounded-lg text-black",
+                "resize-none border-0 bg-background/90 dark:bg-background/95 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-primary/50 placeholder:text-muted-foreground overflow-y-auto transition-all duration-200 rounded-lg text-foreground",
                 "text-sm sm:text-base md:text-lg",
                 "py-2 sm:py-2.5 md:py-3",
                 "pr-12 sm:pr-14 md:pr-16 lg:pr-20",
@@ -461,12 +463,12 @@ export default function MessageInputEnhanced({
 
       {/* Show mentioned users */}
       {mentionedUsers.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          <span className="text-xs text-gray-500">Mentioning:</span>
+        <div className="flex flex-wrap gap-1 px-2 py-1">
+          <span className="text-xs text-muted-foreground">Mentioning:</span>
           {mentionedUsers.map((user) => (
             <span 
               key={user.id}
-              className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800"
+              className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-primary/10 text-primary border border-primary/20"
             >
               @{user.username}
             </span>
