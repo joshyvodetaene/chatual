@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import type { ReactNode } from "react";
 import Uppy from "@uppy/core";
 import { DashboardModal } from "@uppy/react";
@@ -7,6 +7,7 @@ import "@uppy/dashboard/dist/style.min.css";
 import AwsS3 from "@uppy/aws-s3";
 import type { UploadResult } from "@uppy/core";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useResponsive } from "@/hooks/use-responsive";
 
 interface PhotoUploaderProps {
@@ -48,18 +49,21 @@ export function PhotoUploader({
   children,
 }: PhotoUploaderProps) {
   const [showModal, setShowModal] = useState(false);
+  const [useCustomModal, setUseCustomModal] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { isMobile } = useResponsive();
   
   const handleButtonClick = () => {
     // Clear any existing files before opening modal
     uppy.getFiles().forEach(file => uppy.removeFile(file.id));
-    setShowModal(true);
-    // Force scroll to top when modal opens
-    setTimeout(() => {
-      if (typeof window !== 'undefined') {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    }, 100);
+    
+    // Use custom modal for better positioning
+    if (isMobile) {
+      setUseCustomModal(true);
+      setShowModal(true);
+    } else {
+      setShowModal(true);
+    }
   };
   const [uppy] = useState(() =>
     new Uppy({
@@ -85,6 +89,20 @@ export function PhotoUploader({
       })
   );
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      // Add files to Uppy
+      Array.from(files).forEach(file => {
+        uppy.addFile({
+          name: file.name,
+          type: file.type,
+          data: file,
+        });
+      });
+    }
+  };
+
   return (
     <div>
       <Button 
@@ -97,15 +115,45 @@ export function PhotoUploader({
         {children}
       </Button>
 
-      {showModal && (
+      {/* Custom modal for mobile with better positioning */}
+      {useCustomModal && isMobile && (
+        <Sheet open={showModal} onOpenChange={setShowModal}>
+          <SheetContent side="bottom" className="h-auto max-h-[80vh]">
+            <SheetHeader>
+              <SheetTitle>Upload Photos</SheetTitle>
+              <SheetDescription>
+                Select up to {maxNumberOfFiles} images to upload (max {Math.round(maxFileSize / 1024 / 1024)}MB each)
+              </SheetDescription>
+            </SheetHeader>
+            <div className="mt-4">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple={maxNumberOfFiles > 1}
+                onChange={handleFileSelect}
+                className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg text-center cursor-pointer hover:border-gray-400 transition-colors"
+              />
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Tap to select photos from your device
+              </p>
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
+
+      {/* Default Uppy modal for desktop */}
+      {showModal && (!useCustomModal || !isMobile) && (
         <DashboardModal
           uppy={uppy}
           open={showModal}
           onRequestClose={() => {
             setShowModal(false);
+            setUseCustomModal(false);
           }}
           proudlyDisplayPoweredByUppy={false}
           note="Images only, up to 10MB each"
+          target="body"
         />
       )}
     </div>
