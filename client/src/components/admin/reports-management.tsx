@@ -117,7 +117,7 @@ export default function ReportsManagement({ reports }: ReportsManagementProps) {
                         </span>
                         <span className="flex items-center space-x-1">
                           <Calendar className="w-3 h-3" />
-                          <span>{formatDate(report.reportedAt)}</span>
+                          <span>{report.reportedAt ? formatDate(report.reportedAt) : 'Unknown'}</span>
                         </span>
                       </CardDescription>
                     </div>
@@ -189,7 +189,7 @@ export default function ReportsManagement({ reports }: ReportsManagementProps) {
                       </span>
                       <span className="flex items-center space-x-1">
                         <Calendar className="w-3 h-3" />
-                        <span>{formatDate(report.reportedAt)}</span>
+                        <span>{report.reportedAt ? formatDate(report.reportedAt) : 'Unknown'}</span>
                       </span>
                       {report.reviewedAt && (
                         <span className="flex items-center space-x-1">
@@ -281,7 +281,7 @@ export default function ReportsManagement({ reports }: ReportsManagementProps) {
                 </div>
                 <div>
                   <span className="text-sm font-medium">Reported:</span>
-                  <p>{formatDate(selectedReport.reportedAt)}</p>
+                  <p>{selectedReport.reportedAt ? formatDate(selectedReport.reportedAt) : 'Unknown'}</p>
                 </div>
               </div>
 

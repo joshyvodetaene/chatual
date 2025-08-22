@@ -869,7 +869,7 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(users.id, userId))
         .returning();
-      return user;
+      return [user];
     });
 
     return updatedUser;
@@ -897,7 +897,7 @@ export class DatabaseStorage implements IStorage {
   async blockUser(blockData: InsertBlockedUser): Promise<BlockedUser> {
     const [blockedUser] = await this.retryDatabaseOperation(async () => {
       const [user] = await db.insert(blockedUsers).values(blockData).returning();
-      return user;
+      return [user];
     });
     return blockedUser;
   }
@@ -953,7 +953,7 @@ export class DatabaseStorage implements IStorage {
   async createReport(reportData: InsertReport): Promise<Report> {
     const [report] = await this.retryDatabaseOperation(async () => {
       const [rep] = await db.insert(reports).values({ ...reportData, id: randomUUID() }).returning();
-      return rep;
+      return [rep];
     });
     return report;
   }
@@ -1045,7 +1045,7 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(reports.id, reportId))
         .returning();
-      return report;
+      return [report];
     });
 
     return updatedReport;
@@ -1119,7 +1119,7 @@ export class DatabaseStorage implements IStorage {
 
     const [action] = await this.retryDatabaseOperation(async () => {
       const [act] = await db.insert(userModerationActions).values({ ...moderationAction, id: randomUUID() }).returning();
-      return act;
+      return [act];
     });
     return action;
   }
@@ -1149,7 +1149,7 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(users.id, banData.userId))
         .returning();
-      return user;
+      return [user];
     });
 
     // Create moderation action record
@@ -1164,7 +1164,7 @@ export class DatabaseStorage implements IStorage {
 
     const [action] = await this.retryDatabaseOperation(async () => {
       const [act] = await db.insert(userModerationActions).values({ ...moderationAction, id: randomUUID() }).returning();
-      return act;
+      return [act];
     });
 
     return { user: bannedUser, action };
@@ -1189,7 +1189,7 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(users.id, userId))
         .returning();
-      return user;
+      return [user];
     });
 
     // Create moderation action record
@@ -1203,7 +1203,7 @@ export class DatabaseStorage implements IStorage {
 
     const [action] = await this.retryDatabaseOperation(async () => {
       const [act] = await db.insert(userModerationActions).values({ ...moderationAction, id: randomUUID() }).returning();
-      return act;
+      return [act];
     });
 
     return { user: unbannedUser, action };

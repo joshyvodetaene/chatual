@@ -181,7 +181,7 @@ export default function BlockedUsers({ userId, blockedUsers }: BlockedUsersProps
                         @{blockedUser.blockedUser.username}
                       </p>
                       <p className="text-xs text-gray-400">
-                        Blocked {formatDate(blockedUser.blockedAt)}
+                        Blocked {blockedUser.blockedAt ? formatDate(blockedUser.blockedAt) : 'Unknown'}
                       </p>
                     </div>
                   </div>
