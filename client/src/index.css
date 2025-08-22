@@ -418,24 +418,28 @@
   width: 100vw !important;
   height: 100vh !important;
   display: flex !important;
-  align-items: flex-start !important;
+  align-items: center !important;
   justify-content: center !important;
-  padding-top: 5vh !important;
+  padding: 20px !important;
+  box-sizing: border-box !important;
 }
 
 .uppy-Dashboard--modal .uppy-Dashboard-inner {
   width: 90vw !important;
-  max-width: 700px !important;
-  height: 70vh !important;
-  min-height: 400px !important;
+  max-width: 600px !important;
+  height: 60vh !important;
+  max-height: 500px !important;
+  min-height: 350px !important;
   position: relative !important;
   margin: 0 !important;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3) !important;
-  border-radius: 8px !important;
+  border-radius: 12px !important;
+  background: white !important;
+  overflow: hidden !important;
 }
 
 .uppy-Dashboard-overlay {
-  background-color: rgba(0, 0, 0, 0.6) !important;
+  background-color: rgba(0, 0, 0, 0.7) !important;
   position: fixed !important;
   top: 0 !important;
   left: 0 !important;
@@ -444,15 +448,20 @@
   z-index: 9998 !important;
 }
 
+/* Ensure the modal appears on top and is centered */
+.uppy-Dashboard--modal .uppy-Dashboard {
+  border-radius: 12px !important;
+}
+
 @media (max-width: 768px) {
   .uppy-Dashboard--modal {
-    padding-top: 2vh !important;
-    align-items: flex-start !important;
+    padding: 10px !important;
   }
   
   .uppy-Dashboard--modal .uppy-Dashboard-inner {
     width: 95vw !important;
-    height: 75vh !important;
-    min-height: 350px !important;
+    height: 70vh !important;
+    max-height: 80vh !important;
+    min-height: 300px !important;
   }
 }

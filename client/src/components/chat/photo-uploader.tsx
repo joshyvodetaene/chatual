@@ -54,12 +54,6 @@ export function PhotoUploader({
     // Clear any existing files before opening modal
     uppy.getFiles().forEach(file => uppy.removeFile(file.id));
     setShowModal(true);
-    // Force scroll to top when modal opens
-    setTimeout(() => {
-      if (typeof window !== 'undefined') {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    }, 100);
   };
   const [uppy] = useState(() =>
     new Uppy({
