@@ -8,7 +8,6 @@ import { apiRequest } from '@/lib/queryClient';
 import type { UploadResult } from '@uppy/core';
 import { useToast } from '@/hooks/use-toast';
 import { useResponsive } from '@/hooks/use-responsive';
-import { useTouchGestures, useHapticFeedback } from '@/hooks/use-touch-gestures';
 import { cn } from '@/lib/utils';
 
 interface MessageInputProps {
@@ -30,15 +29,9 @@ export default function MessageInput({
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
   const { toast } = useToast();
   const { isMobile, isTablet } = useResponsive();
-  const { triggerHaptic } = useHapticFeedback();
 
   const handleSendMessage = () => {
     if (message.trim() && !disabled) {
-      // Haptic feedback on mobile
-      if (isMobile) {
-        triggerHaptic('light');
-      }
-      
       onSendMessage(message.trim());
       setMessage('');
       handleStopTyping();

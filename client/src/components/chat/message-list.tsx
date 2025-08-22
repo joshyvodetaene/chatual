@@ -1,7 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { MessageWithUser, User, RoomWithMembers } from '@shared/schema';
 import { UserPlus, Loader2 } from 'lucide-react';
-import { MessageSkeleton } from "@/components/ui/skeleton";
 import { cn } from '@/lib/utils';
 import ReactionPicker from '@/components/reactions/reaction-picker';
 import ReactionDisplay from '@/components/reactions/reaction-display';
@@ -184,18 +183,17 @@ export default function MessageList({
     >
       {/* Loading indicator for initial load */}
       {isLoading && messages.length === 0 && (
-        <div className="space-y-4 p-4">
-          <MessageSkeleton />
-          <MessageSkeleton />
-          <MessageSkeleton />
+        <div className="flex justify-center items-center h-32">
+          <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 animate-spin text-gray-400" />
+          <span className="ml-1 sm:ml-2 md:ml-3 text-xs sm:text-sm md:text-base text-gray-500">Loading messages...</span>
         </div>
       )}
 
       {/* Load more indicator */}
       {isLoadingMore && (
-        <div className="space-y-2 p-4" ref={messagesStartRef}>
-          <MessageSkeleton className="animate-fade-in-up" />
-          <MessageSkeleton className="animate-fade-in-up" style={{ animationDelay: '0.1s' }} />
+        <div className="flex justify-center items-center py-4" ref={messagesStartRef}>
+          <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 animate-spin text-gray-400" />
+          <span className="ml-1 sm:ml-2 md:ml-3 text-gray-500 text-xs sm:text-sm md:text-base">Loading more messages...</span>
         </div>
       )}
 
