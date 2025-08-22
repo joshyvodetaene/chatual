@@ -51,8 +51,15 @@ export function PhotoUploader({
   const { isMobile } = useResponsive();
   
   const handleButtonClick = () => {
-    console.log('Photo upload button clicked');
+    // Clear any existing files before opening modal
+    uppy.getFiles().forEach(file => uppy.removeFile(file.id));
     setShowModal(true);
+    // Force scroll to top when modal opens
+    setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 100);
   };
   const [uppy] = useState(() =>
     new Uppy({
@@ -68,12 +75,10 @@ export function PhotoUploader({
         getUploadParameters: onGetUploadParameters,
       })
       .on("complete", (result) => {
-        console.log('Photo upload complete:', result);
-        onComplete?.(result);
-        setShowModal(false);
-      })
-      .on("upload", () => {
-        console.log('Photo upload started');
+        if (result.successful && result.successful.length > 0) {
+          onComplete?.(result);
+          setShowModal(false);
+        }
       })
       .on("upload-error", (file, error) => {
         console.error('Photo upload error:', error);
@@ -97,7 +102,6 @@ export function PhotoUploader({
           uppy={uppy}
           open={showModal}
           onRequestClose={() => {
-            console.log('Photo upload modal closed');
             setShowModal(false);
           }}
           proudlyDisplayPoweredByUppy={false}
