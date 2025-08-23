@@ -4,8 +4,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Send, Smile, Image } from 'lucide-react';
 import EmojiPicker from './emoji-picker';
 import { apiRequest } from '@/lib/queryClient';
-import type { UploadResult } from '@uppy/core';
-import { PhotoUploader } from './photo-uploader';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { User } from '@shared/schema';
@@ -67,71 +65,89 @@ export default function MessageInputEnhanced({
     }
   }, [message, disabled, mentionedUsers, onSendMessage]);
 
-  // Handle photo upload
-  const handleGetUploadParameters = async () => {
-    try {
-      const response = await apiRequest('POST', '/api/objects/upload');
-      const data = await response.json();
-      return {
-        method: 'PUT' as const,
-        url: data.uploadURL,
-      };
-    } catch (error) {
-      console.error('Error getting upload parameters:', error);
-      toast({
-        title: "Upload Error",
-        description: "Failed to get upload parameters. Please try again.",
-        variant: "destructive",
-      });
-      throw error;
-    }
+  // Handle photo upload using the same method as photo management
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const handlePhotoButtonClick = () => {
+    fileInputRef.current?.click();
   };
 
-  const handlePhotoUploadComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
-    try {
-      if (result.successful && result.successful.length > 0) {
-        const uploadedFile = result.successful[0];
-        const photoUrl = uploadedFile.uploadURL;
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-        if (!photoUrl) {
-          throw new Error('No upload URL received');
-        }
-
-        const photoFileName = uploadedFile.name || 'photo.jpg';
-        const mentionedUserIds = mentionedUsers.map(user => user.id);
-
-        console.log('Photo upload completed:', { photoUrl, photoFileName, mentionedUserIds });
-
-        // Send the photo as a message with mentions
-        onSendMessage(message.trim() || '', photoUrl, photoFileName, mentionedUserIds);
-        setMessage('');
-        setMentionedUsers([]);
-        handleStopTyping();
-
-        // Reset textarea height
-        if (textareaRef.current) {
-          textareaRef.current.style.height = 'auto';
-        }
-
-        toast({
-          title: "Photo Sent",
-          description: "Your photo has been shared successfully.",
-        });
-      } else {
-        console.error('Photo upload failed:', result);
-        toast({
-          title: "Upload Error",
-          description: "Failed to upload photo. Please try again.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('Error handling photo upload:', error);
+    // Validate file type and size
+    if (!file.type.startsWith('image/')) {
       toast({
-        title: "Upload Error",
-        description: "Failed to send photo. Please try again.",
+        title: "Error",
+        description: "Please select an image file",
         variant: "destructive",
       });
+      return;
+    }
+
+    if (file.size > 10485760) { // 10MB
+      toast({
+        title: "Error",
+        description: "Image must be less than 10MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setUploadingPhoto(true);
+      
+      // Get upload URL using the same endpoint as photo management
+      const response = await apiRequest('POST', '/api/photos/upload-url', { 
+        fileName: file.name 
+      });
+      const data = await response.json();
+
+      // Upload file directly
+      const uploadResponse = await fetch(data.uploadURL, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Upload failed');
+      }
+
+      // Send the photo as a message
+      const mentionedUserIds = mentionedUsers.map(user => user.id);
+      onSendMessage(message.trim() || '', data.uploadURL, file.name, mentionedUserIds);
+      
+      setMessage('');
+      setMentionedUsers([]);
+      handleStopTyping();
+
+      // Reset textarea height
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
+
+      toast({
+        title: "Photo Sent",
+        description: "Your photo has been shared successfully.",
+      });
+
+      // Reset file input
+      event.target.value = '';
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      toast({
+        title: "Upload Error",
+        description: "Failed to upload photo. Please try again.",
+        variant: "destructive",
+      });
+      event.target.value = '';
+    } finally {
+      setUploadingPhoto(false);
     }
   };
 
@@ -385,19 +401,30 @@ export default function MessageInputEnhanced({
         </Button>
 
         {/* Photo Upload Button */}
-        <PhotoUploader
-          maxNumberOfFiles={1}
-          maxFileSize={10485760} // 10MB
-          onGetUploadParameters={handleGetUploadParameters}
-          onComplete={handlePhotoUploadComplete}
-          buttonClassName={cn(
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileSelect}
+          className="hidden"
+          data-testid="input-photo-file"
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size={isMobile ? "sm" : "default"}
+          onClick={handlePhotoButtonClick}
+          disabled={uploadingPhoto || disabled}
+          className={cn(
             "text-gray-500 hover:text-primary transition-colors duration-200 flex-shrink-0",
             "p-1.5 sm:p-2 md:p-2.5",
-            "w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10"
+            "w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10",
+            uploadingPhoto && "opacity-50 cursor-not-allowed"
           )}
+          data-testid="button-photo-upload"
         >
-          <Image className="w-4 h-4 sm:w-5 sm:h-5" />
-        </PhotoUploader>
+          <Image className={cn("w-4 h-4 sm:w-5 sm:h-5", uploadingPhoto && "animate-pulse")} />
+        </Button>
 
         <div className="flex-1 relative">
           <div className="relative">
