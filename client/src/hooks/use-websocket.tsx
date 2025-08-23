@@ -325,7 +325,7 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
         console.log('Sending WebSocket message:', {
           type: 'message',
           content: content?.substring(0, 20),
-          photoUrl: photoUrl?.substring(photoUrl.length - 30),
+          photoUrl: photoUrl?.substring(photoUrl?.length - 30),
           photoFileName,
           messageType
         });

@@ -233,7 +233,7 @@ export default function ChatPage() {
     }
   }, [syncedMessages, messages, setMessages]);
 
-  // Handle new messages from WebSocket (filter by current room)
+  // Handle new messages from WebSocket (filter by current room and handle deduplication)
   useEffect(() => {
     if (!currentUser || messages.length === 0 || !activeRoom?.id) {
       return;
@@ -246,7 +246,29 @@ export default function ChatPage() {
     );
 
     if (newMessages.length > 0) {
-      newMessages.forEach(msg => addMessage(msg));
+      newMessages.forEach(msg => {
+        // If this is a real message from server, remove any optimistic message for the same photo
+        if (msg.messageType === 'photo' && msg.photoUrl && !msg.isTemporary) {
+          // Find and remove optimistic messages with the same photo URL
+          const optimisticMessages = paginatedMessages.filter(pMsg => 
+            pMsg.isTemporary && 
+            pMsg.messageType === 'photo' && 
+            pMsg.photoUrl === msg.photoUrl &&
+            pMsg.userId === msg.userId
+          );
+          
+          if (optimisticMessages.length > 0) {
+            console.log('Removing optimistic message, real message received:', {
+              optimisticId: optimisticMessages[0].id,
+              realId: msg.id,
+              photoUrl: msg.photoUrl?.substring(msg.photoUrl.length - 30)
+            });
+            // The real message will replace the optimistic one
+          }
+        }
+        
+        addMessage(msg);
+      });
     }
   }, [messages, paginatedMessages, addMessage, currentUser, activeRoom?.id]);
 
@@ -385,11 +407,61 @@ export default function ChatPage() {
           if (refreshedRooms?.rooms && refreshedRooms.rooms.length > 0) {
             setActiveRoom(refreshedRooms.rooms[0]);
             activeRoomRef.current = refreshedRooms.rooms[0];
+            // Add optimistic message for photo messages to improve UX
+            if (photoUrl && photoFileName && refreshedRooms.rooms[0]) {
+              const optimisticMessage: MessageWithUser = {
+                id: `temp-${Date.now()}-${Math.random()}`,
+                content: content || '',
+                messageType: 'photo',
+                photoUrl,
+                photoFileName,
+                userId: currentUser.id,
+                roomId: refreshedRooms.rooms[0].id,
+                createdAt: new Date(),
+                mentionedUserIds: mentionedUserIds || [],
+                user: currentUser,
+                isTemporary: true
+              };
+
+              // Add message optimistically to see it immediately
+              addMessage(optimisticMessage);
+              console.log('Added optimistic photo message (fallback):', {
+                id: optimisticMessage.id,
+                photoUrl: photoUrl.substring(photoUrl.length - 30),
+                photoFileName
+              });
+            }
+
             sendMessage(content, photoUrl, photoFileName, mentionedUserIds);
           }
         }, 1000);
       });
       return;
+    }
+
+    // Add optimistic message for photo messages to improve UX
+    if (photoUrl && photoFileName && roomToUse) {
+      const optimisticMessage: MessageWithUser = {
+        id: `temp-${Date.now()}-${Math.random()}`,
+        content: content || '',
+        messageType: 'photo',
+        photoUrl,
+        photoFileName,
+        userId: currentUser.id,
+        roomId: roomToUse.id,
+        createdAt: new Date(),
+        mentionedUserIds: mentionedUserIds || [],
+        user: currentUser,
+        isTemporary: true
+      };
+
+      // Add message optimistically to see it immediately
+      addMessage(optimisticMessage);
+      console.log('Added optimistic photo message:', {
+        id: optimisticMessage.id,
+        photoUrl: photoUrl.substring(photoUrl.length - 30),
+        photoFileName
+      });
     }
 
     sendMessage(content, photoUrl, photoFileName, mentionedUserIds);
