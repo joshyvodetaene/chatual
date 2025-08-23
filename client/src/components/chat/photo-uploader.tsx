@@ -79,9 +79,11 @@ export function PhotoUploader({
   );
 
   const handleButtonClick = () => {
+    console.log('Photo uploader button clicked!'); // Debug log
     // Clear any existing files before opening modal
     uppy.getFiles().forEach(file => uppy.removeFile(file.id));
     setShowModal(true);
+    console.log('ShowModal state set to:', true); // Debug log
     
     // Prevent background scrolling on mobile when modal is open
     if (isMobile) {
