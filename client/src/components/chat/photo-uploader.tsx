@@ -87,20 +87,6 @@ export function PhotoUploader({
     setShowUploader(false);
   };
 
-  if (!showUploader) {
-    return (
-      <Button 
-        type="button"
-        variant="ghost"
-        onClick={handleButtonClick} 
-        className={buttonClassName}
-        data-testid="button-photo-upload"
-      >
-        {children}
-      </Button>
-    );
-  }
-
   return (
     <div className="relative">
       <Button 
@@ -114,44 +100,46 @@ export function PhotoUploader({
       </Button>
 
       {/* Photo uploader panel - opens upward like emoji picker */}
-      <div className={cn(
-        "absolute bottom-12 z-50 bg-black border border-gray-700 rounded-lg shadow-lg backdrop-blur-sm",
-        "w-[calc(100vw-1rem)] max-w-sm h-80",
-        "sm:w-80 sm:h-96 sm:max-w-md",
-        "md:w-96 md:h-[28rem] md:max-w-lg",
-        "lg:w-[28rem] lg:h-[32rem] lg:max-w-xl",
-        "right-2 sm:right-2 md:right-4"
-      )} data-testid="photo-uploader-panel">
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="flex justify-between items-center p-3 border-b border-gray-700">
-            <h3 className="text-sm font-medium text-white">Upload Photos</h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClose}
-              className="h-6 w-6 p-0 text-gray-400 hover:text-white"
-              data-testid="button-close-photo-uploader"
-            >
-              ✕
-            </Button>
-          </div>
+      {showUploader && (
+        <div className={cn(
+          "absolute bottom-12 z-50 bg-black border border-gray-700 rounded-lg shadow-lg backdrop-blur-sm",
+          "w-[calc(100vw-1rem)] max-w-sm h-80",
+          "sm:w-80 sm:h-96 sm:max-w-md",
+          "md:w-96 md:h-[28rem] md:max-w-lg",
+          "lg:w-[28rem] lg:h-[32rem] lg:max-w-xl",
+          "right-2 sm:right-2 md:right-4"
+        )} data-testid="photo-uploader-panel">
+          <div className="flex flex-col h-full">
+            {/* Header */}
+            <div className="flex justify-between items-center p-3 border-b border-gray-700">
+              <h3 className="text-sm font-medium text-white">Upload Photos</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClose}
+                className="h-6 w-6 p-0 text-gray-400 hover:text-white"
+                data-testid="button-close-photo-uploader"
+              >
+                ✕
+              </Button>
+            </div>
 
-          {/* Uppy Dashboard */}
-          <div className="flex-1 p-2">
-            <Dashboard
-              uppy={uppy}
-              height={isMobile ? 250 : 350}
-              width="100%"
-              showLinkToFileUploadResult={false}
-              showProgressDetails={true}
-              hideUploadButton={false}
-              note="Images only, up to 10MB each"
-              proudlyDisplayPoweredByUppy={false}
-            />
+            {/* Uppy Dashboard */}
+            <div className="flex-1 p-2">
+              <Dashboard
+                uppy={uppy}
+                height={isMobile ? 250 : 350}
+                width="100%"
+                showLinkToFileUploadResult={false}
+                showProgressDetails={true}
+                hideUploadButton={false}
+                note="Images only, up to 10MB each"
+                proudlyDisplayPoweredByUppy={false}
+              />
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
