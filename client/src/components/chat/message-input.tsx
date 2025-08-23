@@ -1,17 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Paperclip, Smile, Send, Image } from 'lucide-react';
-import { PhotoUploader } from './photo-uploader';
+import { Smile, Send } from 'lucide-react';
 import EmojiPicker from './emoji-picker';
-import { apiRequest } from '@/lib/queryClient';
-import type { UploadResult } from '@uppy/core';
 import { useToast } from '@/hooks/use-toast';
 import { useResponsive } from '@/hooks/use-responsive';
 import { cn } from '@/lib/utils';
 
 interface MessageInputProps {
-  onSendMessage: (content: string, photoUrl?: string, photoFileName?: string) => void;
+  onSendMessage: (content: string) => void;
   onTyping: (isTyping: boolean) => void;
   disabled?: boolean;
 }
@@ -95,77 +92,7 @@ export default function MessageInput({
     }
   };
 
-  // Handle photo upload
-  const handleGetUploadParameters = async () => {
-    try {
-      const response = await apiRequest('POST', '/api/photos/upload-url', { fileName: 'message-photo.jpg' });
-      const data = await response.json();
-      return {
-        method: 'PUT' as const,
-        url: data.uploadURL,
-      };
-    } catch (error) {
-      console.error('Error getting upload parameters:', error);
-      toast({
-        title: "Upload Error",
-        description: "Failed to get upload parameters. Please try again.",
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
-
-  const handlePhotoUploadComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
-    try {
-      if (result.successful && result.successful.length > 0) {
-        const uploadedFile = result.successful[0];
-        const photoUrl = uploadedFile.uploadURL;
-
-        if (!photoUrl) {
-          throw new Error('No upload URL received');
-        }
-
-        // Use the original filename for display, not the storage UUID filename
-        const photoFileName = uploadedFile.name || 'photo.jpg';
-
-        console.log('Photo upload completed:', { photoUrl, photoFileName, originalName: uploadedFile.name });
-
-        // Send the photo as a message
-        console.log('Calling onSendMessage with:', {
-          content: message.trim() || '',
-          photoUrl,
-          photoFileName
-        });
-        onSendMessage(message.trim() || '', photoUrl, photoFileName);
-        setMessage('');
-        handleStopTyping();
-
-        // Reset textarea height
-        if (textareaRef.current) {
-          textareaRef.current.style.height = 'auto';
-        }
-
-        toast({
-          title: "Photo Sent",
-          description: "Your photo has been shared successfully.",
-        });
-      } else {
-        console.error('Photo upload failed:', result);
-        toast({
-          title: "Upload Error",
-          description: "Failed to upload photo. Please try again.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('Error handling photo upload:', error);
-      toast({
-        title: "Upload Error",
-        description: "Failed to send photo. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
+  
 
   // Handle emoji selection
   const handleEmojiSelect = (emoji: string) => {
@@ -225,8 +152,6 @@ export default function MessageInput({
 
   // Renamed handleInputChange to handleChange for consistency with the changes provided
   const handleChange = handleInputChange;
-  // Renamed handlePhotoUploadComplete to handlePhotoUpload for consistency with the changes provided
-  const handlePhotoUpload = handlePhotoUploadComplete;
 
 
   return (
@@ -296,20 +221,6 @@ export default function MessageInput({
           <div className="absolute inset-0 shimmer"></div>
           <Send className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 relative z-10" />
         </Button>
-
-        <PhotoUploader
-          onGetUploadParameters={handleGetUploadParameters}
-          onComplete={handlePhotoUpload}
-          buttonClassName={cn(
-            "bg-white/90 hover:bg-gray-100 border-0 shadow-sm transition-all duration-200 ease-in-out transform hover:scale-105 active:scale-95 hover:shadow-md rounded-lg",
-            "p-2 sm:p-2.5 md:p-3 lg:p-4",
-            "w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 lg:w-14 lg:h-14",
-            "flex-shrink-0 flex items-center justify-center",
-            disabled ? "opacity-50 cursor-not-allowed" : ""
-          )}
-        >
-          <Image className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-gray-600" />
-        </PhotoUploader>
       </div>
     </div>
   );
