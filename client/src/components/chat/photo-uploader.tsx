@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import Uppy from "@uppy/core";
 import { DashboardModal } from "@uppy/react";
@@ -23,22 +23,6 @@ interface PhotoUploaderProps {
   children: ReactNode;
 }
 
-/**
- * A photo upload component that renders as a button and provides a modal interface for
- * photo management.
- * 
- * Features:
- * - Renders as a customizable button that opens a photo upload modal
- * - Provides a modal interface for:
- *   - Photo selection
- *   - Photo preview
- *   - Upload progress tracking
- *   - Upload status display
- * - Restricted to image files only
- * 
- * The component uses Uppy under the hood to handle all file upload functionality.
- * All file management features are automatically handled by the Uppy dashboard modal.
- */
 export function PhotoUploader({
   maxNumberOfFiles = 5,
   maxFileSize = 10485760, // 10MB default
@@ -50,6 +34,7 @@ export function PhotoUploader({
   const [showModal, setShowModal] = useState(false);
   const { isMobile } = useResponsive();
   
+  // Create uppy instance
   const [uppy] = useState(() =>
     new Uppy({
       restrictions: {
@@ -57,37 +42,62 @@ export function PhotoUploader({
         maxFileSize,
         allowedFileTypes: ['image/*'],
       },
-      autoProceed: true, // Automatically start upload when files are added
+      autoProceed: false, // Let user manually start upload
     })
       .use(AwsS3, {
         shouldUseMultipart: false,
         getUploadParameters: onGetUploadParameters,
       })
-      .on("complete", (result) => {
-        if (result.successful && result.successful.length > 0) {
-          onComplete?.(result);
-          setShowModal(false);
-          // Restore scrolling when modal closes
-          if (isMobile) {
-            document.body.style.overflow = '';
-          }
-        }
-      })
-      .on("upload-error", (file, error) => {
-        console.error('Photo upload error:', error);
-      })
   );
 
+  // Handle upload completion
+  useEffect(() => {
+    const handleComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+      if (result.successful && result.successful.length > 0) {
+        onComplete?.(result);
+        setShowModal(false);
+        // Clear files after successful upload
+        uppy.getFiles().forEach(file => uppy.removeFile(file.id));
+        
+        // Restore scrolling when modal closes
+        if (isMobile) {
+          document.body.style.overflow = '';
+        }
+      }
+    };
+
+    const handleError = (file: any, error: any) => {
+      console.error('Photo upload error:', error);
+    };
+
+    uppy.on('complete', handleComplete);
+    uppy.on('upload-error', handleError);
+
+    return () => {
+      uppy.off('complete', handleComplete);
+      uppy.off('upload-error', handleError);
+    };
+  }, [uppy, onComplete, isMobile]);
+
   const handleButtonClick = () => {
-    console.log('Photo uploader button clicked!'); // Debug log
-    // Clear any existing files before opening modal
+    console.log('Photo uploader clicked, opening modal...');
+    // Clear any existing files
     uppy.getFiles().forEach(file => uppy.removeFile(file.id));
     setShowModal(true);
-    console.log('ShowModal state set to:', true); // Debug log
     
-    // Prevent background scrolling on mobile when modal is open
+    // Prevent background scrolling on mobile
     if (isMobile) {
       document.body.style.overflow = 'hidden';
+    }
+  };
+
+  const handleCloseModal = () => {
+    console.log('Closing photo uploader modal...');
+    setShowModal(false);
+    
+    // Restore scrolling
+    if (isMobile) {
+      document.body.style.overflow = '';
     }
   };
 
@@ -103,24 +113,19 @@ export function PhotoUploader({
         {children}
       </Button>
 
-      <DashboardModal
-        uppy={uppy}
-        open={showModal}
-        onRequestClose={() => {
-          console.log('Modal close requested'); // Debug log
-          setShowModal(false);
-          // Restore scrolling when modal closes
-          if (isMobile) {
-            document.body.style.overflow = '';
-          }
-        }}
-        proudlyDisplayPoweredByUppy={false}
-        note="Images only, up to 10MB each"
-        closeModalOnClickOutside={true}
-        showLinkToFileUploadResult={false}
-        showProgressDetails={true}
-        hideUploadButton={false}
-      />
+      {showModal && (
+        <DashboardModal
+          uppy={uppy}
+          open={showModal}
+          onRequestClose={handleCloseModal}
+          proudlyDisplayPoweredByUppy={false}
+          note="Images only, up to 10MB each"
+          closeModalOnClickOutside={true}
+          showLinkToFileUploadResult={false}
+          showProgressDetails={true}
+          hideUploadButton={false}
+        />
+      )}
     </div>
   );
 }
