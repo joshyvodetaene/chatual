@@ -208,30 +208,23 @@ export default function ChatPage() {
     }
   }, [chatData, currentUser]);
 
-  // Optimize message sync with memoization to prevent unnecessary updates
+  // Always use paginated messages for display - WebSocket messages added separately
   const syncedMessages = useMemo(() => {
-    if (!currentUser || paginatedMessages.length === 0) return [];
+    if (!currentUser) return [];
+    
+    console.log('[CHAT_PAGE] Sync decision:', {
+      paginatedLength: paginatedMessages.length,
+      wsLength: messages.length,
+      usingPaginated: true
+    });
+    
+    // Always use paginated messages - don't mix with WebSocket messages here
+    // WebSocket messages will be added via the separate useEffect below
+    return paginatedMessages;
+  }, [paginatedMessages, currentUser]);
 
-    // Check if we need to sync by comparing message IDs instead of array references
-    const paginatedIds = new Set(paginatedMessages.map(m => m.id));
-    const wsIds = new Set(messages.map(m => m.id));
-
-    const needsSync = paginatedMessages.length !== messages.length ||
-                      !Array.from(paginatedIds).every(id => wsIds.has(id));
-
-    if (needsSync && paginatedMessages.length > 0) {
-      return paginatedMessages;
-    }
-
-    return messages;
-  }, [paginatedMessages, messages, currentUser]);
-
-  // Apply synced messages only when necessary
-  useEffect(() => {
-    if (syncedMessages !== messages && syncedMessages.length > 0) {
-      setMessages(syncedMessages);
-    }
-  }, [syncedMessages, messages, setMessages]);
+  // Don't sync WebSocket messages back to avoid duplicate filtering issues
+  // WebSocket messages will be added directly to paginated list via addMessage
 
   // Handle new messages from WebSocket (filter by current room and handle deduplication)
   useEffect(() => {
@@ -252,7 +245,7 @@ export default function ChatPage() {
       return;
     }
 
-    // Batch process new messages for better performance
+    // Simple filter: only messages for current room that aren't already displayed
     const newMessages = messages.filter(msg => {
       const roomMatch = msg.roomId === activeRoom.id;
       const notInPaginated = !paginatedMessages.some(pMsg => pMsg.id === msg.id);
