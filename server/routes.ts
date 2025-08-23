@@ -40,28 +40,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Helper function to broadcast to room
   function broadcastToRoom(roomId: string, message: any, excludeUserId?: string) {
     let sentCount = 0;
-    let totalInRoom = 0;
-    console.log(`[BROADCAST] Starting broadcast to room ${roomId}, excluding user ${excludeUserId}`);
-    console.log(`[BROADCAST] Total clients connected: ${clients.size}`);
-    
     Array.from(clients.values()).forEach(client => {
-      console.log(`[BROADCAST] Checking client: userId=${client.userId}, roomId=${client.roomId}, readyState=${client.readyState}`);
-      if (client.roomId === roomId) {
-        totalInRoom++;
-        if (client.readyState === WebSocket.OPEN && client.userId !== excludeUserId) {
-          try {
-            client.send(JSON.stringify(message));
-            sentCount++;
-            console.log(`[BROADCAST] Sent message to user ${client.userId}`);
-          } catch (error) {
-            console.error(`[BROADCAST] Failed to send to user ${client.userId}:`, error);
-          }
-        } else {
-          console.log(`[BROADCAST] Skipped user ${client.userId}: readyState=${client.readyState}, excluded=${client.userId === excludeUserId}`);
+      if (client.roomId === roomId && client.readyState === WebSocket.OPEN && client.userId !== excludeUserId) {
+        try {
+          client.send(JSON.stringify(message));
+          sentCount++;
+        } catch (error) {
+          console.error(`Failed to send message to user ${client.userId}:`, error);
         }
       }
     });
-    console.log(`[BROADCAST] Broadcast completed: sent to ${sentCount}/${totalInRoom} users in room ${roomId}`);
   }
 
   // Helper function to broadcast to specific user

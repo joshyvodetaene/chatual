@@ -19,6 +19,7 @@ import { Hash, Users, Search, Settings, LogOut, Shield, Menu } from 'lucide-reac
 import { BackButton } from '@/components/ui/back-button';
 import { ConnectionStatusIndicator } from '@/components/chat/connection-status';
 import { useToast } from '@/hooks/use-toast';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Link } from 'wouter';
 import { cn } from '@/lib/utils';
 
@@ -212,12 +213,6 @@ export default function ChatPage() {
   const syncedMessages = useMemo(() => {
     if (!currentUser) return [];
     
-    console.log('[CHAT_PAGE] Sync decision:', {
-      paginatedLength: paginatedMessages.length,
-      wsLength: messages.length,
-      usingPaginated: true
-    });
-    
     // Always use paginated messages - don't mix with WebSocket messages here
     // WebSocket messages will be added via the separate useEffect below
     return paginatedMessages;
@@ -228,53 +223,18 @@ export default function ChatPage() {
 
   // Handle new messages from WebSocket (filter by current room and handle deduplication)
   useEffect(() => {
-    console.log('[CHAT_PAGE] WebSocket message processing:', {
-      currentUser: !!currentUser,
-      messagesLength: messages.length,
-      activeRoomId: activeRoom?.id,
-      paginatedMessagesLength: paginatedMessages.length
-    });
-
-    if (!currentUser || !activeRoom?.id) {
-      console.log('[CHAT_PAGE] Skipping message processing: missing user or room');
+    if (!currentUser || !activeRoom?.id || messages.length === 0) {
       return;
     }
 
-    if (messages.length === 0) {
-      console.log('[CHAT_PAGE] Skipping message processing: no WebSocket messages');
-      return;
-    }
-
-    // Simple filter: only messages for current room that aren't already displayed
-    const newMessages = messages.filter(msg => {
-      const roomMatch = msg.roomId === activeRoom.id;
-      const notInPaginated = !paginatedMessages.some(pMsg => pMsg.id === msg.id);
-      console.log('[CHAT_PAGE] Message filter check:', {
-        messageId: msg.id,
-        messageRoomId: msg.roomId,
-        activeRoomId: activeRoom.id,
-        roomMatch,
-        notInPaginated,
-        willInclude: roomMatch && notInPaginated
-      });
-      return roomMatch && notInPaginated;
-    });
-
-    console.log('[CHAT_PAGE] Filtered new messages:', {
-      totalWebSocketMessages: messages.length,
-      newMessagesCount: newMessages.length,
-      newMessageIds: newMessages.map(m => m.id)
-    });
+    // Filter new messages for current room that aren't already displayed
+    const newMessages = messages.filter(msg => 
+      msg.roomId === activeRoom.id &&
+      !paginatedMessages.some(pMsg => pMsg.id === msg.id)
+    );
 
     if (newMessages.length > 0) {
       newMessages.forEach(msg => {
-        console.log('[CHAT_PAGE] Adding message to paginated list:', {
-          id: msg.id,
-          content: msg.content?.substring(0, 20),
-          messageType: msg.messageType,
-          userId: msg.userId
-        });
-
         // If this is a real message from server, remove any optimistic message for the same photo
         if (msg.messageType === 'photo' && msg.photoUrl && !msg.isTemporary) {
           // Find and remove optimistic messages with the same photo URL
@@ -286,11 +246,6 @@ export default function ChatPage() {
           );
           
           if (optimisticMessages.length > 0) {
-            console.log('Removing optimistic message, real message received:', {
-              optimisticId: optimisticMessages[0].id,
-              realId: msg.id,
-              photoUrl: msg.photoUrl?.substring(msg.photoUrl.length - 30)
-            });
             // The real message will replace the optimistic one
           }
         }
@@ -605,8 +560,12 @@ export default function ChatPage() {
         />
       )}
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Main Content Area with Resizable Panels */}
+      {isDesktop ? (
+        <ResizablePanelGroup direction="horizontal" className="flex-1">
+          {/* Main Chat Panel */}
+          <ResizablePanel defaultSize={showUserList ? 75 : 100} minSize={50}>
+            <div className="flex flex-col h-full min-w-0">
         {/* Header */}
         <div className={cn(
           "bg-card/80 backdrop-blur-sm border-b border-primary/20 flex items-center justify-between red-glow",
@@ -734,7 +693,159 @@ export default function ChatPage() {
           currentUser={currentUser}
           roomId={activeRoom?.id}
         />
-      </div>
+            </div>
+          </ResizablePanel>
+
+          {/* Resizable Handle */}
+          {showUserList && activeRoomData?.room && (
+            <>
+              <ResizableHandle withHandle />
+              
+              {/* User List Panel */}
+              <ResizablePanel defaultSize={25} minSize={15} maxSize={40}>
+                <UserList
+                  room={activeRoomData.room}
+                  onlineUsers={roomOnlineUsers}
+                  currentUser={currentUser}
+                  onStartPrivateChat={handleStartPrivateChat}
+                  blockedUserIds={new Set(blockedUsersData?.map(bu => bu.blockedId) || [])}
+                />
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
+      ) : (
+        /* Mobile Chat Area */
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Header */}
+          <div className={cn(
+            "bg-card/80 backdrop-blur-sm border-b border-primary/20 flex items-center justify-between red-glow",
+            "px-2 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 lg:px-6 lg:py-4"
+          )}>
+            <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-4 min-w-0 flex-1">
+              {(isMobile || isTablet) && (
+                <MobileMenu
+                  side="left"
+                  className="w-72 sm:w-80 md:w-96"
+                  triggerClassName="mr-1 sm:mr-2"
+                >
+                  <Sidebar
+                    rooms={roomsData?.rooms || []}
+                    privateRooms={privateRooms}
+                    activeRoom={activeRoom}
+                    onRoomSelect={handleRoomSelect}
+                    currentUser={currentUser}
+                    onCreateRoom={() => setShowCreateRoom(true)}
+                    onStartPrivateChat={handleStartPrivateChat}
+                  />
+                </MobileMenu>
+              )}
+
+              <Hash className={cn(
+                "text-primary flex-shrink-0",
+                "w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6"
+              )} />
+              <h1 className={cn(
+                "font-semibold text-white truncate min-w-0 flex-1",
+                "text-sm sm:text-base md:text-lg lg:text-xl"
+              )}>
+                {activeRoom?.name || 'Select a room'}
+              </h1>
+
+              <ConnectionStatusIndicator
+                connectionStatus={connectionStatus}
+                lastError={lastError}
+                queuedCount={queuedCount}
+                failedCount={failedCount}
+                isProcessingQueue={isProcessingQueue}
+                onReconnect={reconnect}
+                onClearFailed={clearFailedMessages}
+              />
+            </div>
+
+            <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowUserList(!showUserList)}
+                className={cn(
+                  "text-white hover:bg-white hover:bg-opacity-10 hover:text-white",
+                  showUserList && "bg-white bg-opacity-20 text-white"
+                )}
+                data-testid="button-toggle-user-list"
+              >
+                <Users className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+              </Button>
+
+              <Link href="/settings">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
+                  data-testid="button-settings"
+                >
+                  <Settings className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+                </Button>
+              </Link>
+
+              {currentUser.role === 'admin' && (
+                <Link href="/admin">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
+                    data-testid="button-admin"
+                  >
+                    <Shield className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+                  </Button>
+                </Link>
+              )}
+
+              <ThemeToggle
+                variant="ghost"
+                size="sm"
+              />
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
+                data-testid="button-logout"
+              >
+                <LogOut className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <MessageList
+            messages={paginatedMessages}
+            currentUser={currentUser}
+            typingUsers={typingUsers}
+            activeRoomData={activeRoomData?.room}
+            isLoading={messagesLoading}
+            isLoadingMore={isLoadingMore}
+            hasMoreMessages={hasMoreMessages}
+            onLoadMore={loadMoreMessages}
+            onStartPrivateChat={handleStartPrivateChat}
+            isMobile={isMobile}
+          />
+
+          {/* Message Input */}
+          <MessageInputEnhanced
+            onSendMessage={handleSendMessage}
+            onTyping={(isTyping: boolean) => {
+              if (activeRoom?.id && currentUser?.id) {
+                sendTyping(isTyping);
+              }
+            }}
+            disabled={!isConnected || !activeRoom}
+            currentUser={currentUser}
+            roomId={activeRoom?.id}
+          />
+        </div>
+      )}
 
       {/* Mobile User List Modal */}
       {(isMobile || isTablet) && showUserList && activeRoomData?.room && (
@@ -752,16 +863,6 @@ export default function ChatPage() {
         </MobileMenu>
       )}
 
-      {/* Desktop User List */}
-      {isDesktop && showUserList && activeRoomData?.room && (
-        <UserList
-          room={activeRoomData.room}
-          onlineUsers={roomOnlineUsers}
-          currentUser={currentUser}
-          onStartPrivateChat={handleStartPrivateChat}
-          blockedUserIds={new Set(blockedUsersData?.map(bu => bu.blockedId) || [])}
-        />
-      )}
 
       {/* Create Room Modal */}
       <CreateRoomModal
