@@ -443,6 +443,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Object storage upload endpoint for general file uploads
+  app.post('/api/objects/upload', async (req, res) => {
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getPhotoUploadURL('message-photo.jpg');
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error('Object upload URL error:', error);
+      res.status(500).json({ error: 'Failed to get upload URL' });
+    }
+  });
+
   // Serve photos
   app.get('/photos/:photoPath(*)', async (req, res) => {
     const photoPath = '/photos/' + req.params.photoPath;

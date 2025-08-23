@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Smile } from 'lucide-react';
+import { Send, Smile, Image } from 'lucide-react';
 import EmojiPicker from './emoji-picker';
 import { apiRequest } from '@/lib/queryClient';
+import type { UploadResult } from '@uppy/core';
+import { PhotoUploader } from './photo-uploader';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { User } from '@shared/schema';
@@ -13,7 +15,7 @@ import { useQuery } from '@tanstack/react-query';
 import MentionDropdown from './mention-dropdown';
 
 interface MessageInputProps {
-  onSendMessage: (content: string, mentionedUserIds?: string[]) => void;
+  onSendMessage: (content: string, photoUrl?: string, photoFileName?: string, mentionedUserIds?: string[]) => void;
   onTyping: (isTyping: boolean) => void;
   disabled?: boolean;
   currentUser?: User;
@@ -53,7 +55,7 @@ export default function MessageInputEnhanced({
   const handleSendMessage = useCallback(() => {
     if (message.trim() && !disabled) {
       const mentionedUserIds = mentionedUsers.map(user => user.id);
-      onSendMessage(message.trim(), mentionedUserIds);
+      onSendMessage(message.trim(), undefined, undefined, mentionedUserIds);
       setMessage('');
       setMentionedUsers([]);
       handleStopTyping();
@@ -65,6 +67,73 @@ export default function MessageInputEnhanced({
     }
   }, [message, disabled, mentionedUsers, onSendMessage]);
 
+  // Handle photo upload
+  const handleGetUploadParameters = async () => {
+    try {
+      const response = await apiRequest('POST', '/api/objects/upload');
+      const data = await response.json();
+      return {
+        method: 'PUT' as const,
+        url: data.uploadURL,
+      };
+    } catch (error) {
+      console.error('Error getting upload parameters:', error);
+      toast({
+        title: "Upload Error",
+        description: "Failed to get upload parameters. Please try again.",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const handlePhotoUploadComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+    try {
+      if (result.successful && result.successful.length > 0) {
+        const uploadedFile = result.successful[0];
+        const photoUrl = uploadedFile.uploadURL;
+
+        if (!photoUrl) {
+          throw new Error('No upload URL received');
+        }
+
+        const photoFileName = uploadedFile.name || 'photo.jpg';
+        const mentionedUserIds = mentionedUsers.map(user => user.id);
+
+        console.log('Photo upload completed:', { photoUrl, photoFileName, mentionedUserIds });
+
+        // Send the photo as a message with mentions
+        onSendMessage(message.trim() || '', photoUrl, photoFileName, mentionedUserIds);
+        setMessage('');
+        setMentionedUsers([]);
+        handleStopTyping();
+
+        // Reset textarea height
+        if (textareaRef.current) {
+          textareaRef.current.style.height = 'auto';
+        }
+
+        toast({
+          title: "Photo Sent",
+          description: "Your photo has been shared successfully.",
+        });
+      } else {
+        console.error('Photo upload failed:', result);
+        toast({
+          title: "Upload Error",
+          description: "Failed to upload photo. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error handling photo upload:', error);
+      toast({
+        title: "Upload Error",
+        description: "Failed to send photo. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Handle emoji selection
   const handleEmojiSelect = (emoji: string) => {
@@ -315,6 +384,20 @@ export default function MessageInputEnhanced({
           <Smile className="w-4 h-4 sm:w-5 sm:h-5" />
         </Button>
 
+        {/* Photo Upload Button */}
+        <PhotoUploader
+          maxNumberOfFiles={1}
+          maxFileSize={10485760} // 10MB
+          onGetUploadParameters={handleGetUploadParameters}
+          onComplete={handlePhotoUploadComplete}
+          buttonClassName={cn(
+            "text-gray-500 hover:text-primary transition-colors duration-200 flex-shrink-0",
+            "p-1.5 sm:p-2 md:p-2.5",
+            "w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10"
+          )}
+        >
+          <Image className="w-4 h-4 sm:w-5 sm:h-5" />
+        </PhotoUploader>
 
         <div className="flex-1 relative">
           <div className="relative">

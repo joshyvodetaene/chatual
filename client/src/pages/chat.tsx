@@ -335,7 +335,7 @@ export default function ChatPage() {
     }
   }, [isDesktop, currentUser, isMobile, isTablet]);
 
-  const handleSendMessage = (content: string, mentionedUserIds?: string[]) => {
+  const handleSendMessage = (content: string, photoUrl?: string, photoFileName?: string, mentionedUserIds?: string[]) => {
     if (!currentUser?.id) return;
 
     // Use multiple fallback strategies to find a room
@@ -385,14 +385,14 @@ export default function ChatPage() {
           if (refreshedRooms?.rooms && refreshedRooms.rooms.length > 0) {
             setActiveRoom(refreshedRooms.rooms[0]);
             activeRoomRef.current = refreshedRooms.rooms[0];
-            sendMessage(content, mentionedUserIds);
+            sendMessage(content, photoUrl, photoFileName, mentionedUserIds);
           }
         }, 1000);
       });
       return;
     }
 
-    sendMessage(content, mentionedUserIds);
+    sendMessage(content, photoUrl, photoFileName, mentionedUserIds);
   };
 
   const handleStartPrivateChat = async (userId: string) => {
