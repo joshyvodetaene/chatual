@@ -235,18 +235,53 @@ export default function ChatPage() {
 
   // Handle new messages from WebSocket (filter by current room and handle deduplication)
   useEffect(() => {
-    if (!currentUser || messages.length === 0 || !activeRoom?.id) {
+    console.log('[CHAT_PAGE] WebSocket message processing:', {
+      currentUser: !!currentUser,
+      messagesLength: messages.length,
+      activeRoomId: activeRoom?.id,
+      paginatedMessagesLength: paginatedMessages.length
+    });
+
+    if (!currentUser || !activeRoom?.id) {
+      console.log('[CHAT_PAGE] Skipping message processing: missing user or room');
+      return;
+    }
+
+    if (messages.length === 0) {
+      console.log('[CHAT_PAGE] Skipping message processing: no WebSocket messages');
       return;
     }
 
     // Batch process new messages for better performance
-    const newMessages = messages.filter(msg =>
-      msg.roomId === activeRoom.id &&
-      !paginatedMessages.some(pMsg => pMsg.id === msg.id)
-    );
+    const newMessages = messages.filter(msg => {
+      const roomMatch = msg.roomId === activeRoom.id;
+      const notInPaginated = !paginatedMessages.some(pMsg => pMsg.id === msg.id);
+      console.log('[CHAT_PAGE] Message filter check:', {
+        messageId: msg.id,
+        messageRoomId: msg.roomId,
+        activeRoomId: activeRoom.id,
+        roomMatch,
+        notInPaginated,
+        willInclude: roomMatch && notInPaginated
+      });
+      return roomMatch && notInPaginated;
+    });
+
+    console.log('[CHAT_PAGE] Filtered new messages:', {
+      totalWebSocketMessages: messages.length,
+      newMessagesCount: newMessages.length,
+      newMessageIds: newMessages.map(m => m.id)
+    });
 
     if (newMessages.length > 0) {
       newMessages.forEach(msg => {
+        console.log('[CHAT_PAGE] Adding message to paginated list:', {
+          id: msg.id,
+          content: msg.content?.substring(0, 20),
+          messageType: msg.messageType,
+          userId: msg.userId
+        });
+
         // If this is a real message from server, remove any optimistic message for the same photo
         if (msg.messageType === 'photo' && msg.photoUrl && !msg.isTemporary) {
           // Find and remove optimistic messages with the same photo URL
