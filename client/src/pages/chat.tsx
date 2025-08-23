@@ -741,81 +741,81 @@ export default function ChatPage() {
                 </MobileMenu>
               )}
 
-              <Hash className={cn(
-                "text-primary flex-shrink-0",
-                "w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6"
-              )} />
-              <h1 className={cn(
-                "font-semibold text-white truncate min-w-0 flex-1",
-                "text-sm sm:text-base md:text-lg lg:text-xl"
-              )}>
-                {activeRoom?.name || 'Select a room'}
-              </h1>
+            <Hash className={cn(
+              "text-primary flex-shrink-0",
+              "w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6"
+            )} />
+            <h1 className={cn(
+              "font-semibold text-white truncate min-w-0 flex-1",
+              "text-sm sm:text-base md:text-lg lg:text-xl"
+            )}>
+              {activeRoom?.name || 'Select a room'}
+            </h1>
 
-              <ConnectionStatusIndicator
-                connectionStatus={connectionStatus}
-                lastError={lastError}
-                queuedCount={queuedCount}
-                failedCount={failedCount}
-                isProcessingQueue={isProcessingQueue}
-                onReconnect={reconnect}
-                onClearFailed={clearFailedMessages}
-              />
-            </div>
+            <ConnectionStatusIndicator
+              connectionStatus={connectionStatus}
+              lastError={lastError}
+              queuedCount={queuedCount}
+              failedCount={failedCount}
+              isProcessingQueue={isProcessingQueue}
+              onReconnect={reconnect}
+              onClearFailed={clearFailedMessages}
+            />
+          </div>
 
-            <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3">
+          <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowUserList(!showUserList)}
+              className={cn(
+                "text-white hover:bg-white hover:bg-opacity-10 hover:text-white",
+                showUserList && "bg-white bg-opacity-20 text-white"
+              )}
+              data-testid="button-toggle-user-list"
+            >
+              <Users className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+            </Button>
+
+            <Link href="/settings">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setShowUserList(!showUserList)}
-                className={cn(
-                  "text-white hover:bg-white hover:bg-opacity-10 hover:text-white",
-                  showUserList && "bg-white bg-opacity-20 text-white"
-                )}
-                data-testid="button-toggle-user-list"
+                className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
+                data-testid="button-settings"
               >
-                <Users className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+                <Settings className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
               </Button>
+            </Link>
 
-              <Link href="/settings">
+            {currentUser.role === 'admin' && (
+              <Link href="/admin">
                 <Button
                   variant="ghost"
                   size="sm"
                   className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
-                  data-testid="button-settings"
+                  data-testid="button-admin"
                 >
-                  <Settings className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+                  <Shield className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
                 </Button>
               </Link>
+            )}
 
-              {currentUser.role === 'admin' && (
-                <Link href="/admin">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
-                    data-testid="button-admin"
-                  >
-                    <Shield className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
-                  </Button>
-                </Link>
-              )}
+            <ThemeToggle
+              variant="ghost"
+              size="sm"
+            />
 
-              <ThemeToggle
-                variant="ghost"
-                size="sm"
-              />
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-                className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
-                data-testid="button-logout"
-              >
-                <LogOut className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
+              data-testid="button-logout"
+            >
+              <LogOut className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+            </Button>
+          </div>
           </div>
 
           {/* Messages */}
