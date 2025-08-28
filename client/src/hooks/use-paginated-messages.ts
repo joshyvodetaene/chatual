@@ -144,7 +144,27 @@ export function usePaginatedMessages({
   const addMessage = useCallback((message: MessageWithUser) => {
     if (!roomId) return;
     
-    const updatedMessages = [...allMessages, message];
+    let filteredMessages = allMessages;
+    
+    // If this is a real photo message, remove any temporary message for the same photo
+    if (message.messageType === 'photo' && message.photoUrl && !message.id?.startsWith('temp-')) {
+      filteredMessages = allMessages.filter(existingMsg => {
+        // Keep non-temp messages and non-photo messages
+        if (!existingMsg.id?.startsWith('temp-') || existingMsg.messageType !== 'photo') {
+          return true;
+        }
+        
+        // For temp photo messages, check if this real message replaces it
+        if (existingMsg.userId === message.userId && existingMsg.photoFileName === message.photoFileName) {
+          console.log('Removing temporary message:', existingMsg.id, 'replaced by:', message.id);
+          return false; // Remove the temporary message
+        }
+        
+        return true; // Keep other temp messages
+      });
+    }
+    
+    const updatedMessages = [...filteredMessages, message];
     setAllMessages(updatedMessages);
     
     // Update cache with the new message to preserve it (important for private chats)
