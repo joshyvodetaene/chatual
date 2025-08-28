@@ -240,12 +240,12 @@ export default function ChatPage() {
     if (newMessages.length > 0) {
       newMessages.forEach(msg => {
         // If this is a real message from server, remove any optimistic message for the same photo
-        if (msg.messageType === 'photo' && msg.photoUrl && !msg.isTemporary) {
-          // Find and remove optimistic messages with the same photo URL
+        if (msg.messageType === 'photo' && msg.photoFileName && !msg.isTemporary) {
+          // Find and remove optimistic messages with the same photo filename
           const optimisticMessages = paginatedMessages.filter(pMsg => 
             pMsg.isTemporary && 
             pMsg.messageType === 'photo' && 
-            pMsg.photoUrl === msg.photoUrl &&
+            pMsg.photoFileName === msg.photoFileName &&
             pMsg.userId === msg.userId
           );
           
@@ -254,7 +254,7 @@ export default function ChatPage() {
             const optimisticIds = optimisticMessages.map(m => m.id);
             const filteredMessages = paginatedMessages.filter(pMsg => !optimisticIds.includes(pMsg.id));
             setPaginatedMessages(filteredMessages);
-            console.log('Removed optimistic photo messages:', optimisticMessages.length);
+            console.log('Removed optimistic photo messages:', optimisticMessages.length, 'for photo:', msg.photoFileName);
           }
         }
         
