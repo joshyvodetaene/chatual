@@ -217,9 +217,32 @@ export default function ChatPage() {
   const syncedMessages = useMemo(() => {
     if (!currentUser) return [];
     
-    // Always use paginated messages - don't mix with WebSocket messages here
-    // WebSocket messages will be added via the separate useEffect below
-    return paginatedMessages;
+    // Filter out temporary photo messages if there's a matching real message
+    const filtered = paginatedMessages.filter(msg => {
+      // If this is a temporary photo message, check if there's a real message for the same photo
+      if (msg.id?.startsWith('temp-') && msg.messageType === 'photo' && msg.photoUrl) {
+        // Extract filename from the Google Cloud Storage URL for matching
+        const tempUrlMatch = msg.photoUrl.match(/photos\/([^?]+)/); 
+        const tempFilename = tempUrlMatch ? tempUrlMatch[1] : msg.photoFileName;
+        
+        // Check if there's a real message with matching photo file
+        const hasRealMessage = paginatedMessages.some(otherMsg => 
+          !otherMsg.id?.startsWith('temp-') &&
+          otherMsg.messageType === 'photo' &&
+          otherMsg.userId === msg.userId &&
+          ((tempFilename && otherMsg.photoUrl?.includes(tempFilename)) || 
+           otherMsg.photoFileName === msg.photoFileName)
+        );
+        
+        if (hasRealMessage) {
+          return false; // Filter out the temporary message
+        }
+      }
+      
+      return true; // Keep all other messages
+    });
+    
+    return filtered;
   }, [paginatedMessages, currentUser]);
 
   // Don't sync WebSocket messages back to avoid duplicate filtering issues
@@ -238,28 +261,32 @@ export default function ChatPage() {
     );
 
     if (newMessages.length > 0) {
-      newMessages.forEach(msg => {
-        // If this is a real message from server, remove any temporary message for the same photo
-        if (msg.messageType === 'photo' && msg.photoFileName && !msg.id?.startsWith('temp-')) {
-          // Find and remove temporary messages with the same photo filename or from same user around same time
-          const tempMessages = paginatedMessages.filter(pMsg => 
-            pMsg.id?.startsWith('temp-') && 
-            pMsg.messageType === 'photo' && 
-            pMsg.userId === msg.userId &&
-            (pMsg.photoFileName === msg.photoFileName || 
+      // First pass: Remove any temporary messages that should be replaced by real messages
+      const realPhotoMessages = newMessages.filter(msg => 
+        msg.messageType === 'photo' && msg.photoFileName && !msg.id?.startsWith('temp-')
+      );
+      
+      if (realPhotoMessages.length > 0) {
+        const tempMessagesToRemove = paginatedMessages.filter(pMsg => 
+          pMsg.id?.startsWith('temp-') && 
+          pMsg.messageType === 'photo' && 
+          realPhotoMessages.some(realMsg => 
+            realMsg.userId === pMsg.userId &&
+            (realMsg.photoFileName === pMsg.photoFileName || 
              // Also match by time proximity (within 30 seconds) as backup
-             (pMsg.createdAt && msg.createdAt && Math.abs(new Date(pMsg.createdAt).getTime() - new Date(msg.createdAt).getTime()) < 30000))
-          );
-          
-          if (tempMessages.length > 0) {
-            // Remove the temporary messages since we now have the real message
-            const tempIds = tempMessages.map(m => m.id);
-            const filteredMessages = paginatedMessages.filter(pMsg => !tempIds.includes(pMsg.id));
-            setPaginatedMessages(filteredMessages);
-            console.log('Removed temporary photo messages:', tempMessages.length, 'for photo:', msg.photoFileName);
-          }
-        }
+             (pMsg.createdAt && realMsg.createdAt && Math.abs(new Date(pMsg.createdAt).getTime() - new Date(realMsg.createdAt).getTime()) < 30000))
+          )
+        );
         
+        if (tempMessagesToRemove.length > 0) {
+          const tempIds = tempMessagesToRemove.map(m => m.id);
+          const filteredMessages = paginatedMessages.filter(pMsg => !tempIds.includes(pMsg.id));
+          setPaginatedMessages(filteredMessages);
+        }
+      }
+      
+      // Second pass: Add all new messages
+      newMessages.forEach(msg => {
         addMessage(msg);
       });
     }
