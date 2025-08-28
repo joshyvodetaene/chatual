@@ -47,7 +47,13 @@ import {
   blockedUsers,
   reports,
   userModerationActions,
-  messageReactions
+  messageReactions,
+  userNotificationSettings,
+  notifications,
+  type UserNotificationSettings,
+  type UpdateNotificationSettings,
+  type Notification,
+  type InsertNotification
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, ne, sql, gt, lt, like, ilike } from "drizzle-orm";
@@ -798,6 +804,46 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  async getMessageById(messageId: string): Promise<MessageWithUser | undefined> {
+    try {
+      const result = await db
+        .select({
+          message: messages,
+          user: users,
+          photo: userPhotos
+        })
+        .from(messages)
+        .innerJoin(users, eq(messages.userId, users.id))
+        .leftJoin(userPhotos, and(
+          eq(userPhotos.userId, users.id),
+          eq(userPhotos.isPrimary, true)
+        ))
+        .where(eq(messages.id, messageId))
+        .limit(1);
+
+      if (result.length === 0) {
+        return undefined;
+      }
+
+      const { message, user, photo } = result[0];
+      return {
+        ...message,
+        user: {
+          ...user,
+          primaryPhoto: photo ? {
+            id: photo.id,
+            photoUrl: photo.photoUrl,
+            fileName: photo.fileName,
+            isPrimary: photo.isPrimary || false
+          } : null
+        }
+      };
+    } catch (error) {
+      console.error('Error getting message by ID:', error);
+      return undefined;
+    }
+  }
+
   // Photo methods
   async addUserPhoto(photoData: InsertUserPhoto): Promise<UserPhoto> {
     const newPhoto = await this.retryDatabaseOperation(async () => {
@@ -1321,5 +1367,115 @@ export class DatabaseStorage implements IStorage {
     }
 
     throw lastError!;
+  }
+
+  // Notification methods
+  async getUserNotificationSettings(userId: string): Promise<UserNotificationSettings> {
+    try {
+      const [settings] = await db
+        .select()
+        .from(userNotificationSettings)
+        .where(eq(userNotificationSettings.userId, userId));
+
+      if (settings) {
+        return settings;
+      }
+
+      // Create default settings if they don't exist
+      const defaultSettings = {
+        userId,
+        enableNotifications: true,
+        soundEnabled: true,
+        vibrationEnabled: true,
+        quietHoursEnabled: false,
+        quietHoursStart: '22:00',
+        quietHoursEnd: '08:00',
+        newMessages: true,
+        mentions: true,
+        reactions: true,
+        friendRequests: true,
+        photoLikes: true,
+        profileViews: false,
+        newMatches: true,
+        roomInvites: true,
+        systemUpdates: true,
+        securityAlerts: true,
+        emailDailySummary: false,
+        emailWeeklyHighlights: true,
+        emailImportantUpdates: true,
+        emailSecurityAlerts: true
+      };
+
+      const [newSettings] = await db
+        .insert(userNotificationSettings)
+        .values(defaultSettings)
+        .returning();
+
+      return newSettings;
+    } catch (error) {
+      console.error('Error getting user notification settings:', error);
+      throw error;
+    }
+  }
+
+  async updateUserNotificationSettings(userId: string, settings: UpdateNotificationSettings): Promise<UserNotificationSettings> {
+    try {
+      // First ensure settings exist
+      await this.getUserNotificationSettings(userId);
+
+      const [updatedSettings] = await db
+        .update(userNotificationSettings)
+        .set({ ...settings, updatedAt: new Date() })
+        .where(eq(userNotificationSettings.userId, userId))
+        .returning();
+
+      return updatedSettings;
+    } catch (error) {
+      console.error('Error updating user notification settings:', error);
+      throw error;
+    }
+  }
+
+  async getUserNotifications(userId: string, limit: number = 20, offset: number = 0): Promise<Notification[]> {
+    try {
+      const userNotifications = await db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.userId, userId))
+        .orderBy(desc(notifications.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      return userNotifications;
+    } catch (error) {
+      console.error('Error getting user notifications:', error);
+      throw error;
+    }
+  }
+
+  async createNotification(notificationData: InsertNotification): Promise<Notification> {
+    try {
+      const [notification] = await db
+        .insert(notifications)
+        .values({ ...notificationData, id: randomUUID() })
+        .returning();
+
+      return notification;
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      throw error;
+    }
+  }
+
+  async markNotificationAsRead(notificationId: string): Promise<void> {
+    try {
+      await db
+        .update(notifications)
+        .set({ isRead: true, readAt: new Date() })
+        .where(eq(notifications.id, notificationId));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      throw error;
+    }
   }
 }

@@ -22,6 +22,9 @@ import { useToast } from '@/hooks/use-toast';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Link } from 'wouter';
 import { cn } from '@/lib/utils';
+import { NotificationCenter } from '@/components/notifications/notification-center';
+import { NotificationToast } from '@/components/notifications/notification-toast';
+import { useNotificationManager } from '@/hooks/use-notification-manager';
 
 export default function ChatPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -39,6 +42,7 @@ export default function ChatPage() {
   const { setUserId } = useTheme();
   const [privateRooms, setPrivateRooms] = useState<PrivateRoom[]>([]);
   const currentJoinedRoom = useRef<string | null>(null);
+  const { toasts, showNotification, removeToast } = useNotificationManager();
 
   // Always call hooks consistently - enable/disable with the enabled option
   const {
@@ -626,6 +630,8 @@ export default function ChatPage() {
               <Users className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
             </Button>
 
+            <NotificationCenter />
+
             <Link href="/settings">
               <Button
                 variant="ghost"
@@ -777,6 +783,8 @@ export default function ChatPage() {
               <Users className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
             </Button>
 
+            <NotificationCenter />
+
             <Link href="/settings">
               <Button
                 variant="ghost"
@@ -876,6 +884,29 @@ export default function ChatPage() {
           localStorage.setItem('chatual_active_room', JSON.stringify({ id: room.id, name: room.name }));
         }}
       />
+
+      {/* Notification Toasts */}
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+        {toasts.map((toast) => (
+          <NotificationToast
+            key={toast.id}
+            {...toast}
+            message={toast.body}
+            onClose={() => removeToast(toast.id)}
+            onAction={() => {
+              // Handle navigation based on notification data
+              if (toast.data?.roomId) {
+                // Navigate to the room where the notification occurred
+                const room = roomsData?.rooms?.find(r => r.id === toast.data.roomId);
+                if (room) {
+                  setActiveRoom(room);
+                }
+              }
+              removeToast(toast.id);
+            }}
+          />
+        ))}
+      </div>
     </div>
   );
 }

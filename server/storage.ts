@@ -32,7 +32,11 @@ import {
   type PaginatedResponse,
   type MessageReaction,
   type InsertMessageReaction,
-  type ReactionSummary
+  type ReactionSummary,
+  type UserNotificationSettings,
+  type UpdateNotificationSettings,
+  type Notification,
+  type InsertNotification
 } from "@shared/schema";
 import { DatabaseStorage } from "./database-storage";
 import { randomUUID } from "crypto";
@@ -83,6 +87,7 @@ export interface IStorage {
   // Message methods
   createMessage(message: InsertMessage): Promise<Message>;
   getRoomMessages(roomId: string, pagination?: PaginationParams): Promise<PaginatedResponse<MessageWithUser>>;
+  getMessageById(messageId: string): Promise<MessageWithUser | undefined>;
 
   // Photo methods
   addUserPhoto(photoData: InsertUserPhoto): Promise<UserPhoto>;
@@ -109,6 +114,13 @@ export interface IStorage {
   updateReportStatus(reportId: string, statusUpdate: UpdateReportStatus, adminUserId: string): Promise<Report>;
   getUserReports(reportedUserId: string): Promise<ReportWithDetails[]>; // Get reports about a specific user
   getModerationData(adminUserId: string): Promise<ModerationData>; // Get summary for admin panel
+
+  // Notification methods
+  getUserNotificationSettings(userId: string): Promise<UserNotificationSettings>;
+  updateUserNotificationSettings(userId: string, settings: UpdateNotificationSettings): Promise<UserNotificationSettings>;
+  getUserNotifications(userId: string, limit?: number, offset?: number): Promise<Notification[]>;
+  createNotification(notificationData: InsertNotification): Promise<Notification>;
+  markNotificationAsRead(notificationId: string): Promise<void>;
 }
 
 export const storage = new DatabaseStorage();

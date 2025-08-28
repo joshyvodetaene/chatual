@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, integer, boolean, timestamp, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, boolean, timestamp, varchar, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -111,6 +111,46 @@ export const reports = pgTable("reports", {
   adminNotes: text("admin_notes"), // Admin notes for the report
 });
 
+// User notification settings table
+export const userNotificationSettings = pgTable('user_notification_settings', {
+  id: varchar('id').primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }).unique(),
+  enableNotifications: boolean('enable_notifications').default(true).notNull(),
+  soundEnabled: boolean('sound_enabled').default(true).notNull(),
+  vibrationEnabled: boolean('vibration_enabled').default(true).notNull(),
+  quietHoursEnabled: boolean('quiet_hours_enabled').default(false).notNull(),
+  quietHoursStart: varchar('quiet_hours_start').default('22:00'),
+  quietHoursEnd: varchar('quiet_hours_end').default('08:00'),
+  newMessages: boolean('new_messages').default(true).notNull(),
+  mentions: boolean('mentions').default(true).notNull(),
+  reactions: boolean('reactions').default(true).notNull(),
+  friendRequests: boolean('friend_requests').default(true).notNull(),
+  photoLikes: boolean('photo_likes').default(true).notNull(),
+  profileViews: boolean('profile_views').default(false).notNull(),
+  newMatches: boolean('new_matches').default(true).notNull(),
+  roomInvites: boolean('room_invites').default(true).notNull(),
+  systemUpdates: boolean('system_updates').default(true).notNull(),
+  securityAlerts: boolean('security_alerts').default(true).notNull(),
+  emailDailySummary: boolean('email_daily_summary').default(false).notNull(),
+  emailWeeklyHighlights: boolean('email_weekly_highlights').default(true).notNull(),
+  emailImportantUpdates: boolean('email_important_updates').default(true).notNull(),
+  emailSecurityAlerts: boolean('email_security_alerts').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Notifications table for storing user notifications
+export const notifications = pgTable('notifications', {
+  id: varchar('id').primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  type: varchar('type').notNull(), // 'message' | 'mention' | 'reaction' | 'friend_request' | etc
+  title: varchar('title').notNull(),
+  body: text('body').notNull(),
+  data: jsonb('data'), // Additional data like user IDs, message IDs, etc
+  read: boolean('read').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   isOnline: true,
@@ -179,6 +219,22 @@ export const updateReportStatusSchema = z.object({
 export const insertModerationActionSchema = createInsertSchema(userModerationActions).omit({
   id: true,
   performedAt: true,
+});
+
+// Notification settings schemas
+export const insertNotificationSettingsSchema = createInsertSchema(userNotificationSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateNotificationSettingsSchema = insertNotificationSettingsSchema.partial();
+
+// Notification schemas
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+  read: true,
 });
 
 // Message reactions schemas
@@ -263,6 +319,11 @@ export type UserModerationAction = typeof userModerationActions.$inferSelect;
 export type InsertModerationAction = z.infer<typeof insertModerationActionSchema>;
 export type WarnUser = z.infer<typeof warnUserSchema>;
 export type BanUser = z.infer<typeof banUserSchema>;
+export type UserNotificationSettings = typeof userNotificationSettings.$inferSelect;
+export type InsertNotificationSettings = z.infer<typeof insertNotificationSettingsSchema>;
+export type UpdateNotificationSettings = z.infer<typeof updateNotificationSettingsSchema>;
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 
 export type MessageWithUser = Message & {
   user: User;

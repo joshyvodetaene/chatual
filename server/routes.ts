@@ -2,8 +2,9 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { insertUserSchema, insertRoomSchema, insertMessageSchema, registerUserSchema, loginSchema, insertUserPhotoSchema, updateUserProfileSchema, insertBlockedUserSchema, insertReportSchema, reportSchema, updateReportStatusSchema, warnUserSchema, banUserSchema } from "@shared/schema";
+import { insertUserSchema, insertRoomSchema, insertMessageSchema, registerUserSchema, loginSchema, insertUserPhotoSchema, updateUserProfileSchema, insertBlockedUserSchema, insertReportSchema, reportSchema, updateReportStatusSchema, warnUserSchema, banUserSchema, updateNotificationSettingsSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { NotificationService } from "./notification-service";
 
 interface WebSocketClient extends WebSocket {
   userId?: string;
@@ -34,6 +35,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   const clients = new Map<string, WebSocketClient>();
   const roomUsers = new Map<string, Set<string>>(); // Track online users per room
+  
+  // Initialize notification service
+  const notificationService = new NotificationService(clients);
   
   console.log('WebSocket server initialized on path /ws');
 
@@ -171,6 +175,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 messageType: messageWithUser.messageType,
                 photoUrl: messageWithUser.photoUrl
               });
+              
+              // Send notifications for mentions
+              if (newMessage.mentionedUserIds && newMessage.mentionedUserIds.length > 0) {
+                console.log(`[WEBSOCKET] Processing mentions: ${newMessage.mentionedUserIds}`);
+                for (const mentionedUserId of newMessage.mentionedUserIds) {
+                  if (mentionedUserId !== ws.userId) { // Don't notify the sender
+                    await notificationService.notifyMention(
+                      mentionedUserId,
+                      ws.userId,
+                      ws.roomId,
+                      newMessage.content || '[Photo]'
+                    );
+                  }
+                }
+              }
+
+              // Send notifications to room members who are not currently online in this room
+              try {
+                const roomMembers = await storage.getRoomMembers(ws.roomId);
+                const onlineUsersInRoom = Array.from(roomUsers.get(ws.roomId) || []);
+                
+                for (const member of roomMembers) {
+                  // Don't notify the sender and those who are currently online in the room
+                  if (member.id !== ws.userId && !onlineUsersInRoom.includes(member.id)) {
+                    const isDirectMessage = roomMembers.length === 2; // Simple check for direct messages
+                    await notificationService.notifyNewMessage(
+                      member.id,
+                      ws.userId,
+                      ws.roomId,
+                      newMessage.content || '[Photo]',
+                      isDirectMessage
+                    );
+                  }
+                }
+              } catch (error) {
+                console.error('Error sending message notifications:', error);
+              }
               
               // Broadcast message to room
               broadcastToRoom(ws.roomId, {
@@ -682,6 +723,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const reaction = await storage.addReaction({ messageId, userId, emoji });
+      
+      // Send notification to the message author (if it's not the same person reacting)
+      try {
+        const message = await storage.getMessageById(messageId);
+        if (message && message.userId !== userId) {
+          // Get room ID from the message to include in notification metadata
+          await notificationService.notifyReaction(
+            message.userId,
+            userId,
+            emoji,
+            message.roomId
+          );
+        }
+      } catch (notificationError) {
+        console.error('Error sending reaction notification:', notificationError);
+        // Don't fail the request if notification fails
+      }
+      
       res.json({ reaction });
     } catch (error) {
       console.error('Add reaction error:', error);
@@ -850,6 +909,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Update profile error:', error);
       res.status(400).json({ error: 'Failed to update profile' });
+    }
+  });
+
+  // Get user notification settings
+  app.get('/api/users/:userId/notification-settings', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const settings = await storage.getUserNotificationSettings(userId);
+      res.json(settings);
+    } catch (error) {
+      console.error('Get notification settings error:', error);
+      res.status(500).json({ error: 'Failed to get notification settings' });
+    }
+  });
+
+  // Update user notification settings
+  app.put('/api/users/:userId/notification-settings', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const settingsData = updateNotificationSettingsSchema.parse(req.body);
+      
+      const updatedSettings = await storage.updateUserNotificationSettings(userId, settingsData);
+      res.json(updatedSettings);
+    } catch (error) {
+      console.error('Update notification settings error:', error);
+      res.status(400).json({ error: 'Failed to update notification settings' });
+    }
+  });
+
+  // Get user notifications
+  app.get('/api/users/:userId/notifications', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { limit = '20', offset = '0' } = req.query;
+      
+      const notifications = await storage.getUserNotifications(userId, parseInt(limit as string), parseInt(offset as string));
+      res.json({ notifications });
+    } catch (error) {
+      console.error('Get notifications error:', error);
+      res.status(500).json({ error: 'Failed to get notifications' });
+    }
+  });
+
+  // Mark notification as read
+  app.put('/api/notifications/:notificationId/read', async (req, res) => {
+    try {
+      const { notificationId } = req.params;
+      
+      await storage.markNotificationAsRead(notificationId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Mark notification as read error:', error);
+      res.status(500).json({ error: 'Failed to mark notification as read' });
     }
   });
 

@@ -215,6 +215,17 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
               queryClient.invalidateQueries({ queryKey: ['/api/chat-data', userId] });
             }
             break;
+          case 'notification':
+            console.log(`[WS_HOOK] Received notification:`, {
+              type: message.notification?.type,
+              title: message.notification?.title,
+              body: message.notification?.body
+            });
+            // Emit custom event for notification manager to handle
+            window.dispatchEvent(new CustomEvent('websocket-notification', {
+              detail: message.notification
+            }));
+            break;
           }
         };
 
