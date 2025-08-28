@@ -251,10 +251,9 @@ export default function ChatPage() {
           
           if (optimisticMessages.length > 0) {
             // Remove the optimistic messages since we now have the real message
-            optimisticMessages.forEach(optimisticMsg => {
-              // Use setPaginatedMessages to remove the optimistic message
-              setPaginatedMessages(prev => prev.filter(pMsg => pMsg.id !== optimisticMsg.id));
-            });
+            const optimisticIds = optimisticMessages.map(m => m.id);
+            const filteredMessages = paginatedMessages.filter(pMsg => !optimisticIds.includes(pMsg.id));
+            setPaginatedMessages(filteredMessages);
             console.log('Removed optimistic photo messages:', optimisticMessages.length);
           }
         }
