@@ -322,7 +322,7 @@ export default function NotificationPreferences({ user, isMobile = false }: Noti
                 { key: 'reactions', label: 'Reactions', description: 'When someone reacts to your message', icon: Heart, color: 'text-red-500' },
                 { key: 'friendRequests', label: 'Friend Requests', description: 'When someone wants to connect with you', icon: UserPlus, color: 'text-green-500' },
                 { key: 'photoLikes', label: 'Photo Likes', description: 'When someone likes your photos', icon: Camera, color: 'text-pink-500' },
-                { key: 'profileViews', label: 'Profile Views', description: 'When someone views your profile', icon: <div className="w-4 h-4 rounded-full bg-blue-400"></div>, color: 'text-blue-400' },
+                { key: 'profileViews', label: 'Profile Views', description: 'When someone views your profile', icon: () => <div className="w-4 h-4 rounded-full bg-blue-400"></div>, color: 'text-blue-400' },
                 { key: 'newMatches', label: 'New Matches', description: 'When you have a mutual connection', icon: Heart, color: 'text-red-400' },
                 { key: 'roomInvites', label: 'Room Invites', description: 'When someone invites you to a room', icon: UserPlus, color: 'text-indigo-500' },
                 { key: 'systemUpdates', label: 'System Updates', description: 'App updates and announcements', icon: Bell, color: 'text-gray-400' },
