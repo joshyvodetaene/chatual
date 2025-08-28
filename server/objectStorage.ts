@@ -89,9 +89,10 @@ export class ObjectStorageService {
       );
     }
 
-    const photoId = randomUUID();
-    const fileExtension = fileName.split('.').pop() || 'jpg';
-    const objectName = `photos/${photoId}.${fileExtension}`;
+    // Use original filename with timestamp for uniqueness while preserving the original name
+    const timestamp = Date.now();
+    const cleanFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_'); // Sanitize filename
+    const objectName = `photos/${timestamp}_${cleanFileName}`;
     const fullPath = `${privateObjectDir}/${objectName}`;
 
     const { bucketName, objectName: finalObjectName } = parseObjectPath(fullPath);
