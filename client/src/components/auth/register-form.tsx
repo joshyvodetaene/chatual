@@ -6,6 +6,7 @@ import { RegisterUser, registerUserSchema } from '@shared/schema';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useGeolocation } from '@/hooks/use-geolocation';
+import { geocodeLocation, isValidCoordinates } from '@/lib/geocoding';
 import {
   Card,
   CardContent,
@@ -42,6 +43,7 @@ interface RegisterFormProps {
 
 export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) {
   const [usernameToCheck, setUsernameToCheck] = useState('');
+  const [isGeocodingLocation, setIsGeocodingLocation] = useState(false);
   const { toast } = useToast();
   const { isMobile } = useResponsive();
   
@@ -116,7 +118,46 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
     },
   });
 
-  const onSubmit = (data: RegisterUser) => {
+  const onSubmit = async (data: RegisterUser) => {
+    // Check if we need to geocode the location
+    const hasCoordinates = isValidCoordinates(data.latitude || '', data.longitude || '');
+    const hasLocation = data.location && data.location.trim().length > 0;
+    
+    if (!hasCoordinates && hasLocation) {
+      setIsGeocodingLocation(true);
+      
+      try {
+        const geocodeResult = await geocodeLocation(data.location);
+        
+        if (geocodeResult) {
+          // Update form with geocoded coordinates
+          data.latitude = geocodeResult.latitude.toString();
+          data.longitude = geocodeResult.longitude.toString();
+          
+          toast({
+            title: 'Location found',
+            description: `Found coordinates for: ${geocodeResult.display_name}`,
+          });
+        } else {
+          toast({
+            title: 'Location not found',
+            description: 'Could not find coordinates for the specified location. Registration will continue without precise coordinates.',
+            variant: 'destructive',
+          });
+        }
+      } catch (error) {
+        console.error('Geocoding failed:', error);
+        toast({
+          title: 'Location lookup failed',
+          description: 'Could not look up location coordinates. Registration will continue without precise coordinates.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsGeocodingLocation(false);
+      }
+    }
+    
+    // Submit the registration with coordinates (if available)
     registerMutation.mutate(data);
   };
 
@@ -380,12 +421,22 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
               className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-3 red-glow transition-all duration-300 hover:shadow-lg"
               disabled={
                 registerMutation.isPending || 
+                isGeocodingLocation ||
                 (usernameCheck && !usernameCheck.available) ||
                 !form.formState.isValid
               }
               data-testid="button-register"
             >
-              {registerMutation.isPending ? 'Creating Account...' : 'Create Account'}
+              {isGeocodingLocation ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Finding Location...
+                </div>
+              ) : registerMutation.isPending ? (
+                'Creating Account...'
+              ) : (
+                'Create Account'
+              )}
             </Button>
           </form>
         </Form>
