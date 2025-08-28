@@ -5,6 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { RegisterUser, registerUserSchema } from '@shared/schema';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { useGeolocation } from '@/hooks/use-geolocation';
 import {
   Card,
   CardContent,
@@ -30,7 +31,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, MapPin, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useResponsive } from '@/hooks/use-responsive';
 
@@ -43,6 +44,9 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
   const [usernameToCheck, setUsernameToCheck] = useState('');
   const { toast } = useToast();
   const { isMobile } = useResponsive();
+  
+  // Initialize geolocation hook
+  const geolocation = useGeolocation();
 
   const form = useForm<RegisterUser>({
     resolver: zodResolver(registerUserSchema),
@@ -54,10 +58,20 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
       age: 18,
       gender: '',
       location: '',
+      latitude: '',
+      longitude: '',
       avatar: '',
     },
     mode: 'onChange',
   });
+
+  // Update form when coordinates are received
+  useEffect(() => {
+    if (geolocation.coordinates) {
+      form.setValue('latitude', geolocation.coordinates.latitude.toString());
+      form.setValue('longitude', geolocation.coordinates.longitude.toString());
+    }
+  }, [geolocation.coordinates, form]);
 
   const watchedUsername = form.watch('username');
 
@@ -292,14 +306,69 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
               name="location"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Location</FormLabel>
+                  <FormLabel className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    Location
+                  </FormLabel>
                   <FormControl>
-                    <Textarea
-                      placeholder="Enter your location (e.g., New York, USA)"
-                      {...field}
-                      data-testid="input-location"
-                      rows={2}
-                    />
+                    <div className="space-y-3">
+                      <Textarea
+                        placeholder="Enter your location (e.g., New York, USA)"
+                        {...field}
+                        data-testid="input-location"
+                        rows={2}
+                      />
+                      
+                      {/* Location detection section */}
+                      <div className="flex flex-col space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={geolocation.getCurrentPosition}
+                            disabled={geolocation.isLoading || !geolocation.isSupported}
+                            data-testid="button-get-location"
+                            className="flex items-center gap-2"
+                          >
+                            {geolocation.isLoading ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <RefreshCw className="w-4 h-4" />
+                            )}
+                            {geolocation.isLoading ? 'Getting Location...' : 'Detect My Location'}
+                          </Button>
+                          
+                          {geolocation.coordinates && (
+                            <span className="text-sm text-green-600 flex items-center gap-1">
+                              <CheckCircle className="w-4 h-4" />
+                              Location detected
+                            </span>
+                          )}
+                        </div>
+                        
+                        {/* Error display */}
+                        {geolocation.error && (
+                          <div className="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 p-2 rounded">
+                            {geolocation.error}
+                          </div>
+                        )}
+                        
+                        {/* Coordinates display */}
+                        {geolocation.coordinates && (
+                          <div className="text-xs text-gray-500 bg-gray-50 dark:bg-gray-800 p-2 rounded">
+                            Coordinates: {geolocation.coordinates.latitude.toFixed(6)}, {geolocation.coordinates.longitude.toFixed(6)}
+                          </div>
+                        )}
+                        
+                        {/* Browser not supported message */}
+                        {!geolocation.isSupported && (
+                          <div className="text-sm text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded">
+                            Location detection is not supported by your browser. Please enter your location manually.
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
