@@ -4,21 +4,24 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Settings, Camera, MapPin, Shield, Users } from 'lucide-react';
+import { Settings, Camera, MapPin, Shield, Users, User, Bell, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import type { UserProfileSettings, User } from '@shared/schema';
+import type { UserProfileSettings, User as UserType } from '@shared/schema';
 import PhotoManager from '@/components/profile/photo-manager';
 import LocationSettings from '@/components/profile/location-settings';
 import BlockedUsers from '@/components/profile/blocked-users';
 import ContactFilters from '@/components/profile/contact-filters';
+import BasicProfileSettings from '@/components/profile/basic-profile-settings';
+import PrivacySettings from '@/components/profile/privacy-settings';
+import NotificationPreferences from '@/components/profile/notification-preferences';
 import { BackButton } from '@/components/ui/back-button';
 import { useResponsive } from '@/hooks/use-responsive';
 import { cn } from '@/lib/utils';
 
 export default function ProfileSettings() {
   // Get current user from localStorage (same as chat page)
-  const [currentUser] = useState<User | null>(() => {
+  const [currentUser] = useState<UserType | null>(() => {
     const saved = localStorage.getItem('chatual_user');
     return saved ? JSON.parse(saved) : null;
   });
@@ -100,25 +103,41 @@ export default function ProfileSettings() {
         )}>Manage your account settings and preferences</p>
       </div>
 
-      <Tabs defaultValue="photos" className="w-full">
+      <Tabs defaultValue="profile" className="w-full">
         <TabsList className={cn(
           "grid w-full glass-effect backdrop-blur-glass rounded-2xl p-2 shadow-lg",
-          isMobile ? "grid-cols-2 gap-2 h-auto" : "grid-cols-4 gap-1",
+          isMobile ? "grid-cols-3 gap-1 h-auto" : "grid-cols-7 gap-1",
         )} data-testid="settings-tabs">
+          <TabsTrigger 
+            value="profile" 
+            data-testid="tab-profile"
+            className={cn(
+              "flex items-center justify-center rounded-xl transition-all duration-300 hover-lift",
+              isMobile ? "flex-col gap-1 h-16 text-xs p-2" : "flex-row gap-2 h-12",
+              "data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg"
+            )}
+          >
+            <User className={cn(
+              isMobile ? "w-4 h-4" : "w-4 h-4"
+            )} />
+            <span className={cn(
+              isMobile ? "leading-tight font-medium text-xs" : "font-medium",
+            )}>Profile</span>
+          </TabsTrigger>
           <TabsTrigger 
             value="photos" 
             data-testid="tab-photos"
             className={cn(
               "flex items-center justify-center rounded-xl transition-all duration-300 hover-lift",
-              isMobile ? "flex-col gap-1 h-18 text-xs p-3" : "flex-row gap-2 h-12",
+              isMobile ? "flex-col gap-1 h-16 text-xs p-2" : "flex-row gap-2 h-12",
               "data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg"
             )}
           >
             <Camera className={cn(
-              isMobile ? "w-6 h-6" : "w-4 h-4"
+              isMobile ? "w-4 h-4" : "w-4 h-4"
             )} />
             <span className={cn(
-              isMobile ? "leading-tight font-medium" : "font-medium",
+              isMobile ? "leading-tight font-medium text-xs" : "font-medium",
             )}>Photos</span>
           </TabsTrigger>
           <TabsTrigger 
@@ -126,49 +145,94 @@ export default function ProfileSettings() {
             data-testid="tab-location"
             className={cn(
               "flex items-center justify-center rounded-xl transition-all duration-300 hover-lift",
-              isMobile ? "flex-col gap-1 h-18 text-xs p-3" : "flex-row gap-2 h-12",
+              isMobile ? "flex-col gap-1 h-16 text-xs p-2" : "flex-row gap-2 h-12",
               "data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg"
             )}
           >
             <MapPin className={cn(
-              isMobile ? "w-6 h-6" : "w-4 h-4"
+              isMobile ? "w-4 h-4" : "w-4 h-4"
             )} />
             <span className={cn(
-              isMobile ? "leading-tight font-medium" : "font-medium",
+              isMobile ? "leading-tight font-medium text-xs" : "font-medium",
             )}>Location</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="privacy" 
+            data-testid="tab-privacy"
+            className={cn(
+              "flex items-center justify-center rounded-xl transition-all duration-300 hover-lift",
+              isMobile ? "flex-col gap-1 h-16 text-xs p-2" : "flex-row gap-2 h-12",
+              "data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg"
+            )}
+          >
+            <Lock className={cn(
+              isMobile ? "w-4 h-4" : "w-4 h-4"
+            )} />
+            <span className={cn(
+              isMobile ? "leading-tight font-medium text-xs" : "font-medium",
+            )}>Privacy</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="notifications" 
+            data-testid="tab-notifications"
+            className={cn(
+              "flex items-center justify-center rounded-xl transition-all duration-300 hover-lift",
+              isMobile ? "flex-col gap-1 h-16 text-xs p-2" : "flex-row gap-2 h-12",
+              "data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg"
+            )}
+          >
+            <Bell className={cn(
+              isMobile ? "w-4 h-4" : "w-4 h-4"
+            )} />
+            <span className={cn(
+              isMobile ? "leading-tight font-medium text-xs" : "font-medium",
+            )}>Notifications</span>
           </TabsTrigger>
           <TabsTrigger 
             value="blocked" 
             data-testid="tab-blocked"
             className={cn(
               "flex items-center justify-center rounded-xl transition-all duration-300 hover-lift",
-              isMobile ? "flex-col gap-1 h-18 text-xs p-3" : "flex-row gap-2 h-12",
+              isMobile ? "flex-col gap-1 h-16 text-xs p-2" : "flex-row gap-2 h-12",
               "data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg"
             )}
           >
             <Shield className={cn(
-              isMobile ? "w-5 h-5" : "w-4 h-4"
+              isMobile ? "w-4 h-4" : "w-4 h-4"
             )} />
-            <span className={isMobile ? "leading-tight text-center" : ""}>Blocked Users</span>
+            <span className={cn(
+              isMobile ? "leading-tight font-medium text-xs text-center" : "font-medium",
+            )}>Blocked</span>
           </TabsTrigger>
           <TabsTrigger 
             value="filters" 
             data-testid="tab-filters"
             className={cn(
-              "flex items-center justify-center",
-              isMobile ? "flex-col gap-1 h-16 text-xs" : "flex-row gap-2"
+              "flex items-center justify-center rounded-xl transition-all duration-300 hover-lift",
+              isMobile ? "flex-col gap-1 h-16 text-xs p-2" : "flex-row gap-2 h-12",
+              "data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg"
             )}
           >
             <Users className={cn(
-              isMobile ? "w-5 h-5" : "w-4 h-4"
+              isMobile ? "w-4 h-4" : "w-4 h-4"
             )} />
-            <span className={isMobile ? "leading-tight text-center" : ""}>Contact Filters</span>
+            <span className={cn(
+              isMobile ? "leading-tight font-medium text-xs text-center" : "font-medium",
+            )}>Filters</span>
           </TabsTrigger>
         </TabsList>
 
         <div className={cn(
           isMobile ? "mt-4" : "mt-6"
         )}>
+          <TabsContent value="profile" className={cn(
+            isMobile ? "space-y-4" : "space-y-6"
+          )}>
+            <BasicProfileSettings 
+              user={profileSettings.user}
+              isMobile={isMobile}
+            />
+          </TabsContent>
           <TabsContent value="photos" className={cn(
             isMobile ? "space-y-4" : "space-y-6"
           )}>
@@ -225,6 +289,24 @@ export default function ProfileSettings() {
                 />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="privacy" className={cn(
+            isMobile ? "space-y-4" : "space-y-6"
+          )}>
+            <PrivacySettings 
+              user={profileSettings.user}
+              isMobile={isMobile}
+            />
+          </TabsContent>
+          
+          <TabsContent value="notifications" className={cn(
+            isMobile ? "space-y-4" : "space-y-6"
+          )}>
+            <NotificationPreferences 
+              user={profileSettings.user}
+              isMobile={isMobile}
+            />
           </TabsContent>
 
           <TabsContent value="blocked" className={cn(
