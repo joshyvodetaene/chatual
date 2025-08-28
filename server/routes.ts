@@ -44,16 +44,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Helper function to broadcast to room
   function broadcastToRoom(roomId: string, message: any, excludeUserId?: string) {
     let sentCount = 0;
+    let totalClientsInRoom = 0;
+    
+    console.log(`[WEBSOCKET] Broadcasting to room ${roomId}, exclude user: ${excludeUserId}`);
+    console.log(`[WEBSOCKET] Total connected clients: ${clients.size}`);
+    
     Array.from(clients.values()).forEach(client => {
-      if (client.roomId === roomId && client.readyState === WebSocket.OPEN && client.userId !== excludeUserId) {
-        try {
-          client.send(JSON.stringify(message));
-          sentCount++;
-        } catch (error) {
-          console.error(`Failed to send message to user ${client.userId}:`, error);
+      if (client.roomId === roomId) {
+        totalClientsInRoom++;
+        console.log(`[WEBSOCKET] Client ${client.userId} in room ${roomId}, readyState: ${client.readyState}, exclude: ${client.userId === excludeUserId}`);
+        
+        if (client.readyState === WebSocket.OPEN && client.userId !== excludeUserId) {
+          try {
+            client.send(JSON.stringify(message));
+            sentCount++;
+            console.log(`[WEBSOCKET] Message sent to user ${client.userId}`);
+          } catch (error) {
+            console.error(`Failed to send message to user ${client.userId}:`, error);
+          }
         }
       }
     });
+    
+    console.log(`[WEBSOCKET] Broadcast complete: ${sentCount} messages sent to ${totalClientsInRoom} clients in room`);
   }
 
   // Helper function to broadcast to specific user
@@ -105,14 +118,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         switch (message.type) {
           case 'join':
+            console.log(`[WEBSOCKET] User ${message.userId} joining room ${message.roomId}`);
+            
             // Remove user from previous room if any
             if (ws.roomId && ws.userId) {
+              console.log(`[WEBSOCKET] Removing user ${ws.userId} from previous room ${ws.roomId}`);
               removeUserFromRoom(ws.roomId, ws.userId);
             }
             
             // Check if user already has a connection and close it
             const existingConnection = clients.get(message.userId);
             if (existingConnection && existingConnection !== ws) {
+              console.log(`[WEBSOCKET] Closing existing connection for user ${message.userId}`);
               existingConnection.close();
               clients.delete(message.userId);
             }
@@ -120,6 +137,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ws.userId = message.userId;
             ws.roomId = message.roomId;
             clients.set(message.userId, ws);
+            
+            console.log(`[WEBSOCKET] User ${message.userId} added to room ${message.roomId}, total clients: ${clients.size}`);
             
             // Update user online status
             await storage.updateUserOnlineStatus(message.userId, true);
