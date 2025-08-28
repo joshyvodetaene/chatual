@@ -239,22 +239,24 @@ export default function ChatPage() {
 
     if (newMessages.length > 0) {
       newMessages.forEach(msg => {
-        // If this is a real message from server, remove any optimistic message for the same photo
-        if (msg.messageType === 'photo' && msg.photoFileName && !msg.isTemporary) {
-          // Find and remove optimistic messages with the same photo filename
-          const optimisticMessages = paginatedMessages.filter(pMsg => 
-            pMsg.isTemporary && 
+        // If this is a real message from server, remove any temporary message for the same photo
+        if (msg.messageType === 'photo' && msg.photoFileName && !msg.id?.startsWith('temp-')) {
+          // Find and remove temporary messages with the same photo filename or from same user around same time
+          const tempMessages = paginatedMessages.filter(pMsg => 
+            pMsg.id?.startsWith('temp-') && 
             pMsg.messageType === 'photo' && 
-            pMsg.photoFileName === msg.photoFileName &&
-            pMsg.userId === msg.userId
+            pMsg.userId === msg.userId &&
+            (pMsg.photoFileName === msg.photoFileName || 
+             // Also match by time proximity (within 30 seconds) as backup
+             (pMsg.createdAt && msg.createdAt && Math.abs(new Date(pMsg.createdAt).getTime() - new Date(msg.createdAt).getTime()) < 30000))
           );
           
-          if (optimisticMessages.length > 0) {
-            // Remove the optimistic messages since we now have the real message
-            const optimisticIds = optimisticMessages.map(m => m.id);
-            const filteredMessages = paginatedMessages.filter(pMsg => !optimisticIds.includes(pMsg.id));
+          if (tempMessages.length > 0) {
+            // Remove the temporary messages since we now have the real message
+            const tempIds = tempMessages.map(m => m.id);
+            const filteredMessages = paginatedMessages.filter(pMsg => !tempIds.includes(pMsg.id));
             setPaginatedMessages(filteredMessages);
-            console.log('Removed optimistic photo messages:', optimisticMessages.length, 'for photo:', msg.photoFileName);
+            console.log('Removed temporary photo messages:', tempMessages.length, 'for photo:', msg.photoFileName);
           }
         }
         
