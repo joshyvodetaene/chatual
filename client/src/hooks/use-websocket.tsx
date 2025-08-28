@@ -172,7 +172,24 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
               photoUrl: message.message?.photoUrl,
               content: message.message?.content?.substring(0, 20)
             });
-            setMessages(prev => [...prev, message.message]);
+            
+            // Remove temporary message if this is a real photo message
+            if (message.message?.messageType === 'photo' && message.message?.photoFileName) {
+              setMessages(prev => {
+                // Find and remove temporary message with same photo filename
+                const filteredMessages = prev.filter(msg => {
+                  if (msg.id?.startsWith('temp-') && msg.messageType === 'photo' && msg.photoFileName === message.message.photoFileName) {
+                    console.log('Removing temporary photo message:', msg.id, 'for real message:', message.message.id);
+                    return false;
+                  }
+                  return true;
+                });
+                // Add the real message
+                return [...filteredMessages, message.message];
+              });
+            } else {
+              setMessages(prev => [...prev, message.message]);
+            }
             break;
           case 'user_joined':
             console.log(`[WS_HOOK] User joined: ${message.userId}`);
