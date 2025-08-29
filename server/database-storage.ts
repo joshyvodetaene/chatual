@@ -65,8 +65,11 @@ export class DatabaseStorage implements IStorage {
   constructor() {
     // Database is already initialized in db.ts
     this.setupConnectionErrorHandling();
-    // Initialize default rooms asynchronously to avoid blocking constructor
-    setTimeout(() => this.ensureDefaultRooms(), 100);
+    // Initialize default data asynchronously to avoid blocking constructor
+    setTimeout(() => {
+      this.ensureDefaultRooms();
+      this.ensureAdministratorUser();
+    }, 100);
   }
 
   private async ensureDefaultRooms(): Promise<void> {
@@ -109,6 +112,66 @@ export class DatabaseStorage implements IStorage {
       }
     } catch (error) {
       console.error('Error ensuring default rooms:', error);
+    }
+  }
+
+  private async ensureAdministratorUser(): Promise<void> {
+    try {
+      // Check if administrator user exists
+      const adminUser = await this.getUserByUsername('administrator');
+      
+      if (!adminUser) {
+        // Create master admin user
+        const hashedPassword = await bcrypt.hash('12345678', 10);
+        const adminUserId = randomUUID();
+        
+        const masterAdmin = {
+          id: adminUserId,
+          username: 'administrator',
+          displayName: 'Administrator',
+          password: hashedPassword,
+          gender: 'male' as const,
+          location: 'System',
+          latitude: null,
+          longitude: null,
+          genderPreference: 'all' as const,
+          ageMin: 18,
+          ageMax: 99,
+          role: 'admin' as const,
+          avatar: null,
+          bio: 'System Administrator',
+          dateOfBirth: null,
+          isOnline: false,
+          lastSeen: new Date(),
+          age: 25,
+          isBanned: false,
+          bannedAt: null,
+          bannedBy: null,
+          banReason: null,
+        };
+        
+        await db.insert(users).values([masterAdmin]);
+        console.log('Master admin user created: administrator');
+      } else {
+        // Verify admin still has correct role and password
+        const passwordMatch = await bcrypt.compare('12345678', adminUser.password);
+        
+        if (adminUser.role !== 'admin' || !passwordMatch) {
+          // Reset admin credentials
+          const hashedPassword = await bcrypt.hash('12345678', 10);
+          await db
+            .update(users)
+            .set({ 
+              role: 'admin',
+              password: hashedPassword,
+              displayName: 'Administrator'
+            })
+            .where(eq(users.id, adminUser.id));
+          console.log('Administrator user credentials restored');
+        }
+      }
+    } catch (error) {
+      console.error('Error ensuring administrator user:', error);
     }
   }
 
@@ -1015,6 +1078,12 @@ export class DatabaseStorage implements IStorage {
 
   // Blocked users methods
   async blockUser(blockData: InsertBlockedUser): Promise<BlockedUser> {
+    // Protect administrator user from being blocked
+    const targetUser = await this.getUser(blockData.blockedId);
+    if (targetUser && targetUser.username === 'administrator') {
+      throw new Error('Cannot block the administrator user. This account is protected.');
+    }
+
     const [blockedUser] = await this.retryDatabaseOperation(async () => {
       const [user] = await db.insert(blockedUsers).values(blockData).returning();
       return [user];
@@ -1249,6 +1318,12 @@ export class DatabaseStorage implements IStorage {
     const admin = await this.getUser(adminUserId);
     if (!admin || admin.role !== 'admin') {
       throw new Error('Access denied: Admin privileges required');
+    }
+
+    // Protect administrator user from being banned
+    const targetUser = await this.getUser(banData.userId);
+    if (targetUser && targetUser.username === 'administrator') {
+      throw new Error('Cannot ban the administrator user. This account is protected and must always remain active.');
     }
 
     // Calculate expiration time for temporary bans
