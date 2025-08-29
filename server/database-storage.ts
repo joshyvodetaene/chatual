@@ -844,6 +844,29 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async clearAllMessages(): Promise<boolean> {
+    try {
+      console.log('[DB] Clearing all messages from database');
+      
+      // First delete all message reactions
+      await this.retryDatabaseOperation(async () => {
+        await db.delete(messageReactions);
+      });
+      
+      // Then delete all messages
+      const result = await this.retryDatabaseOperation(async () => {
+        const res = await db.delete(messages);
+        return res;
+      });
+      
+      console.log(`[DB] Cleared all messages successfully. Rows affected: ${result.rowCount}`);
+      return true;
+    } catch (error) {
+      console.error('[DB] Error clearing all messages:', error);
+      return false;
+    }
+  }
+
   // Photo methods
   async addUserPhoto(photoData: InsertUserPhoto): Promise<UserPhoto> {
     const newPhoto = await this.retryDatabaseOperation(async () => {

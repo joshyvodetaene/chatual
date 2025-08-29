@@ -863,6 +863,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin clear all messages endpoint
+  app.delete('/api/admin/messages', async (req, res) => {
+    try {
+      const { adminUserId } = req.body;
+      
+      if (!adminUserId) {
+        return res.status(401).json({ error: 'Admin authentication required' });
+      }
+      
+      // Verify admin privileges
+      const adminUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUser.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin privileges required' });
+      }
+      
+      const success = await storage.clearAllMessages();
+      
+      if (success) {
+        res.json({ success: true, message: 'All messages cleared successfully' });
+      } else {
+        res.status(500).json({ error: 'Failed to clear messages' });
+      }
+    } catch (error) {
+      console.error('Clear messages error:', error);
+      res.status(500).json({ error: 'Failed to clear messages' });
+    }
+  });
+
   // Admin get all users endpoint
   app.get('/api/admin/users', async (req, res) => {
     try {
