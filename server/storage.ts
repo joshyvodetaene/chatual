@@ -1,11 +1,11 @@
-import {
-  type User,
-  type Room,
-  type Message,
+import { 
+  type User, 
+  type Room, 
+  type Message, 
   type RoomMember,
-  type InsertUser,
-  type InsertRoom,
-  type InsertMessage,
+  type InsertUser, 
+  type InsertRoom, 
+  type InsertMessage, 
   type InsertRoomMember,
   type MessageWithUser,
   type RoomWithMembers,
@@ -89,7 +89,6 @@ export interface IStorage {
   getRoomMessages(roomId: string, pagination?: PaginationParams): Promise<PaginatedResponse<MessageWithUser>>;
   getMessageById(messageId: string): Promise<MessageWithUser | undefined>;
   clearAllMessages(): Promise<boolean>;
-  clearRoomMessages(roomId: string): Promise<boolean>;
 
   // Photo methods
   addUserPhoto(photoData: InsertUserPhoto): Promise<UserPhoto>;
@@ -101,14 +100,14 @@ export interface IStorage {
   // Profile settings methods
   updateUserProfile(userId: string, profileData: UpdateUserProfile): Promise<User>;
   getUserProfileSettings(userId: string): Promise<UserProfileSettings>;
-
+  
   // Blocked users methods
   blockUser(blockData: InsertBlockedUser): Promise<BlockedUser>;
   unblockUser(blockerId: string, blockedId: string): Promise<void>;
   getBlockedUsers(userId: string): Promise<BlockedUserWithDetails[]>;
   isUserBlocked(blockerId: string, blockedId: string): Promise<boolean>;
   getBlockedByUsers(userId: string): Promise<string[]>; // Get users who have blocked this user
-
+  
   // Reporting methods
   createReport(reportData: InsertReport): Promise<Report>;
   getReports(adminUserId: string): Promise<ReportWithDetails[]>; // Admin only

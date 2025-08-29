@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Shield, Users, AlertTriangle, MessageSquare, TrendingUp, Activity, Settings, Search, Trash2, Ban, AlertCircle, UserX, Eye, EyeOff, Clock, CheckCircle, XCircle, MessageSquareX } from 'lucide-react';
+import { Shield, Users, AlertTriangle, Ban, Activity, TrendingUp, UserCheck, Eye, Settings, X, Search, Hash, Trash2 } from 'lucide-react';
 import type { AdminDashboardStats, ModerationData, User, Room } from '@shared/schema';
 import { BackButton } from '@/components/ui/back-button';
 import { useResponsive } from '@/hooks/use-responsive';
@@ -102,36 +102,6 @@ export default function AdminDashboard() {
     },
   });
 
-  const clearRoomMessagesMutation = useMutation({
-    mutationFn: async (roomId: string) => {
-      const response = await fetch(`/api/admin/rooms/${roomId}/clear-messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ adminUserId }),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to clear room messages');
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/rooms'] });
-      toast({
-        title: 'Success',
-        description: 'Room messages cleared successfully',
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message || 'Failed to clear room messages',
-      });
-    },
-  });
-
   const handleDeleteRoom = (roomId: string, roomName: string) => {
     if (confirm(`Are you sure you want to delete the room "${roomName}"? This action cannot be undone and will delete all messages in the room.`)) {
       deleteRoomMutation.mutate(roomId);
@@ -203,7 +173,7 @@ export default function AdminDashboard() {
     if (gender === 'male') {
       return 'bg-gradient-to-br from-blue-400 to-blue-600';
     }
-
+    
     // Fallback to name-based colors for users without gender info
     const colors = [
       'bg-gradient-to-br from-green-400 to-green-600',
@@ -271,7 +241,7 @@ export default function AdminDashboard() {
           )}>
             <div>
               <h2 className="text-lg font-semibold text-white mb-4">Statistics</h2>
-
+              
             </div>
           </div>
 
@@ -371,7 +341,7 @@ export default function AdminDashboard() {
                 "font-semibold text-white mb-4",
                 isMobile ? "text-base" : "text-lg"
               )}>Moderation</h2>
-
+              
               <Card className="bg-white/5 border-primary/20">
                 <CardContent className="p-6">
                   {/* Quick Actions */}
@@ -551,28 +521,22 @@ export default function AdminDashboard() {
                           "text-right",
                           isMobile ? "p-2" : "p-4"
                         )}>
-                          <div className="flex space-x-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => clearRoomMessagesMutation.mutate(room.id)}
-                              disabled={clearRoomMessagesMutation.isPending}
-                              className="text-xs"
-                            >
-                              <MessageSquareX className="w-3 h-3 mr-1" />
-                              Clear
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDeleteRoom(room.id, room.name)}
-                              disabled={deleteRoomMutation.isPending}
-                              className="text-xs"
-                            >
-                              <Trash2 className="w-3 h-3 mr-1" />
-                              Delete
-                            </Button>
-                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className={cn(
+                              "text-red-400 hover:text-red-300 hover:bg-red-500/10",
+                              isMobile && "p-1"
+                            )}
+                            onClick={() => handleDeleteRoom(room.id, room.name)}
+                            disabled={deleteRoomMutation.isPending}
+                            data-testid={`button-delete-room-${room.id}`}
+                          >
+                            <Trash2 className={cn(
+                              isMobile ? "w-3 h-3" : "w-4 h-4"
+                            )} />
+                            {!isMobile && <span className="ml-1">Delete</span>}
+                          </Button>
                         </td>
                       </tr>
                     )) ?? []}

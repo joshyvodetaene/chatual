@@ -847,18 +847,18 @@ export class DatabaseStorage implements IStorage {
   async clearAllMessages(): Promise<boolean> {
     try {
       console.log('[DB] Clearing all messages from database');
-
+      
       // First delete all message reactions
       await this.retryDatabaseOperation(async () => {
         await db.delete(messageReactions);
       });
-
+      
       // Then delete all messages
       const result = await this.retryDatabaseOperation(async () => {
         const res = await db.delete(messages);
         return res;
       });
-
+      
       console.log(`[DB] Cleared all messages successfully. Rows affected: ${result.rowCount}`);
       return true;
     } catch (error) {
@@ -1279,67 +1279,59 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserModerationHistory(userId: string): Promise<UserModerationActionWithDetails[]> {
-    try {
-      // Get moderation actions for the user
-      const actions = await db
-        .select()
-        .from(userModerationActions)
-        .where(eq(userModerationActions.userId, userId))
-        .orderBy(desc(userModerationActions.performedAt));
+    // Create aliases for the two different user tables
+    const targetUser = users;
+    const performingUser = users;
 
-      // Get user details for each action
-      const actionsWithDetails = await Promise.all(
-        actions.map(async (action) => {
-          const [user, performedByUser] = await Promise.all([
-            this.getUser(action.userId),
-            this.getUser(action.performedBy)
-          ]);
+    const actions = await db
+      .select({
+        action: userModerationActions,
+        user: targetUser,
+        performedByUser: {
+          id: performingUser.id,
+          username: performingUser.username,
+          displayName: performingUser.displayName
+        }
+      })
+      .from(userModerationActions)
+      .innerJoin(targetUser, eq(userModerationActions.userId, targetUser.id))
+      .innerJoin(performingUser, eq(userModerationActions.performedBy, performingUser.id))
+      .where(eq(userModerationActions.userId, userId))
+      .orderBy(desc(userModerationActions.performedAt));
 
-          return {
-            ...action,
-            user: user!,
-            performedByUser: performedByUser!
-          };
-        })
-      );
-
-      return actionsWithDetails;
-    } catch (error) {
-      console.error('Error getting user moderation history:', error);
-      return [];
-    }
+    return actions.map(({ action, user, performedByUser }) => ({
+      ...action,
+      user,
+      performedByUser: performedByUser as User
+    }));
   }
 
   async getRecentModerationActions(limit: number = 10): Promise<UserModerationActionWithDetails[]> {
-    try {
-      // Get moderation actions first
-      const actions = await db
-        .select()
-        .from(userModerationActions)
-        .orderBy(desc(userModerationActions.performedAt))
-        .limit(limit);
+    // Create aliases for the two different user tables
+    const targetUser = users;
+    const performingUser = users;
 
-      // Get user details for each action
-      const actionsWithDetails = await Promise.all(
-        actions.map(async (action) => {
-          const [user, performedByUser] = await Promise.all([
-            this.getUser(action.userId),
-            this.getUser(action.performedBy)
-          ]);
+    const actions = await db
+      .select({
+        action: userModerationActions,
+        user: targetUser,
+        performedByUser: {
+          id: performingUser.id,
+          username: performingUser.username,
+          displayName: performingUser.displayName
+        }
+      })
+      .from(userModerationActions)
+      .innerJoin(targetUser, eq(userModerationActions.userId, targetUser.id))
+      .innerJoin(performingUser, eq(userModerationActions.performedBy, performingUser.id))
+      .orderBy(desc(userModerationActions.performedAt))
+      .limit(limit);
 
-          return {
-            ...action,
-            user: user!,
-            performedByUser: performedByUser!
-          };
-        })
-      );
-
-      return actionsWithDetails;
-    } catch (error) {
-      console.error('Error getting recent moderation actions:', error);
-      return [];
-    }
+    return actions.map(({ action, user, performedByUser }) => ({
+      ...action,
+      user,
+      performedByUser: performedByUser as User
+    }));
   }
 
   async getBannedUsers(): Promise<User[]> {
