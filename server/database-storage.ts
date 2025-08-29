@@ -65,6 +65,51 @@ export class DatabaseStorage implements IStorage {
   constructor() {
     // Database is already initialized in db.ts
     this.setupConnectionErrorHandling();
+    // Initialize default rooms asynchronously to avoid blocking constructor
+    setTimeout(() => this.ensureDefaultRooms(), 100);
+  }
+
+  private async ensureDefaultRooms(): Promise<void> {
+    try {
+      // Check if default rooms exist
+      const existingRooms = await db.select().from(rooms);
+      
+      const defaultRoomData = [
+        {
+          name: "Flirt",
+          description: "Connect and flirt with other users",
+        },
+        {
+          name: "Sub & dom", 
+          description: "Explore power dynamics and relationships",
+        },
+        {
+          name: "Whispering",
+          description: "Intimate conversations and secrets",
+        },
+        {
+          name: "Shades of senses",
+          description: "Explore sensory experiences and connections",
+        },
+      ];
+
+      // Create any missing default rooms
+      for (const roomData of defaultRoomData) {
+        const roomExists = existingRooms.some(room => room.name === roomData.name);
+        if (!roomExists) {
+          await db.insert(rooms).values({
+            name: roomData.name,
+            description: roomData.description,
+            isPrivate: false,
+            memberIds: [],
+            createdBy: null,
+          });
+          console.log(`Created persistent room: ${roomData.name}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error ensuring default rooms:', error);
+    }
   }
 
   private setupConnectionErrorHandling() {
@@ -287,6 +332,12 @@ export class DatabaseStorage implements IStorage {
     const room = await this.getRoom(roomId);
     if (!room) {
       return false;
+    }
+
+    // Protect core persistent rooms from deletion
+    const protectedRoomNames = ['Flirt', 'Sub & dom', 'Whispering', 'Shades of senses'];
+    if (protectedRoomNames.includes(room.name)) {
+      throw new Error(`Cannot delete persistent room: ${room.name}. This room is protected and must always exist.`);
     }
 
     // Delete all messages in the room first
@@ -1494,7 +1545,7 @@ export class DatabaseStorage implements IStorage {
     try {
       await db
         .update(notifications)
-        .set({ isRead: true, readAt: new Date() })
+        .set({ read: true })
         .where(eq(notifications.id, notificationId));
     } catch (error) {
       console.error('Error marking notification as read:', error);
