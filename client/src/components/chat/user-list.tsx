@@ -100,25 +100,32 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                     <div className="absolute -bottom-0.5 sm:-bottom-1 -right-0.5 sm:-right-1 w-2 h-2 sm:w-3 sm:h-3 md:w-4 md:h-4 bg-accent border-2 border-black rounded-full"></div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3">
-                      <p className="text-xs sm:text-sm md:text-base font-medium text-white truncate">
+                    <div className="flex items-center space-x-2">
+                      <h4 className="text-sm font-semibold text-white truncate">
                         {member.displayName}
-                      </p>
+                      </h4>
                       {member.age && (
-                        <span className="text-xs sm:text-sm md:text-base text-gray-400 font-normal">
+                        <span className="text-sm text-gray-300 font-medium">
                           {member.age}
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs sm:text-sm md:text-base text-gray-400">Member</p>
-                      {currentUser && (
-                        <UserDistance 
-                          currentUserId={currentUser.id} 
-                          targetUserId={member.id}
-                          className="text-xs"
-                        />
+                    <div className="flex flex-col gap-1 mt-1">
+                      {member.location && (
+                        <p className="text-xs text-gray-400 truncate">
+                          📍 {member.location}
+                        </p>
                       )}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-green-400">Online</span>
+                        {currentUser && (
+                          <UserDistance 
+                            currentUserId={currentUser.id} 
+                            targetUserId={member.id}
+                            className="text-xs text-gray-500"
+                          />
+                        )}
+                      </div>
                     </div>
                   </div>
                   <UserProfileMenu
