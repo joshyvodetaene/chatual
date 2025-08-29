@@ -202,11 +202,7 @@ export function UserProfileMenu({
       {/* Block User Dialog */}
       <Dialog open={blockDialogOpen} onOpenChange={setBlockDialogOpen}>
         <DialogContent className="sm:max-w-md">
-        <DialogTitle>User Profile</DialogTitle>
-        <DialogDescription>
-          View user details and profile information
-        </DialogDescription>
-        <DialogHeader>
+          <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
               <Shield className="w-5 h-5 text-orange-500" />
               <span>Block User</span>

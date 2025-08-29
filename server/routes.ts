@@ -136,7 +136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         client.isAlive = false;
         
         try {
-          client.ping((error) => {
+          client.ping((error: Error | null) => {
             if (error) {
               console.log(`[WS_HEARTBEAT] Ping failed for user ${userId}: ${error.message}`);
               staleConnections++;
