@@ -226,6 +226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     // Broadcast updated online users for this room
     const onlineUsers = Array.from(roomUsers.get(roomId) || []);
+    console.log(`[WS_ROOM] Broadcasting online users for room ${roomId}:`, onlineUsers);
     broadcastToRoom(roomId, {
       type: 'room_online_users',
       roomId,
@@ -243,6 +244,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Broadcast updated online users for this room
       const onlineUsers = Array.from(roomUsers.get(roomId) || []);
+      console.log(`[WS_ROOM] Broadcasting online users for room ${roomId}:`, onlineUsers);
       broadcastToRoom(roomId, {
         type: 'room_online_users',
         roomId,
