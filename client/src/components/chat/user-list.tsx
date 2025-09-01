@@ -69,7 +69,7 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
 
   return (
     <div className="bg-black border-l border-gray-800 flex flex-col h-full w-full sm:w-52 md:w-56 lg:w-64" data-testid="user-list">
-      <div className="border-b border-gray-800 p-3 sm:p-4 md:p-6">
+      <div className="border-b border-gray-800 p-2 sm:p-3 md:p-4">
         <h3 className="font-semibold text-white text-sm sm:text-base md:text-lg">Online in Room</h3>
         <p className="text-gray-300 mt-1 text-xs sm:text-sm md:text-base" data-testid="online-count">
           {onlineMembers.length} online • {filteredMembers.length} visible
@@ -79,74 +79,76 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
       <div className="flex-1 overflow-y-auto overflow-x-visible min-h-0 hide-scrollbar">
         {/* Online Members */}
         {onlineMembers.length > 0 && (
-          <div className="p-2 sm:p-3 md:p-4">
-            <h4 className="text-xs sm:text-sm md:text-base font-medium text-gray-400 uppercase tracking-wider mb-2 sm:mb-3 md:mb-4">
+          <div className="p-1 sm:p-2 md:p-3">
+            <h4 className="text-xs sm:text-sm md:text-base font-medium text-gray-400 uppercase tracking-wider mb-1 sm:mb-2 md:mb-3 px-1">
               Online — {onlineMembers.length}
             </h4>
             
-            <div className="space-y-1 sm:space-y-2 md:space-y-3">
+            <div className="space-y-0.5 sm:space-y-1 md:space-y-2">
               {onlineMembers.map((member) => (
                 <div
                   key={`online-${member.id}`}
-                  className="group flex items-center space-x-2 sm:space-x-3 md:space-x-4 p-1 sm:p-2 md:p-3 rounded-lg hover:bg-gray-800 transition-colors"
+                  className="group flex items-center space-x-2 sm:space-x-3 p-1 sm:p-1.5 md:p-2 rounded-lg hover:bg-gray-800 transition-colors w-full"
                   data-testid={`online-user-${member.id}`}
                 >
-                  <div className="relative">
+                  <div className="relative flex-shrink-0">
                     {member.primaryPhoto?.photoUrl ? (
                       <img 
                         src={member.primaryPhoto.photoUrl}
                         alt={`${member.displayName} profile`}
-                        className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full object-cover border-2 border-black"
+                        className="w-6 h-6 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-full object-cover border-2 border-black"
                       />
                     ) : (
                       <div className={cn(
-                        "w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-white text-xs sm:text-sm md:text-base font-medium",
+                        "w-6 h-6 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-medium",
                         getAvatarColor(member.displayName, member.gender)
                       )}>
                         {getInitials(member.displayName)}
                       </div>
                     )}
-                    <div className="absolute -bottom-0.5 sm:-bottom-1 -right-0.5 sm:-right-1 w-2 h-2 sm:w-3 sm:h-3 md:w-4 md:h-4 bg-accent border-2 border-black rounded-full"></div>
+                    <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 bg-accent border-2 border-black rounded-full"></div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2">
-                      <h4 className="text-sm font-semibold text-white truncate">
-                        {member.displayName}
-                      </h4>
-                      {member.age && (
-                        <span className="text-sm text-gray-300 font-medium">
-                          {member.age}
-                        </span>
-                      )}
+                  <div className="flex-1 min-w-0 overflow-hidden">
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center space-x-1 sm:space-x-2 min-w-0 flex-1">
+                        <h4 className="text-xs sm:text-sm font-semibold text-white truncate">
+                          {member.displayName}
+                        </h4>
+                        {member.age && (
+                          <span className="text-xs sm:text-sm text-gray-300 font-medium flex-shrink-0">
+                            {member.age}
+                          </span>
+                        )}
+                      </div>
+                      <UserProfileMenu
+                        user={member}
+                        currentUser={currentUser!}
+                        onStartPrivateChat={onStartPrivateChat}
+                      >
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 flex-shrink-0"
+                          data-testid={`online-user-menu-${member.id}`}
+                        >
+                          <MoreVertical className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-4 md:w-4" />
+                        </Button>
+                      </UserProfileMenu>
                     </div>
-                    <div className="flex flex-col gap-1 mt-1">
-                      <p className="text-xs text-gray-400">@{member.username}</p>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-green-400">Online</span>
+                    <div className="flex flex-col gap-0.5 mt-0.5">
+                      <p className="text-xs text-gray-400 truncate">@{member.username}</p>
+                      <div className="flex items-center gap-1 sm:gap-2">
+                        <span className="text-xs text-green-400 flex-shrink-0">Online</span>
                         {currentUser && (
                           <UserDistance 
                             currentUserId={currentUser.id} 
                             targetUserId={member.id}
-                            className="text-xs text-gray-500"
+                            className="text-xs text-gray-500 truncate"
                           />
                         )}
                       </div>
                     </div>
                   </div>
-                  <UserProfileMenu
-                    user={member}
-                    currentUser={currentUser!}
-                    onStartPrivateChat={onStartPrivateChat}
-                  >
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 sm:p-1 md:p-2 h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8"
-                      data-testid={`online-user-menu-${member.id}`}
-                    >
-                      <MoreVertical className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5" />
-                    </Button>
-                  </UserProfileMenu>
                 </div>
               ))}
             </div>
@@ -155,70 +157,72 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
 
         {/* Offline Members */}
         {offlineMembers.length > 0 && (
-          <div className={cn("p-4", onlineMembers.length > 0 && "border-t border-gray-800")}>
-            <h4 className="text-xs sm:text-sm md:text-base font-medium text-gray-400 uppercase tracking-wider mb-2 sm:mb-3 md:mb-4">
+          <div className={cn("p-1 sm:p-2 md:p-3", onlineMembers.length > 0 && "border-t border-gray-800")}>
+            <h4 className="text-xs sm:text-sm md:text-base font-medium text-gray-400 uppercase tracking-wider mb-1 sm:mb-2 md:mb-3 px-1">
               Offline — {offlineMembers.length}
             </h4>
             
-            <div className="space-y-1 sm:space-y-2 md:space-y-3">
+            <div className="space-y-0.5 sm:space-y-1 md:space-y-2">
               {offlineMembers.map((member) => (
                 <div
                   key={`offline-${member.id}`}
-                  className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-800 transition-colors opacity-60"
+                  className="group flex items-center space-x-2 sm:space-x-3 p-1 sm:p-1.5 md:p-2 rounded-lg hover:bg-gray-800 transition-colors opacity-60 w-full"
                   data-testid={`offline-user-${member.id}`}
                 >
-                  <div className="relative">
+                  <div className="relative flex-shrink-0">
                     {member.primaryPhoto?.photoUrl ? (
                       <img 
                         src={member.primaryPhoto.photoUrl}
                         alt={`${member.displayName} profile`}
-                        className="w-8 h-8 rounded-full object-cover border-2 border-black opacity-60"
+                        className="w-6 h-6 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-full object-cover border-2 border-black opacity-60"
                       />
                     ) : (
-                      <div className="w-8 h-8 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center text-white text-xs font-medium">
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-medium">
                         {getInitials(member.displayName)}
                       </div>
                     )}
-                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-gray-400 border-2 border-black rounded-full"></div>
+                    <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 bg-gray-400 border-2 border-black rounded-full"></div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2">
-                      <p className="text-sm font-medium text-gray-300 truncate">
-                        {member.displayName}
-                      </p>
-                      {member.age && (
-                        <span className="text-xs text-gray-500 font-normal">
-                          {member.age}
-                        </span>
-                      )}
+                  <div className="flex-1 min-w-0 overflow-hidden">
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center space-x-1 sm:space-x-2 min-w-0 flex-1">
+                        <p className="text-xs sm:text-sm font-medium text-gray-300 truncate">
+                          {member.displayName}
+                        </p>
+                        {member.age && (
+                          <span className="text-xs text-gray-500 font-normal flex-shrink-0">
+                            {member.age}
+                          </span>
+                        )}
+                      </div>
+                      <UserProfileMenu
+                        user={member}
+                        currentUser={currentUser!}
+                        onStartPrivateChat={onStartPrivateChat}
+                      >
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 flex-shrink-0"
+                          data-testid={`offline-user-menu-${member.id}`}
+                        >
+                          <MoreVertical className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-4 md:w-4" />
+                        </Button>
+                      </UserProfileMenu>
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <p className="text-xs text-gray-500">@{member.username}</p>
-                      <div className="flex items-center gap-2">
+                    <div className="flex flex-col gap-0.5 mt-0.5">
+                      <p className="text-xs text-gray-500 truncate">@{member.username}</p>
+                      <div className="flex items-center gap-1 sm:gap-2">
                         {currentUser && (
                           <UserDistance 
                             currentUserId={currentUser.id} 
                             targetUserId={member.id}
-                            className="text-xs opacity-60"
+                            className="text-xs opacity-60 truncate"
                           />
                         )}
                       </div>
                     </div>
                   </div>
-                  <UserProfileMenu
-                    user={member}
-                    currentUser={currentUser!}
-                    onStartPrivateChat={onStartPrivateChat}
-                  >
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 sm:p-1 md:p-2 h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8"
-                      data-testid={`offline-user-menu-${member.id}`}
-                    >
-                      <MoreVertical className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5" />
-                    </Button>
-                  </UserProfileMenu>
                 </div>
               ))}
             </div>
