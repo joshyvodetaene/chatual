@@ -119,22 +119,14 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                         </span>
                       )}
                     </div>
-                    <div className="flex flex-col gap-1 mt-1">
-                      {member.location && (
-                        <p className="text-xs text-gray-400 truncate">
-                          📍 {member.location}
-                        </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      {currentUser && (
+                        <UserDistance 
+                          currentUserId={currentUser.id} 
+                          targetUserId={member.id}
+                          className="text-xs text-gray-500"
+                        />
                       )}
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-green-400">Online</span>
-                        {currentUser && (
-                          <UserDistance 
-                            currentUserId={currentUser.id} 
-                            targetUserId={member.id}
-                            className="text-xs text-gray-500"
-                          />
-                        )}
-                      </div>
                     </div>
                   </div>
                   <UserProfileMenu
@@ -197,7 +189,6 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <p className="text-xs text-gray-500">Last seen recently</p>
                       {currentUser && (
                         <UserDistance 
                           currentUserId={currentUser.id} 
