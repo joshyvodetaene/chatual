@@ -121,6 +121,11 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                     </div>
                     <div className="flex flex-col gap-1 mt-1">
                       <p className="text-xs text-gray-400">@{member.username}</p>
+                      {member.location && (
+                        <p className="text-xs text-gray-400 truncate">
+                          📍 {member.location}
+                        </p>
+                      )}
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-green-400">Online</span>
                         {currentUser && (
