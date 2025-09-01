@@ -2,8 +2,10 @@ import { RoomWithMembers, User } from '@shared/schema';
 import { cn } from '@/lib/utils';
 import UserDistance from './user-distance';
 import { UserProfileMenu } from './user-profile-menu';
-import { MoreVertical } from 'lucide-react';
+import { MoreVertical, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useState } from 'react';
 
 interface UserListProps {
   room: RoomWithMembers;
@@ -15,6 +17,8 @@ interface UserListProps {
 }
 
 export default function UserList({ room, onlineUsers, currentUser, onStartPrivateChat, blockedUserIds = new Set(), isMobile = false }: UserListProps) {
+  const [searchTerm, setSearchTerm] = useState('');
+
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -58,6 +62,13 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
   const onlineMembers = filteredMembers.filter((member: User) => onlineUsers.has(member.id));
   const offlineMembers = filteredMembers.filter((member: User) => !onlineUsers.has(member.id));
   
+  // Filter online members based on search term
+  const filteredOnlineMembers = onlineMembers.filter((member: User) =>
+    searchTerm === '' ||
+    member.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    member.username.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
   // Debug: Log the filtered members and online status
   console.log('UserList rendering:', {
     totalMembers: filteredMembers.length,
@@ -80,12 +91,25 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
         {/* Online Members */}
         {onlineMembers.length > 0 && (
           <div className="p-2 sm:p-3 md:p-4">
-            <h4 className="text-xs sm:text-sm md:text-base font-medium text-gray-400 uppercase tracking-wider mb-2 sm:mb-3 md:mb-4">
-              Online — {onlineMembers.length}
-            </h4>
+            <div className="flex flex-col gap-2 sm:gap-3 md:gap-4 mb-2 sm:mb-3 md:mb-4">
+              <h4 className="text-xs sm:text-sm md:text-base font-medium text-gray-400 uppercase tracking-wider">
+                Online — {onlineMembers.length}
+              </h4>
+              {onlineMembers.length > 3 && (
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 sm:w-4 sm:h-4" />
+                  <Input
+                    placeholder="Search online users..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-7 sm:pl-8 h-6 sm:h-8 text-xs sm:text-sm bg-gray-900 border-gray-700 focus:border-gray-600"
+                  />
+                </div>
+              )}
+            </div>
             
             <div className="space-y-1 sm:space-y-2 md:space-y-3">
-              {onlineMembers.map((member) => (
+              {filteredOnlineMembers.map((member) => (
                 <div
                   key={`online-${member.id}`}
                   className="group flex items-center space-x-2 sm:space-x-3 md:space-x-4 p-1 sm:p-2 md:p-3 rounded-lg hover:bg-gray-800 transition-colors"
