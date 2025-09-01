@@ -202,10 +202,15 @@ export class NotificationService {
     isDirect: boolean = false
   ): Promise<void> {
     try {
+      // Only send notifications for direct messages, not chatroom messages
+      if (!isDirect) {
+        return;
+      }
+
       const sender = await storage.getUser(senderId);
       if (!sender) return;
 
-      const title = isDirect ? 'New Direct Message' : 'New Message';
+      const title = 'New Direct Message';
       const message = `${sender.displayName}: ${messageContent.substring(0, 100)}${messageContent.length > 100 ? '...' : ''}`;
 
       await this.sendNotification({
@@ -220,7 +225,7 @@ export class NotificationService {
           isDirect
         },
         actionUrl: `/chat/${roomId}`,
-        priority: isDirect ? 'high' : 'normal'
+        priority: 'high'
       });
     } catch (error) {
       console.error('Error sending message notification:', error);
