@@ -167,7 +167,7 @@ export function NotificationCenter() {
           )}
         </div>
         
-        <ScrollArea className="max-h-64">
+        <div className="max-h-64 overflow-y-auto scrollbar-hide">
           {isLoading ? (
             <div className="p-4 text-center text-gray-500" data-testid="notifications-loading">
               Loading notifications...
@@ -223,7 +223,7 @@ export function NotificationCenter() {
               ))}
             </div>
           )}
-        </ScrollArea>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );
