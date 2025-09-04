@@ -56,7 +56,7 @@ import {
   type InsertNotification
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, ne, sql, gt, lt, like, ilike } from "drizzle-orm";
+import { eq, and, or, desc, ne, sql, gt, lt, gte, like, ilike } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 import type { IStorage } from "./storage";
@@ -857,18 +857,26 @@ export class DatabaseStorage implements IStorage {
   async getRoomMessages(roomId: string, pagination: PaginationParams = {}): Promise<PaginatedResponse<MessageWithUser>> {
     const { limit = 20, before, after } = pagination;
 
-    // Build base condition
-    let whereCondition = eq(messages.roomId, roomId);
+    // Calculate 3 hours ago timestamp
+    const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);
+
+    // Build base condition with 3-hour time filter
+    let whereCondition = and(
+      eq(messages.roomId, roomId),
+      gte(messages.createdAt, threeHoursAgo)
+    )!;
 
     // Add cursor-based pagination conditions
     if (before) {
       whereCondition = and(
         eq(messages.roomId, roomId),
+        gte(messages.createdAt, threeHoursAgo),
         gt(messages.createdAt, new Date(before))
       )!;
     } else if (after) {
       whereCondition = and(
         eq(messages.roomId, roomId),
+        gte(messages.createdAt, threeHoursAgo),
         lt(messages.createdAt, new Date(after))
       )!;
     }
