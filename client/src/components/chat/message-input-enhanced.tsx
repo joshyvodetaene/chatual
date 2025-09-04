@@ -471,20 +471,13 @@ export default function MessageInputEnhanced({
       </div>
 
       {/* Emoji Picker */}
-      {showEmojiPicker && (
-        <div className="relative">
-          <div className={cn(
-            "absolute z-50",
-            isMobile ? "bottom-2 left-0 right-0" : "bottom-2 left-0"
-          )}>
-            <EmojiPicker
-              onEmojiSelect={handleEmojiSelect}
-              isOpen={showEmojiPicker}
-              onToggle={() => setShowEmojiPicker(!showEmojiPicker)}
-            />
-          </div>
-        </div>
-      )}
+      <div className="relative">
+        <EmojiPicker
+          onEmojiSelect={handleEmojiSelect}
+          isOpen={showEmojiPicker}
+          onToggle={() => setShowEmojiPicker(!showEmojiPicker)}
+        />
+      </div>
 
       {/* Show mentioned users */}
       {mentionedUsers.length > 0 && (

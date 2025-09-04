@@ -111,12 +111,11 @@ export default function EmojiPicker({ onEmojiSelect, isOpen, onToggle }: EmojiPi
 
   return (
     <div className={cn(
-      "absolute bottom-12 z-50 bg-black border border-gray-700 rounded-lg shadow-lg backdrop-blur-sm",
-      "w-[calc(100vw-1rem)] max-w-sm h-56",
+      "absolute bottom-0 left-0 z-50 bg-black border border-gray-700 rounded-lg shadow-lg backdrop-blur-sm",
+      "w-[calc(100vw-2rem)] max-w-sm h-56",
       "sm:w-80 sm:h-64 sm:max-w-md",
       "md:w-96 md:h-72 md:max-w-lg",
-      "lg:w-[28rem] lg:h-80 lg:max-w-xl",
-      "right-2 sm:right-2 md:right-4"
+      "lg:w-[28rem] lg:h-80 lg:max-w-xl"
     )} data-testid="emoji-picker">
       <div className="flex flex-col h-full">
         {/* Category tabs */}
