@@ -1083,6 +1083,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get messages since a specific timestamp (for smart reconnection)
+  app.get('/api/rooms/:id/messages/since', async (req, res) => {
+    try {
+      const { timestamp, limit } = req.query;
+      
+      if (!timestamp) {
+        return res.status(400).json({ error: 'Timestamp parameter is required' });
+      }
+      
+      const pagination = {
+        limit: limit ? parseInt(limit as string) : 100, // Higher limit for missed messages
+        after: timestamp as string,
+      };
+      
+      const result = await storage.getRoomMessages(req.params.id, pagination);
+      console.log(`[API] Fetched ${result.items.length} messages since ${timestamp} for room ${req.params.id}`);
+      res.json(result);
+    } catch (error) {
+      console.error('Error fetching messages since timestamp:', error);
+      res.status(500).json({ error: 'Failed to fetch messages since timestamp' });
+    }
+  });
+
   // Admin get all rooms endpoint
   app.get('/api/admin/rooms', async (req, res) => {
     try {

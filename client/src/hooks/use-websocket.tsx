@@ -33,6 +33,8 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
   const currentRoomRef = useRef<string | null>(null);
   const retryCountRef = useRef(0);
   const isReconnectingRef = useRef(false);
+  const disconnectionTimeRef = useRef<Date | null>(null);
+  const lastMessageTimestampRef = useRef<{[roomId: string]: string}>({});
 
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [messages, setMessages] = useState<MessageWithUser[]>([]);
@@ -136,12 +138,23 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
         } catch (error) {
           console.error('[WS_HOOK] Error rejoining room:', error);
         }
+
+        // Fetch missed messages if this is a reconnection
+        if (isReconnect && disconnectionTimeRef.current) {
+          console.log(`[WS_HOOK] Smart reconnection - fetching missed messages since ${disconnectionTimeRef.current.toISOString()}`);
+          fetchMissedMessages(currentRoomRef.current);
+        }
       }
 
       // Process any queued messages
       if (queuedCount > 0) {
         console.log(`[WS_HOOK] Processing ${queuedCount} queued messages...`);
         processQueuedMessages();
+      }
+
+      // Clear disconnection time after successful reconnection
+      if (isReconnect) {
+        disconnectionTimeRef.current = null;
       }
     };
 
@@ -172,6 +185,11 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
               photoUrl: message.message?.photoUrl,
               content: message.message?.content?.substring(0, 20)
             });
+            
+            // Update last message timestamp for the room
+            if (message.message?.roomId && message.message?.createdAt) {
+              lastMessageTimestampRef.current[message.message.roomId] = message.message.createdAt;
+            }
             
             setMessages(prev => [...prev, message.message]);
             break;
@@ -264,6 +282,9 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     ws.current.onclose = (event) => {
       console.log('WebSocket closed:', event.code, event.reason);
       setConnectionStatus('disconnected');
+      
+      // Record disconnection time for smart reconnection
+      disconnectionTimeRef.current = new Date();
 
       // Only attempt reconnection if it wasn't a normal closure and we haven't exceeded max attempts
       if (event.code !== 1000 && retryCountRef.current < retryConfig.maxAttempts && userId) {
@@ -304,8 +325,13 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     };
   }, [userId, connect]);
 
-  const joinRoom = useCallback((roomId: string) => {
+  const joinRoom = useCallback((roomId: string, clearMessages: boolean = true) => {
     currentRoomRef.current = roomId; // Store current room for reconnection
+    
+    // Clear messages only when explicitly requested (new room join, not reconnection)
+    if (clearMessages) {
+      setMessages([]);
+    }
 
     if (ws.current && ws.current.readyState === WebSocket.OPEN && userId) {
       try {
@@ -319,6 +345,48 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
       }
     }
   }, [userId]);
+
+  // Fetch messages that were missed during disconnection
+  const fetchMissedMessages = useCallback(async (roomId: string) => {
+    if (!disconnectionTimeRef.current) {
+      console.log('[WS_HOOK] No disconnection timestamp available, skipping missed messages fetch');
+      return;
+    }
+
+    const disconnectionTimestamp = disconnectionTimeRef.current.toISOString();
+    console.log(`[WS_HOOK] Fetching missed messages for room ${roomId} since ${disconnectionTimestamp}`);
+
+    try {
+      const response = await fetch(`/api/rooms/${roomId}/messages/since?timestamp=${encodeURIComponent(disconnectionTimestamp)}&limit=100`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch missed messages: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log(`[WS_HOOK] Fetched ${data.items?.length || 0} missed messages`);
+
+      if (data.items && data.items.length > 0) {
+        // Add missed messages to current messages, avoiding duplicates
+        setMessages(prev => {
+          const existingIds = new Set(prev.map(msg => msg.id));
+          const newMessages = data.items.filter((msg: MessageWithUser) => !existingIds.has(msg.id));
+          
+          if (newMessages.length > 0) {
+            console.log(`[WS_HOOK] Adding ${newMessages.length} new missed messages`);
+            // Sort by creation time to maintain chronological order
+            const combined = [...prev, ...newMessages].sort((a, b) => 
+              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            );
+            return combined;
+          }
+          
+          return prev;
+        });
+      }
+    } catch (error) {
+      console.error('[WS_HOOK] Error fetching missed messages:', error);
+    }
+  }, []);
 
   // Process queued messages when connection is restored
   const processQueuedMessages = useCallback(async () => {
