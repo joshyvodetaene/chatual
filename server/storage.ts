@@ -104,7 +104,7 @@ export interface IStorage {
   
   // Blocked users methods
   blockUser(blockData: InsertBlockedUser): Promise<BlockedUser>;
-  unblockUser(blockerId: string, blockedId: string): Promise<void>;
+  unblockUser(blockerId: string, blockedId: string): Promise<boolean>;
   getBlockedUsers(userId: string): Promise<BlockedUserWithDetails[]>;
   isUserBlocked(blockerId: string, blockedId: string): Promise<boolean>;
   getBlockedByUsers(userId: string): Promise<string[]>; // Get users who have blocked this user

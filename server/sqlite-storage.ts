@@ -708,14 +708,22 @@ export class SQLiteStorage implements IStorage {
     return blockedUser;
   }
 
-  async unblockUser(blockerId: string, blockedId: string): Promise<void> {
-    this.db
-      .delete(blockedUsers)
-      .where(and(
-        eq(blockedUsers.blockerId, blockerId),
-        eq(blockedUsers.blockedId, blockedId)
-      ))
-      .run();
+  async unblockUser(blockerId: string, blockedId: string): Promise<boolean> {
+    try {
+      const result = this.db
+        .delete(blockedUsers)
+        .where(and(
+          eq(blockedUsers.blockerId, blockerId),
+          eq(blockedUsers.blockedId, blockedId)
+        ))
+        .run();
+      
+      // Return true if at least one row was affected (unblocked)
+      return result.changes > 0;
+    } catch (error) {
+      console.error('Error unblocking user:', error);
+      return false;
+    }
   }
 
   async getBlockedUsers(userId: string): Promise<BlockedUserWithDetails[]> {

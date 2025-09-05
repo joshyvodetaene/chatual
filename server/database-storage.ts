@@ -1111,14 +1111,38 @@ export class DatabaseStorage implements IStorage {
     return blockedUser;
   }
 
-  async unblockUser(blockerId: string, blockedId: string): Promise<void> {
-    await this.retryDatabaseOperation(async () => {
-      await db.delete(blockedUsers)
+  async unblockUser(blockerId: string, blockedId: string): Promise<boolean> {
+    console.log(`[DB] Unblocking user: ${blockedId} by ${blockerId}`);
+    try {
+      // First check if the block relationship exists
+      const existingBlock = await db
+        .select()
+        .from(blockedUsers)
         .where(and(
           eq(blockedUsers.blockerId, blockerId),
           eq(blockedUsers.blockedId, blockedId)
-        ));
-    });
+        ))
+        .limit(1);
+
+      if (existingBlock.length === 0) {
+        console.log(`[DB] No block relationship found to unblock`);
+        return false;
+      }
+
+      await this.retryDatabaseOperation(async () => {
+        await db.delete(blockedUsers)
+          .where(and(
+            eq(blockedUsers.blockerId, blockerId),
+            eq(blockedUsers.blockedId, blockedId)
+          ));
+      });
+      
+      console.log(`[DB] Successfully unblocked user ${blockedId}`);
+      return true;
+    } catch (error) {
+      console.error('Error unblocking user:', error);
+      return false;
+    }
   }
 
   async getBlockedUsers(userId: string): Promise<BlockedUserWithDetails[]> {
