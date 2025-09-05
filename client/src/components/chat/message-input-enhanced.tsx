@@ -5,6 +5,7 @@ import { Send, Smile, Image } from 'lucide-react';
 import EmojiPicker from './emoji-picker';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { useAccessibility } from '@/hooks/use-accessibility';
 import { cn } from '@/lib/utils';
 import { User } from '@shared/schema';
 import { useResponsive } from '@/hooks/use-responsive';
@@ -18,6 +19,7 @@ interface MessageInputProps {
   disabled?: boolean;
   currentUser?: User;
   roomId?: string;
+  id?: string;
 }
 
 export default function MessageInputEnhanced({
@@ -26,6 +28,7 @@ export default function MessageInputEnhanced({
   disabled = false,
   currentUser,
   roomId,
+  id,
 }: MessageInputProps) {
   const [message, setMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -41,6 +44,7 @@ export default function MessageInputEnhanced({
   const { toast } = useToast();
   const { isMobile, isTablet } = useResponsive();
   const { isKeyboardOpen, scrollToBottom } = useMobileKeyboard();
+  const { generateId } = useAccessibility();
 
   // Get room members for mentions
   const { data: roomData } = useQuery<{ room: { members: User[] } }>({
@@ -396,8 +400,11 @@ export default function MessageInputEnhanced({
             showEmojiPicker && "text-primary bg-primary/10"
           )}
           data-testid="button-emoji-picker"
+          aria-label={showEmojiPicker ? "Close emoji picker" : "Open emoji picker"}
+          aria-expanded={showEmojiPicker}
+          aria-haspopup="true"
         >
-          <Smile className="w-4 h-4 sm:w-5 sm:h-5" />
+          <Smile className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
         </Button>
 
         {/* Photo Upload Button */}
@@ -422,8 +429,10 @@ export default function MessageInputEnhanced({
             uploadingPhoto && "opacity-50 cursor-not-allowed"
           )}
           data-testid="button-photo-upload"
+          aria-label={uploadingPhoto ? "Uploading photo..." : "Upload photo"}
+          aria-disabled={uploadingPhoto || disabled}
         >
-          <Image className={cn("w-4 h-4 sm:w-5 sm:h-5", uploadingPhoto && "animate-pulse")} />
+          <Image className={cn("w-4 h-4 sm:w-5 sm:h-5", uploadingPhoto && "animate-pulse")} aria-hidden="true" />
         </Button>
 
         <div className="flex-1 relative">
@@ -435,6 +444,12 @@ export default function MessageInputEnhanced({
               onKeyDown={handleKeyDown}
               placeholder="Type a message... Use @ to mention users"
               disabled={disabled}
+              id={id || "message-input"}
+              aria-label="Message input"
+              aria-describedby="message-input-help"
+              aria-multiline="true"
+              aria-expanded={showMentions}
+              role="textbox"
               className={cn(
                 "resize-none border-0 bg-white/90 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-primary/50 placeholder:text-gray-500 overflow-y-auto transition-all duration-200 rounded-lg text-black",
                 "text-sm sm:text-base md:text-lg",
@@ -457,6 +472,7 @@ export default function MessageInputEnhanced({
         <Button
           onClick={handleSendMessage}
           disabled={!message.trim() || disabled}
+          type="submit"
           className={cn(
             "bg-primary hover:bg-primary/90 text-white shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95 hover:shadow-xl rounded-xl red-glow hover-lift",
             "p-2 sm:p-2.5 md:p-3 lg:p-4",
@@ -465,9 +481,16 @@ export default function MessageInputEnhanced({
             !message.trim() || disabled ? "opacity-50" : "pulse-glow"
           )}
           data-testid="button-send-message"
+          aria-label="Send message"
+          aria-disabled={!message.trim() || disabled}
         >
-          <Send className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 relative z-10" />
+          <Send className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 relative z-10" aria-hidden="true" />
         </Button>
+      </div>
+
+      {/* Hidden help text for screen readers */}
+      <div id="message-input-help" className="sr-only">
+        Type your message and press Enter to send. Use @ to mention other users. Use Shift+Enter for new lines.
       </div>
 
       {/* Emoji Picker */}

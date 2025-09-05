@@ -4,6 +4,7 @@ import { User, Room, RoomWithMembers, MessageWithUser, PrivateRoom, PrivateChatD
 import { useWebSocket } from '@/hooks/use-websocket';
 import { usePaginatedMessages } from '@/hooks/use-paginated-messages';
 import { useResponsive } from '@/hooks/use-responsive';
+import { useAccessibility } from '@/hooks/use-accessibility';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import Sidebar from '@/components/chat/sidebar';
 import MessageList from '@/components/chat/message-list';
@@ -14,6 +15,7 @@ import AuthScreen from '@/components/auth/auth-screen';
 import { Button } from '@/components/ui/button';
 import { MobileMenu } from '@/components/ui/mobile-menu';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { SkipLink, SkipLinkContainer } from '@/components/ui/skip-link';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Hash, Users, Search, Settings, LogOut, Shield, Menu } from 'lucide-react';
 import { BackButton } from '@/components/ui/back-button';
@@ -43,6 +45,17 @@ export default function ChatPage() {
   const [privateRooms, setPrivateRooms] = useState<PrivateRoom[]>([]);
   const currentJoinedRoom = useRef<string | null>(null);
   const { toasts, showNotification, removeToast } = useNotificationManager();
+  const { 
+    announceMessage, 
+    announceRoomChange, 
+    announceUserStatus,
+    announceTyping,
+    prefersReducedMotion 
+  } = useAccessibility({
+    announceMessages: true,
+    announceNavigation: true,
+    announceTyping: true
+  });
 
   // Always call hooks consistently - enable/disable with the enabled option
   const {
@@ -564,7 +577,14 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="h-screen flex sensual-gradient overflow-hidden">
+    <>
+      <SkipLinkContainer>
+        <SkipLink href="#main-content">Skip to main content</SkipLink>
+        <SkipLink href="#room-list">Skip to room list</SkipLink>
+        <SkipLink href="#message-input">Skip to message input</SkipLink>
+      </SkipLinkContainer>
+      
+      <div className="h-screen flex sensual-gradient overflow-hidden" role="application" aria-label="Chatual - Real-time Chat Application">
       {/* Mobile Sidebar */}
       {(isMobile || isTablet) && (
         <MobileMenu
@@ -585,16 +605,18 @@ export default function ChatPage() {
 
       {/* Desktop Sidebar */}
       {isDesktop && (
-        <Sidebar
-          rooms={roomsData?.rooms || []}
-          privateRooms={privateRooms}
-          activeRoom={activeRoom}
-          onRoomSelect={handleRoomSelect}
-          currentUser={currentUser}
-          onCreateRoom={() => setShowCreateRoom(true)}
-          onStartPrivateChat={handleStartPrivateChat}
-          className="w-80 border-r border-primary/20 bg-card/80 backdrop-blur-sm"
-        />
+        <nav role="navigation" aria-label="Chat rooms and navigation" id="room-list">
+          <Sidebar
+            rooms={roomsData?.rooms || []}
+            privateRooms={privateRooms}
+            activeRoom={activeRoom}
+            onRoomSelect={handleRoomSelect}
+            currentUser={currentUser}
+            onCreateRoom={() => setShowCreateRoom(true)}
+            onStartPrivateChat={handleStartPrivateChat}
+            className="w-80 border-r border-primary/20 bg-card/80 backdrop-blur-sm"
+          />
+        </nav>
       )}
 
       {/* Main Content Area with Resizable Panels */}
@@ -602,7 +624,7 @@ export default function ChatPage() {
         <ResizablePanelGroup direction="horizontal" className="flex-1">
           {/* Main Chat Panel */}
           <ResizablePanel defaultSize={showUserList ? 75 : 100} minSize={50}>
-            <div className="flex flex-col h-full min-w-0">
+            <main className="flex flex-col h-full min-w-0" id="main-content" role="main" aria-label="Chat messages and input">
         {/* Header */}
         <div className={cn(
           "bg-card/80 backdrop-blur-sm border-b border-primary/20 flex items-center justify-between red-glow",
@@ -630,11 +652,11 @@ export default function ChatPage() {
             <Hash className={cn(
               "text-primary flex-shrink-0",
               "w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6"
-            )} />
+            )} aria-hidden="true" />
             <h1 className={cn(
               "font-semibold text-white truncate min-w-0 flex-1",
               "text-sm sm:text-base md:text-lg lg:text-xl"
-            )}>
+            )} aria-live="polite">
               {activeRoom?.name || 'Select a room'}
             </h1>
 
@@ -671,8 +693,9 @@ export default function ChatPage() {
                 size="sm"
                 className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
                 data-testid="button-settings"
+                aria-label="Open settings"
               >
-                <Settings className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+                <Settings className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" aria-hidden="true" />
               </Button>
             </Link>
 
@@ -683,8 +706,9 @@ export default function ChatPage() {
                   size="sm"
                   className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
                   data-testid="button-admin"
+                  aria-label="Open admin dashboard"
                 >
-                  <Shield className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+                  <Shield className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" aria-hidden="true" />
                 </Button>
               </Link>
             )}
@@ -700,8 +724,9 @@ export default function ChatPage() {
               onClick={handleLogout}
               className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
               data-testid="button-logout"
+              aria-label="Logout"
             >
-              <LogOut className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+              <LogOut className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" aria-hidden="true" />
             </Button>
           </div>
         </div>
@@ -728,11 +753,12 @@ export default function ChatPage() {
               sendTyping(isTyping);
             }
           }}
+          id="message-input"
           disabled={!isConnected || !activeRoom}
           currentUser={currentUser}
           roomId={activeRoom?.id}
         />
-            </div>
+            </main>
           </ResizablePanel>
 
           {/* Resizable Handle */}
@@ -755,7 +781,7 @@ export default function ChatPage() {
         </ResizablePanelGroup>
       ) : (
         /* Mobile Chat Area */
-        <div className="flex-1 flex flex-col min-w-0">
+        <main className="flex-1 flex flex-col min-w-0" id="main-content-mobile" role="main" aria-label="Chat messages and input">
           {/* Header */}
           <div className={cn(
             "bg-card/80 backdrop-blur-sm border-b border-primary/20 flex items-center justify-between red-glow",
@@ -783,11 +809,11 @@ export default function ChatPage() {
             <Hash className={cn(
               "text-primary flex-shrink-0",
               "w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6"
-            )} />
+            )} aria-hidden="true" />
             <h1 className={cn(
               "font-semibold text-white truncate min-w-0 flex-1",
               "text-sm sm:text-base md:text-lg lg:text-xl"
-            )}>
+            )} aria-live="polite">
               {activeRoom?.name || 'Select a room'}
             </h1>
 
@@ -824,8 +850,9 @@ export default function ChatPage() {
                 size="sm"
                 className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
                 data-testid="button-settings"
+                aria-label="Open settings"
               >
-                <Settings className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+                <Settings className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" aria-hidden="true" />
               </Button>
             </Link>
 
@@ -836,8 +863,9 @@ export default function ChatPage() {
                   size="sm"
                   className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
                   data-testid="button-admin"
+                  aria-label="Open admin dashboard"
                 >
-                  <Shield className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+                  <Shield className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" aria-hidden="true" />
                 </Button>
               </Link>
             )}
@@ -853,8 +881,9 @@ export default function ChatPage() {
               onClick={handleLogout}
               className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
               data-testid="button-logout"
+              aria-label="Logout"
             >
-              <LogOut className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+              <LogOut className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" aria-hidden="true" />
             </Button>
           </div>
           </div>
@@ -885,7 +914,7 @@ export default function ChatPage() {
             currentUser={currentUser}
             roomId={activeRoom?.id}
           />
-        </div>
+        </main>
       )}
 
       {/* Mobile User List Modal */}
@@ -940,6 +969,7 @@ export default function ChatPage() {
           />
         ))}
       </div>
-    </div>
+      </div>
+    </>
   );
 }
