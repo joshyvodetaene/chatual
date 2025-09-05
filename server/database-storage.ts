@@ -376,7 +376,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRooms(): Promise<Room[]> {
-    return await db.select().from(rooms);
+    return await db.select().from(rooms).where(eq(rooms.isPrivate, false));
   }
 
   async getRoom(id: string): Promise<Room | undefined> {
