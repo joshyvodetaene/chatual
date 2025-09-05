@@ -545,6 +545,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'Invalid username or password' });
       }
       
+      // Check if user is banned
+      if (user.isBanned) {
+        console.log(`[AUTH] Banned user attempted login: ${user.username} (${user.id})`);
+        const banReason = user.banReason || 'No reason provided';
+        return res.status(403).json({ 
+          error: 'Your account has been banned', 
+          message: `This account has been suspended. Reason: ${banReason}. Please contact support for assistance.`,
+          isBanned: true 
+        });
+      }
+      
       console.log(`[AUTH] Authentication successful for user: ${user.id} (${user.username})`);
       // Don't send password in response
       const { password, ...userWithoutPassword } = user;
@@ -1594,6 +1605,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('Unblock user error:', error);
       res.status(500).json({ error: error.message || 'Failed to unblock user' });
+    }
+  });
+
+  // Admin ban user endpoint
+  app.post('/api/admin/ban-user', async (req, res) => {
+    try {
+      const { adminUserId, userId, reason } = req.body;
+      
+      if (!adminUserId) {
+        return res.status(401).json({ error: 'Admin authentication required' });
+      }
+      
+      // Verify admin privileges
+      const adminUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUser.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin privileges required' });
+      }
+      
+      // Prevent admin from banning themselves
+      if (adminUserId === userId) {
+        return res.status(400).json({ error: 'Cannot ban yourself' });
+      }
+      
+      const banData = {
+        userId,
+        adminUserId,
+        reason: reason || 'Banned by admin'
+      };
+      
+      const result = await storage.banUser(banData);
+      res.json({ success: true, result, message: 'User banned successfully' });
+    } catch (error: any) {
+      console.error('Ban user error:', error);
+      res.status(500).json({ error: error.message || 'Failed to ban user' });
+    }
+  });
+
+  // Admin unban user endpoint
+  app.post('/api/admin/unban-user', async (req, res) => {
+    try {
+      const { adminUserId, userId } = req.body;
+      
+      if (!adminUserId) {
+        return res.status(401).json({ error: 'Admin authentication required' });
+      }
+      
+      // Verify admin privileges
+      const adminUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUser.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin privileges required' });
+      }
+      
+      const result = await storage.unbanUser(userId, adminUserId, 'Unbanned by admin');
+      res.json({ success: true, result, message: 'User unbanned successfully' });
+    } catch (error: any) {
+      console.error('Unban user error:', error);
+      res.status(500).json({ error: error.message || 'Failed to unban user' });
     }
   });
 

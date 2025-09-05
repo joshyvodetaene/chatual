@@ -56,11 +56,21 @@ export default function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormPr
     },
     onError: async (error: any) => {
       const errorData = await error.response?.json?.();
-      toast({
-        title: 'Login failed',
-        description: errorData?.error || 'Please check your credentials.',
-        variant: 'destructive',
-      });
+      
+      // Handle banned user specifically
+      if (errorData?.isBanned) {
+        toast({
+          title: 'Account Suspended',
+          description: errorData.message || 'Your account has been banned. Please contact support.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Login failed',
+          description: errorData?.error || 'Please check your credentials.',
+          variant: 'destructive',
+        });
+      }
     },
   });
 

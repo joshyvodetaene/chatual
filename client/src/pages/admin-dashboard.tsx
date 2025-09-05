@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Shield, Users, AlertTriangle, Ban, Activity, TrendingUp, UserCheck, Eye, Settings, X, Search, Hash, Trash2, Plus, UserX, UserPlus } from 'lucide-react';
+import { Shield, Users, AlertTriangle, Ban, Activity, TrendingUp, UserCheck, Eye, Settings, X, Search, Hash, Trash2, Plus, UserX, UserPlus, UserCheck2 } from 'lucide-react';
 import type { AdminDashboardStats, ModerationData, User, Room } from '@shared/schema';
 import { BackButton } from '@/components/ui/back-button';
 import { useResponsive } from '@/hooks/use-responsive';
@@ -216,6 +216,67 @@ export default function AdminDashboard() {
   const handleUnblockUser = (userId: string, username: string) => {
     if (confirm(`Are you sure you want to unblock user "${username}"?`)) {
       unblockUserMutation.mutate(userId);
+    }
+  };
+
+  const banUserMutation = useMutation({
+    mutationFn: async (data: { userId: string; reason?: string }) => {
+      return apiRequest('POST', '/api/admin/ban-user', {
+        adminUserId,
+        userId: data.userId,
+        reason: data.reason || 'Banned by admin'
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/dashboard-stats'] });
+      toast({
+        title: 'Success',
+        description: 'User banned successfully',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to ban user',
+      });
+    },
+  });
+
+  const unbanUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return apiRequest('POST', '/api/admin/unban-user', {
+        adminUserId,
+        userId
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/dashboard-stats'] });
+      toast({
+        title: 'Success',
+        description: 'User unbanned successfully',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to unban user',
+      });
+    },
+  });
+
+  const handleBanUser = (userId: string, username: string) => {
+    if (confirm(`Are you sure you want to ban user "${username}"? They will be completely restricted from the platform.`)) {
+      banUserMutation.mutate({ userId });
+    }
+  };
+
+  const handleUnbanUser = (userId: string, username: string) => {
+    if (confirm(`Are you sure you want to unban user "${username}"?`)) {
+      unbanUserMutation.mutate(userId);
     }
   };
 
@@ -777,7 +838,7 @@ export default function AdminDashboard() {
                       <th className={cn(
                         "text-left font-medium text-gray-400 uppercase tracking-wider",
                         isMobile ? "p-2 text-xs" : "p-4 text-xs"
-                      )}>Reports</th>
+                      )}>Status</th>
                       <th className={cn(
                         "text-left font-medium text-gray-400 uppercase tracking-wider",
                         isMobile ? "p-2 text-xs" : "p-4 text-xs"
@@ -818,9 +879,22 @@ export default function AdminDashboard() {
                         <td className={cn(
                           isMobile ? "p-2" : "p-4"
                         )}>
-                          <Badge variant="secondary" className="text-xs">
-                            {Math.floor(Math.random() * 10)}
-                          </Badge>
+                          <div className="flex flex-col space-y-1">
+                            {user.isBanned && (
+                              <Badge variant="destructive" className="text-xs w-fit">
+                                Banned
+                              </Badge>
+                            )}
+                            {user.isOnline ? (
+                              <Badge variant="default" className="text-xs w-fit bg-green-500/20 text-green-400">
+                                Online
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs w-fit">
+                                Offline
+                              </Badge>
+                            )}
+                          </div>
                         </td>
                         <td className={cn(
                           isMobile ? "p-2" : "p-4"
@@ -858,6 +932,29 @@ export default function AdminDashboard() {
                             >
                               <UserPlus className="w-3 h-3" />
                             </Button>
+                            {user.isBanned ? (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-gray-400 hover:text-green-400 hover:bg-green-400/10 p-1"
+                                onClick={() => handleUnbanUser(user.id, user.username)}
+                                disabled={unbanUserMutation.isPending}
+                                data-testid={`button-unban-user-${user.id}`}
+                              >
+                                <UserCheck2 className="w-3 h-3" />
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-gray-400 hover:text-red-400 hover:bg-red-400/10 p-1"
+                                onClick={() => handleBanUser(user.id, user.username)}
+                                disabled={banUserMutation.isPending}
+                                data-testid={`button-ban-user-${user.id}`}
+                              >
+                                <Ban className="w-3 h-3" />
+                              </Button>
+                            )}
                           </div>
                         </td>
                       </tr>
