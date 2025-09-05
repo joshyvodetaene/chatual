@@ -62,12 +62,19 @@ export default function MessageInputEnhanced({
       setMentionedUsers([]);
       handleStopTyping();
 
-      // Reset textarea height
+      // Reset textarea height and refocus on mobile to keep keyboard open
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
+        
+        // Keep focus on mobile to prevent keyboard from closing after sending message
+        if (isMobile) {
+          setTimeout(() => {
+            textareaRef.current?.focus();
+          }, 0);
+        }
       }
     }
-  }, [message, disabled, mentionedUsers, onSendMessage]);
+  }, [message, disabled, mentionedUsers, onSendMessage, isMobile]);
 
   // Handle photo upload using the same method as photo management
   const fileInputRef = useRef<HTMLInputElement>(null);
