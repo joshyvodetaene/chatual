@@ -116,14 +116,11 @@ export default function AdminDashboard() {
 
   const createRoomMutation = useMutation({
     mutationFn: async (roomData: { name: string; description: string }) => {
-      return apiRequest('/api/admin/rooms', {
-        method: 'POST',
-        body: {
-          adminUserId,
-          name: roomData.name,
-          description: roomData.description,
-          isPrivate: false
-        }
+      return apiRequest('POST', '/api/admin/rooms', {
+        adminUserId,
+        name: roomData.name,
+        description: roomData.description,
+        isPrivate: false
       });
     },
     onSuccess: () => {
@@ -148,13 +145,10 @@ export default function AdminDashboard() {
 
   const blockUserMutation = useMutation({
     mutationFn: async (data: { userId: string; reason?: string }) => {
-      return apiRequest('/api/admin/block-user', {
-        method: 'POST',
-        body: {
-          adminUserId,
-          userId: data.userId,
-          reason: data.reason || 'Blocked by admin'
-        }
+      return apiRequest('POST', '/api/admin/block-user', {
+        adminUserId,
+        userId: data.userId,
+        reason: data.reason || 'Blocked by admin'
       });
     },
     onSuccess: () => {
@@ -176,12 +170,9 @@ export default function AdminDashboard() {
 
   const unblockUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      return apiRequest('/api/admin/unblock-user', {
-        method: 'POST',
-        body: {
-          adminUserId,
-          userId
-        }
+      return apiRequest('POST', '/api/admin/unblock-user', {
+        adminUserId,
+        userId
       });
     },
     onSuccess: () => {
