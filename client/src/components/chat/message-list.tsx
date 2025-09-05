@@ -12,6 +12,7 @@ import PhotoMessage from './photo-message';
 import { Button } from '@/components/ui/button';
 import { useResponsive } from '@/hooks/use-responsive';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useMobileKeyboard } from '@/hooks/use-mobile-keyboard';
 
 interface MessageListProps {
   messages: MessageWithUser[];
@@ -44,6 +45,7 @@ export default function MessageList({
 }: MessageListProps) {
   const { isMobile: hookIsMobile, isTablet } = useResponsive();
   const isMobile = propIsMobile ?? hookIsMobile;
+  const { isKeyboardOpen } = useMobileKeyboard();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -187,7 +189,11 @@ export default function MessageList({
   return (
     <div 
       ref={containerRef}
-      className="flex-1 overflow-y-auto hide-scrollbar p-2 sm:p-3 md:p-4 lg:p-6 space-y-0.5" 
+      className={cn(
+        "flex-1 overflow-y-auto hide-scrollbar p-2 sm:p-3 md:p-4 lg:p-6 space-y-0.5 chat-messages-container",
+        // Add bottom padding when mobile keyboard is open to prevent content being hidden behind fixed input
+        isMobile && isKeyboardOpen && "pb-20"
+      )}
       data-testid="message-list"
     >
       {/* Loading indicator for initial load */}
