@@ -1,8 +1,10 @@
 import { User, Room, PrivateRoom } from '@shared/schema';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Hash, Lock, Plus, Settings, Search } from 'lucide-react';
+import { MessageCircle, Hash, Lock, Plus, Settings, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 import SearchModal from '@/components/search/search-modal';
 
 interface SidebarProps {
@@ -13,6 +15,7 @@ interface SidebarProps {
   onRoomSelect: (room: Room) => void;
   onCreateRoom: () => void;
   onStartPrivateChat: (userId: string) => void;
+  onPrivateRoomDeleted?: (roomId: string) => void;
   className?: string;
   isMobile?: boolean;
 }
@@ -25,12 +28,14 @@ export default function Sidebar({
   onRoomSelect,
   onCreateRoom,
   onStartPrivateChat,
+  onPrivateRoomDeleted,
   className,
   isMobile = false,
 }: SidebarProps) {
   // State für den aktiven Tab (Räume oder Private Chats)
   const [activeTab, setActiveTab] = useState<'rooms' | 'private'>('rooms');
   const [showSearch, setShowSearch] = useState(false);
+  const { toast } = useToast();
   
 
   // Hilfsfunktion: Erstellt Initialen aus dem Namen (z.B. "John Doe" → "JD")
@@ -64,6 +69,42 @@ export default function Sidebar({
     ];
     const hash = name.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
     return colors[hash % colors.length];
+  };
+
+  // Handle deleting a private chat
+  const handleDeletePrivateChat = async (roomId: string, participantName: string, event: React.MouseEvent) => {
+    // Prevent clicking on the chat item when clicking delete
+    event.stopPropagation();
+    
+    try {
+      const response = await apiRequest('DELETE', `/api/private-chat/${roomId}`, {
+        userId: currentUser.id
+      });
+      
+      if (response.ok) {
+        // Notify parent component to update the private rooms list
+        onPrivateRoomDeleted?.(roomId);
+        
+        toast({
+          title: "Private chat closed",
+          description: `Your chat with ${participantName} has been closed.`,
+        });
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Error",
+          description: error.error || "Failed to close private chat",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting private chat:', error);
+      toast({
+        title: "Error",
+        description: "Failed to close private chat. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -312,6 +353,22 @@ export default function Sidebar({
                         Private chat
                       </p>
                     </div>
+                    
+                    {/* Close/Delete Button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        "h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity",
+                        "hover:bg-red-500/20 hover:text-red-400",
+                        activeRoom?.id === privateRoom.id && "text-white/70 hover:text-red-400"
+                      )}
+                      onClick={(e) => handleDeletePrivateChat(privateRoom.id, privateRoom.participant2.displayName, e)}
+                      aria-label={`Close chat with ${privateRoom.participant2.displayName}`}
+                      data-testid={`close-private-chat-${privateRoom.participant2.username}`}
+                    >
+                      <X className="w-4 h-4" aria-hidden="true" />
+                    </Button>
                   </div>
                 ))}
                 

@@ -535,6 +535,32 @@ export default function ChatPage() {
     }
   };
 
+  // Function to handle private chat deletion
+  const handlePrivateRoomDeleted = (roomId: string) => {
+    setPrivateRooms(prev => prev.filter(room => room.id !== roomId));
+    
+    // Update localStorage
+    if (currentUser?.id) {
+      const updatedRooms = privateRooms.filter(room => room.id !== roomId);
+      localStorage.setItem(`chatual_private_rooms_${currentUser.id}`, JSON.stringify(updatedRooms));
+    }
+    
+    // If the deleted room was the active room, switch to the first available room
+    if (activeRoom?.id === roomId) {
+      const remainingRooms = roomsData?.rooms || [];
+      if (remainingRooms.length > 0) {
+        const firstRoom = remainingRooms[0];
+        setActiveRoom(firstRoom);
+        activeRoomRef.current = firstRoom;
+        localStorage.setItem('chatual_active_room', JSON.stringify({ id: firstRoom.id, name: firstRoom.name }));
+      } else {
+        setActiveRoom(null);
+        activeRoomRef.current = null;
+        localStorage.removeItem('chatual_active_room');
+      }
+    }
+  };
+
   const handleRoomSelect = useCallback((room: Room) => {
     const previousRoom = activeRoom;
     
@@ -599,6 +625,7 @@ export default function ChatPage() {
             currentUser={currentUser}
             onCreateRoom={() => setShowCreateRoom(true)}
             onStartPrivateChat={handleStartPrivateChat}
+            onPrivateRoomDeleted={handlePrivateRoomDeleted}
           />
         </MobileMenu>
       )}
