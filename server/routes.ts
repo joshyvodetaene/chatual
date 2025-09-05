@@ -5,7 +5,6 @@ import { storage } from "./storage";
 import { insertUserSchema, insertRoomSchema, insertMessageSchema, registerUserSchema, loginSchema, insertUserPhotoSchema, updateUserProfileSchema, insertBlockedUserSchema, insertReportSchema, reportSchema, updateReportStatusSchema, warnUserSchema, banUserSchema, updateNotificationSettingsSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { NotificationService } from "./notification-service";
-import cron from "node-cron";
 
 interface WebSocketClient extends WebSocket {
   userId?: string;
@@ -43,41 +42,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const notificationService = new NotificationService(clients);
   
   console.log('WebSocket server initialized on path /ws');
-
-  // Setup daily message cleanup job at midnight (00:00)
-  cron.schedule('0 0 * * *', async () => {
-    console.log('[CRON] Starting daily message cleanup job...');
-    try {
-      const success = await storage.clearAllMessages();
-      if (success) {
-        console.log('[CRON] Daily message cleanup completed successfully');
-        
-        // Broadcast to all connected clients that messages were cleared
-        const clearMessage = {
-          type: 'system_message',
-          message: 'Daily message cleanup completed - all previous messages have been cleared'
-        };
-        
-        for (const [userId, client] of clients.entries()) {
-          if (client.readyState === WebSocket.OPEN) {
-            try {
-              client.send(JSON.stringify(clearMessage));
-            } catch (error) {
-              console.error(`[CRON] Error notifying user ${userId} about cleanup:`, error);
-            }
-          }
-        }
-      } else {
-        console.error('[CRON] Daily message cleanup failed');
-      }
-    } catch (error) {
-      console.error('[CRON] Error during daily message cleanup:', error);
-    }
-  }, {
-    timezone: "UTC"
-  });
-
-  console.log('[CRON] Daily message cleanup job scheduled for midnight UTC');
 
   // Connection health tracking constants
   const HEARTBEAT_INTERVAL = 30000; // 30 seconds
