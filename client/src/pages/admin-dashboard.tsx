@@ -3,7 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Shield, Users, AlertTriangle, Ban, Activity, TrendingUp, UserCheck, Eye, Settings, X, Search, Hash, Trash2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Shield, Users, AlertTriangle, Ban, Activity, TrendingUp, UserCheck, Eye, Settings, X, Search, Hash, Trash2, Plus, UserX, UserPlus } from 'lucide-react';
 import type { AdminDashboardStats, ModerationData, User, Room } from '@shared/schema';
 import { BackButton } from '@/components/ui/back-button';
 import { useResponsive } from '@/hooks/use-responsive';
@@ -14,10 +17,13 @@ import { useToast } from '@/hooks/use-toast';
 export default function AdminDashboard() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showUserDetails, setShowUserDetails] = useState(false);
+  const [showCreateRoom, setShowCreateRoom] = useState(false);
+  const [newRoomName, setNewRoomName] = useState('');
+  const [newRoomDescription, setNewRoomDescription] = useState('');
   const { isMobile, isTablet } = useResponsive();
 
-  // Mock admin user ID - in a real app this would come from auth context
-  const adminUserId = '7a6dab62-7327-4f79-b025-952b687688c1';
+  // Administrator user ID - this is the master admin account
+  const adminUserId = 'ce02698d-1272-4b47-a834-c44cbe3be6c9';
 
   const { data: statsData, isLoading: statsLoading } = useQuery<{ stats: AdminDashboardStats }>({
     queryKey: ['/api/admin/dashboard-stats', adminUserId],
@@ -105,6 +111,120 @@ export default function AdminDashboard() {
   const handleDeleteRoom = (roomId: string, roomName: string) => {
     if (confirm(`Are you sure you want to delete the room "${roomName}"? This action cannot be undone and will delete all messages in the room.`)) {
       deleteRoomMutation.mutate(roomId);
+    }
+  };
+
+  const createRoomMutation = useMutation({
+    mutationFn: async (roomData: { name: string; description: string }) => {
+      return apiRequest('/api/admin/rooms', {
+        method: 'POST',
+        body: {
+          adminUserId,
+          name: roomData.name,
+          description: roomData.description,
+          isPrivate: false
+        }
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/dashboard-stats'] });
+      setShowCreateRoom(false);
+      setNewRoomName('');
+      setNewRoomDescription('');
+      toast({
+        title: 'Success',
+        description: 'Room created successfully',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to create room',
+      });
+    },
+  });
+
+  const blockUserMutation = useMutation({
+    mutationFn: async (data: { userId: string; reason?: string }) => {
+      return apiRequest('/api/admin/block-user', {
+        method: 'POST',
+        body: {
+          adminUserId,
+          userId: data.userId,
+          reason: data.reason || 'Blocked by admin'
+        }
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/dashboard-stats'] });
+      toast({
+        title: 'Success',
+        description: 'User blocked successfully',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to block user',
+      });
+    },
+  });
+
+  const unblockUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return apiRequest('/api/admin/unblock-user', {
+        method: 'POST',
+        body: {
+          adminUserId,
+          userId
+        }
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/dashboard-stats'] });
+      toast({
+        title: 'Success',
+        description: 'User unblocked successfully',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to unblock user',
+      });
+    },
+  });
+
+  const handleCreateRoom = () => {
+    if (!newRoomName.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Room name is required',
+      });
+      return;
+    }
+    createRoomMutation.mutate({
+      name: newRoomName,
+      description: newRoomDescription
+    });
+  };
+
+  const handleBlockUser = (userId: string, username: string) => {
+    if (confirm(`Are you sure you want to block user "${username}"? They will no longer be able to send messages.`)) {
+      blockUserMutation.mutate({ userId });
+    }
+  };
+
+  const handleUnblockUser = (userId: string, username: string) => {
+    if (confirm(`Are you sure you want to unblock user "${username}"?`)) {
+      unblockUserMutation.mutate(userId);
     }
   };
 
@@ -440,10 +560,79 @@ export default function AdminDashboard() {
               <Hash className="w-5 h-5 mr-2" />
               Chat Rooms
             </h2>
-            <div className="text-sm text-gray-400">
-              {roomsData?.rooms?.length || 0} rooms
+            <div className="flex items-center space-x-4">
+              <div className="text-sm text-gray-400">
+                {roomsData?.rooms?.length || 0} rooms
+              </div>
+              <Button 
+                variant="default" 
+                size="sm" 
+                className="bg-primary/20 text-primary hover:bg-primary/30"
+                onClick={() => setShowCreateRoom(!showCreateRoom)}
+                data-testid="button-create-room"
+              >
+                <Plus className={cn(
+                  isMobile ? "w-3 h-3" : "w-4 h-4"
+                )} />
+                {!isMobile && <span className="ml-1">Add Room</span>}
+              </Button>
             </div>
           </div>
+
+          {showCreateRoom && (
+            <Card className="bg-white/5 border-primary/20 mb-4">
+              <CardContent className="p-4">
+                <h3 className="text-white font-medium mb-4">Create New Room</h3>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="room-name" className="text-gray-300">Room Name</Label>
+                    <Input
+                      id="room-name"
+                      value={newRoomName}
+                      onChange={(e) => setNewRoomName(e.target.value)}
+                      placeholder="Enter room name"
+                      className="bg-white/10 border-primary/30 text-white"
+                      data-testid="input-room-name"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="room-description" className="text-gray-300">Description (Optional)</Label>
+                    <Textarea
+                      id="room-description"
+                      value={newRoomDescription}
+                      onChange={(e) => setNewRoomDescription(e.target.value)}
+                      placeholder="Enter room description"
+                      className="bg-white/10 border-primary/30 text-white"
+                      data-testid="input-room-description"
+                      rows={2}
+                    />
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      onClick={handleCreateRoom}
+                      disabled={createRoomMutation.isPending}
+                      className="bg-primary/20 text-primary hover:bg-primary/30"
+                      data-testid="button-submit-create-room"
+                    >
+                      {createRoomMutation.isPending ? 'Creating...' : 'Create Room'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowCreateRoom(false);
+                        setNewRoomName('');
+                        setNewRoomDescription('');
+                      }}
+                      className="border-primary/30 text-gray-300 hover:bg-white/5"
+                      data-testid="button-cancel-create-room"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="bg-white/5 border-primary/20 mb-6">
             <CardContent className="p-0">
@@ -645,17 +834,39 @@ export default function AdminDashboard() {
                         <td className={cn(
                           isMobile ? "p-2" : "p-4"
                         )}>
-                          <div className="flex items-center space-x-2">
-                            <div className={cn(
-                              "h-2 bg-gray-700 rounded-full overflow-hidden",
-                              isMobile ? "w-12" : "w-16"
-                            )}>
-                              <div 
-                                className="h-full bg-primary rounded-full"
-                                style={{ width: `${Math.random() * 100}%` }}
-                              />
-                            </div>
-                            <span className="text-xs text-gray-400">0</span>
+                          <div className="flex items-center space-x-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-gray-400 hover:text-blue-400 hover:bg-blue-400/10 p-1"
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setShowUserDetails(true);
+                              }}
+                              data-testid={`button-view-user-${user.id}`}
+                            >
+                              <Eye className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-gray-400 hover:text-red-400 hover:bg-red-400/10 p-1"
+                              onClick={() => handleBlockUser(user.id, user.username)}
+                              disabled={blockUserMutation.isPending}
+                              data-testid={`button-block-user-${user.id}`}
+                            >
+                              <UserX className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-gray-400 hover:text-green-400 hover:bg-green-400/10 p-1"
+                              onClick={() => handleUnblockUser(user.id, user.username)}
+                              disabled={unblockUserMutation.isPending}
+                              data-testid={`button-unblock-user-${user.id}`}
+                            >
+                              <UserPlus className="w-3 h-3" />
+                            </Button>
                           </div>
                         </td>
                       </tr>

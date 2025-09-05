@@ -325,6 +325,18 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getAllUsers(): Promise<User[]> {
+    console.log(`[DB] Fetching all users`);
+    try {
+      const allUsers = await db.select().from(users);
+      console.log(`[DB] Found ${allUsers.length} total users`);
+      return allUsers;
+    } catch (error) {
+      console.error(`[DB] Error fetching all users:`, error);
+      throw error;
+    }
+  }
+
   async getUsersWithDistance(currentUserId: string): Promise<UserWithDistance[]> {
     // Get current user to access their preferences
     const currentUser = await this.getUser(currentUserId);

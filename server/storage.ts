@@ -51,6 +51,7 @@ export interface IStorage {
   isUsernameAvailable(username: string): Promise<boolean>;
   updateUserOnlineStatus(userId: string, isOnline: boolean): Promise<void>;
   getOnlineUsers(): Promise<User[]>;
+  getAllUsers(): Promise<User[]>;
   getUsersWithDistance(currentUserId: string): Promise<UserWithDistance[]>;
 
   // Room methods

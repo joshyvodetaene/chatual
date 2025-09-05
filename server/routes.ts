@@ -1078,6 +1078,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin create room endpoint
+  app.post('/api/admin/rooms', async (req, res) => {
+    try {
+      const { adminUserId, name, description, isPrivate = false } = req.body;
+      
+      if (!adminUserId) {
+        return res.status(401).json({ error: 'Admin authentication required' });
+      }
+      
+      // Verify admin privileges
+      const adminUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUser.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin privileges required' });
+      }
+      
+      const roomData = {
+        name,
+        description: description || '',
+        isPrivate,
+        memberIds: [],
+        createdBy: adminUserId
+      };
+      
+      const room = await storage.createRoom(roomData);
+      res.json({ room, message: 'Room created successfully' });
+    } catch (error) {
+      console.error('Create room error:', error);
+      res.status(500).json({ error: 'Failed to create room' });
+    }
+  });
+
   // Admin delete room endpoint
   app.delete('/api/admin/rooms/:id', async (req, res) => {
     try {
@@ -1148,8 +1179,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Admin privileges required' });
       }
       
-      // For now, return a simplified list of users for admin view
-      const allUsers = await storage.getOnlineUsers();
+      // Get all users for admin view
+      const allUsers = await storage.getAllUsers();
       res.json({ users: allUsers });
     } catch (error) {
       console.error('Get admin users error:', error);
@@ -1506,6 +1537,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error unbanning user:', error);
       res.status(500).json({ error: 'Failed to unban user' });
+    }
+  });
+
+  // Admin block user endpoint
+  app.post('/api/admin/block-user', async (req, res) => {
+    try {
+      const { adminUserId, userId, reason } = req.body;
+      
+      if (!adminUserId) {
+        return res.status(401).json({ error: 'Admin authentication required' });
+      }
+      
+      // Verify admin privileges
+      const adminUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUser.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin privileges required' });
+      }
+      
+      const blockData = {
+        blockerId: adminUserId,
+        blockedId: userId,
+        reason: reason || 'Blocked by admin'
+      };
+      
+      const blockedUser = await storage.blockUser(blockData);
+      res.json({ success: true, blockedUser, message: 'User blocked successfully' });
+    } catch (error: any) {
+      console.error('Block user error:', error);
+      res.status(500).json({ error: error.message || 'Failed to block user' });
+    }
+  });
+
+  // Admin unblock user endpoint
+  app.post('/api/admin/unblock-user', async (req, res) => {
+    try {
+      const { adminUserId, userId } = req.body;
+      
+      if (!adminUserId) {
+        return res.status(401).json({ error: 'Admin authentication required' });
+      }
+      
+      // Verify admin privileges
+      const adminUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUser.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin privileges required' });
+      }
+      
+      const success = await storage.unblockUser(adminUserId, userId);
+      
+      if (success) {
+        res.json({ success: true, message: 'User unblocked successfully' });
+      } else {
+        res.status(404).json({ error: 'Block relationship not found' });
+      }
+    } catch (error: any) {
+      console.error('Unblock user error:', error);
+      res.status(500).json({ error: error.message || 'Failed to unblock user' });
     }
   });
 
