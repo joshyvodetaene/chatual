@@ -23,7 +23,7 @@ export default function AdminDashboard() {
   const { isMobile, isTablet } = useResponsive();
 
   // Administrator user ID - this is the master admin account
-  const adminUserId = 'ce02698d-1272-4b47-a834-c44cbe3be6c9';
+  const adminUserId = '7a6dab62-7327-4f79-b025-952b687688c1';
 
   const { data: statsData, isLoading: statsLoading } = useQuery<{ stats: AdminDashboardStats }>({
     queryKey: ['/api/admin/dashboard-stats', adminUserId],
