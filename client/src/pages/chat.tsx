@@ -390,6 +390,49 @@ export default function ChatPage() {
     }
   }, [isDesktop, currentUser, isMobile, isTablet]);
 
+  // Listen for private chat closure events from WebSocket
+  useEffect(() => {
+    const handlePrivateChatClosed = (event: CustomEvent) => {
+      const { roomId, closedBy } = event.detail;
+      console.log(`[CHAT_PAGE] Received private chat closure event for room ${roomId} by ${closedBy?.displayName}`);
+      
+      // Remove from privateRooms state
+      setPrivateRooms(prev => prev.filter(room => room.id !== roomId));
+      
+      // Update localStorage
+      if (currentUser?.id) {
+        const updatedRooms = privateRooms.filter(room => room.id !== roomId);
+        localStorage.setItem(`chatual_private_rooms_${currentUser.id}`, JSON.stringify(updatedRooms));
+      }
+      
+      // If the closed room was the active room, switch to a different room
+      if (activeRoom?.id === roomId) {
+        const remainingRooms = roomsData?.rooms || [];
+        if (remainingRooms.length > 0) {
+          const firstRoom = remainingRooms[0];
+          setActiveRoom(firstRoom);
+          activeRoomRef.current = firstRoom;
+          localStorage.setItem('chatual_active_room', JSON.stringify({ id: firstRoom.id, name: firstRoom.name }));
+          
+          toast({
+            title: "Switched Room",
+            description: `Moved to "${firstRoom.name}" since your private chat was closed`,
+          });
+        } else {
+          setActiveRoom(null);
+          activeRoomRef.current = null;
+          localStorage.removeItem('chatual_active_room');
+        }
+      }
+    };
+
+    window.addEventListener('private-chat-closed', handlePrivateChatClosed as EventListener);
+    
+    return () => {
+      window.removeEventListener('private-chat-closed', handlePrivateChatClosed as EventListener);
+    };
+  }, [currentUser, privateRooms, activeRoom, roomsData, toast]);
+
   const handleSendMessage = (content: string, photoUrl?: string, photoFileName?: string, mentionedUserIds?: string[]) => {
     if (!currentUser?.id) return;
 
@@ -433,43 +476,41 @@ export default function ChatPage() {
     }
 
     if (!roomToUse) {
-      // Force refresh room data and retry
-      queryClient.invalidateQueries({ queryKey: ['/api/rooms'] }).then(() => {
-        setTimeout(() => {
-          const refreshedRooms = queryClient.getQueryData<{ rooms: Room[] }>(['/api/rooms']);
-          if (refreshedRooms?.rooms && refreshedRooms.rooms.length > 0) {
-            setActiveRoom(refreshedRooms.rooms[0]);
-            activeRoomRef.current = refreshedRooms.rooms[0];
-            // Add optimistic message for photo messages to improve UX
-            if (photoUrl && photoFileName && refreshedRooms.rooms[0]) {
-              const optimisticMessage: MessageWithUser = {
-                id: `temp-${Date.now()}-${Math.random()}`,
-                content: content || '',
-                messageType: 'photo',
-                photoUrl,
-                photoFileName,
-                userId: currentUser.id,
-                roomId: refreshedRooms.rooms[0].id,
-                createdAt: new Date(),
-                mentionedUserIds: mentionedUserIds || [],
-                user: currentUser,
-                isTemporary: true
-              };
-
-              // Add message optimistically to see it immediately
-              addMessage(optimisticMessage);
-              console.log('Added optimistic photo message (fallback):', {
-                id: optimisticMessage.id,
-                photoUrl: photoUrl.substring(photoUrl.length - 30),
-                photoFileName
-              });
-            }
-
-            sendMessage(content, photoUrl, photoFileName, mentionedUserIds);
-          }
-        }, 1000);
+      console.error('No valid room found for sending message');
+      toast({
+        title: "Error",
+        description: "No active room selected. Please select a room first.",
+        variant: "destructive",
       });
       return;
+    }
+
+    // Check if this is a private chat that might have been closed
+    if (roomToUse.isPrivate) {
+      const isPrivateRoomStillValid = privateRooms.some(pr => pr.id === roomToUse.id);
+      if (!isPrivateRoomStillValid) {
+        console.error('Attempting to send message to closed private chat');
+        toast({
+          title: "Chat Unavailable",
+          description: "This private chat has been closed and is no longer available.",
+          variant: "destructive",
+        });
+        
+        // Switch to first available public room
+        const availableRooms = roomsData?.rooms || [];
+        if (availableRooms.length > 0) {
+          const firstRoom = availableRooms[0];
+          setActiveRoom(firstRoom);
+          activeRoomRef.current = firstRoom;
+          localStorage.setItem('chatual_active_room', JSON.stringify({ id: firstRoom.id, name: firstRoom.name }));
+          
+          toast({
+            title: "Switched Room",
+            description: `Moved to "${firstRoom.name}" since the private chat was closed`,
+          });
+        }
+        return;
+      }
     }
 
     // Add optimistic message for photo messages to improve UX

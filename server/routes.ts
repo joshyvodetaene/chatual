@@ -696,8 +696,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'User ID is required' });
       }
       
-      const success = await storage.deletePrivateRoom(roomId, userId);
-      if (success) {
+      const result = await storage.deletePrivateRoom(roomId, userId);
+      if (result.success) {
+        // Notify the other participant that the chat has been closed
+        if (result.otherParticipant) {
+          const currentUser = await storage.getUser(userId);
+          const notificationSent = broadcastToUser(result.otherParticipant.id, {
+            type: 'private_chat_closed',
+            roomId: roomId,
+            closedBy: {
+              id: currentUser?.id,
+              username: currentUser?.username,
+              displayName: currentUser?.displayName
+            },
+            message: `${currentUser?.displayName || 'Someone'} has closed this private chat`
+          });
+          
+          console.log(`[PRIVATE_CHAT] Chat closure notification sent to ${result.otherParticipant.id}: ${notificationSent}`);
+        }
+        
         res.json({ success: true, message: 'Private chat deleted' });
       } else {
         res.status(403).json({ error: 'Not authorized to delete this chat' });
@@ -1630,11 +1647,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const banData = {
         userId,
-        adminUserId,
-        reason: reason || 'Banned by admin'
+        reason: reason || 'Banned by admin',
+        permanent: true
       };
       
-      const result = await storage.banUser(banData);
+      const result = await storage.banUser(banData, adminUserId);
       res.json({ success: true, result, message: 'User banned successfully' });
     } catch (error: any) {
       console.error('Ban user error:', error);

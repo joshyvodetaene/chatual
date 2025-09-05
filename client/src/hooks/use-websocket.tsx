@@ -216,6 +216,24 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
               queryClient.invalidateQueries({ queryKey: ['/api/chat-data', userId] });
             }
             break;
+          case 'private_chat_closed':
+            console.log(`[WS_HOOK] Private chat closed by ${message.closedBy?.displayName}: room ${message.roomId}`);
+            // Show notification to user
+            toast({
+              title: "Private Chat Closed",
+              description: message.message || `${message.closedBy?.displayName || 'Someone'} has closed this private chat`,
+              variant: "destructive",
+              duration: 5000,
+            });
+            // Refresh chat data to remove the closed private room
+            if (userId) {
+              queryClient.invalidateQueries({ queryKey: ['/api/chat-data', userId] });
+            }
+            // Emit custom event to notify parent components
+            window.dispatchEvent(new CustomEvent('private-chat-closed', {
+              detail: { roomId: message.roomId, closedBy: message.closedBy }
+            }));
+            break;
           case 'notification':
             console.log(`[WS_HOOK] Received notification:`, {
               type: message.notification?.type,
