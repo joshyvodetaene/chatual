@@ -56,7 +56,7 @@ import {
   type InsertNotification
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, ne, sql, gt, lt, gte, like, ilike } from "drizzle-orm";
+import { eq, and, or, desc, ne, sql, gt, lt, gte, like, ilike, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 import type { IStorage } from "./storage";
@@ -1002,6 +1002,68 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('[DB] Error clearing all messages:', error);
       return false;
+    }
+  }
+
+  async cleanupOldMessages(keepPerRoom: number = 40): Promise<{ totalDeleted: number; roomsCleaned: number }> {
+    try {
+      console.log(`[DB] Starting cleanup of old messages, keeping ${keepPerRoom} messages per room`);
+      
+      // Get all rooms
+      const allRooms = await this.retryDatabaseOperation(async () => {
+        return await db.select({ id: rooms.id }).from(rooms);
+      });
+      
+      let totalDeleted = 0;
+      let roomsCleaned = 0;
+      
+      for (const room of allRooms) {
+        try {
+          // Get messages for this room, ordered by createdAt DESC
+          const roomMessages = await this.retryDatabaseOperation(async () => {
+            return await db
+              .select({ id: messages.id, createdAt: messages.createdAt })
+              .from(messages)
+              .where(eq(messages.roomId, room.id))
+              .orderBy(desc(messages.createdAt));
+          });
+          
+          // If room has more than keepPerRoom messages, delete the older ones
+          if (roomMessages.length > keepPerRoom) {
+            const messagesToDelete = roomMessages.slice(keepPerRoom);
+            const messageIdsToDelete = messagesToDelete.map(m => m.id);
+            
+            console.log(`[DB] Room ${room.id}: Found ${roomMessages.length} messages, deleting ${messagesToDelete.length} old messages`);
+            
+            // First delete associated reactions for these messages
+            await this.retryDatabaseOperation(async () => {
+              await db.delete(messageReactions).where(
+                inArray(messageReactions.messageId, messageIdsToDelete)
+              );
+            });
+            
+            // Then delete the old messages
+            const deleteResult = await this.retryDatabaseOperation(async () => {
+              return await db.delete(messages).where(
+                inArray(messages.id, messageIdsToDelete)
+              );
+            });
+            
+            totalDeleted += deleteResult.rowCount || 0;
+            roomsCleaned++;
+            console.log(`[DB] Room ${room.id}: Deleted ${deleteResult.rowCount} old messages`);
+          }
+        } catch (error) {
+          console.error(`[DB] Error cleaning up messages for room ${room.id}:`, error);
+          // Continue with other rooms even if one fails
+        }
+      }
+      
+      console.log(`[DB] Cleanup completed: ${totalDeleted} messages deleted from ${roomsCleaned} rooms`);
+      return { totalDeleted, roomsCleaned };
+    } catch (error) {
+      console.error('[DB] Error during message cleanup:', error);
+      throw error;
     }
   }
 

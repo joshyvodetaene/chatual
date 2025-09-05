@@ -1693,5 +1693,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Manual cleanup endpoint for admins
+  app.post('/api/admin/cleanup-messages', async (req: Request, res: Response) => {
+    try {
+      const { adminUserId } = req.body;
+      
+      if (!adminUserId) {
+        return res.status(401).json({ error: 'Admin authentication required' });
+      }
+      
+      // Check if user is admin
+      const user = await storage.getUser(adminUserId);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ error: 'Access denied: Admin privileges required' });
+      }
+      
+      const { cleanupScheduler } = await import('./cleanup-scheduler');
+      const result = await cleanupScheduler.runCleanupNow();
+      
+      res.json({
+        success: true,
+        message: 'Message cleanup completed successfully',
+        result: {
+          totalDeleted: result.totalDeleted,
+          roomsCleaned: result.roomsCleaned
+        }
+      });
+    } catch (error: any) {
+      console.error('Manual cleanup error:', error);
+      if (error.message === 'Cleanup is already in progress') {
+        return res.status(409).json({ error: 'Cleanup is already in progress' });
+      }
+      res.status(500).json({ error: error.message || 'Failed to run message cleanup' });
+    }
+  });
+
+  // Cleanup status endpoint for admins
+  app.get('/api/admin/cleanup-status', async (req: Request, res: Response) => {
+    try {
+      const { adminUserId } = req.query;
+      
+      if (!adminUserId) {
+        return res.status(401).json({ error: 'Admin authentication required' });
+      }
+      
+      // Check if user is admin
+      const user = await storage.getUser(adminUserId as string);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ error: 'Access denied: Admin privileges required' });
+      }
+      
+      const { cleanupScheduler } = await import('./cleanup-scheduler');
+      const status = cleanupScheduler.getStatus();
+      
+      res.json({
+        success: true,
+        status
+      });
+    } catch (error: any) {
+      console.error('Cleanup status error:', error);
+      res.status(500).json({ error: error.message || 'Failed to get cleanup status' });
+    }
+  });
+
   return httpServer;
 }

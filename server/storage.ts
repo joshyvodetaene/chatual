@@ -90,6 +90,7 @@ export interface IStorage {
   getRoomMessages(roomId: string, pagination?: PaginationParams): Promise<PaginatedResponse<MessageWithUser>>;
   getMessageById(messageId: string): Promise<MessageWithUser | undefined>;
   clearAllMessages(): Promise<boolean>;
+  cleanupOldMessages(keepPerRoom?: number): Promise<{ totalDeleted: number; roomsCleaned: number }>;
 
   // Photo methods
   addUserPhoto(photoData: InsertUserPhoto): Promise<UserPhoto>;

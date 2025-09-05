@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { cleanupScheduler } from "./cleanup-scheduler";
 
 const app = express();
 app.use(express.json());
@@ -67,5 +68,9 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Log cleanup scheduler status
+    const status = cleanupScheduler.getStatus();
+    console.log(`[CLEANUP] Scheduler active: ${status.isScheduled ? 'Yes' : 'No'}, keeping ${status.messagesPerRoom} messages per room`);
   });
 })();

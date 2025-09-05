@@ -44,6 +44,11 @@ Preferred communication style: Simple, everyday language.
 - **Online Presence**: Real-time user online/offline status tracking and broadcasting
 - **Typing Indicators**: Live typing status updates within chat rooms
 
+### Database Maintenance
+- **Automated Message Cleanup**: Daily scheduled task that automatically removes old messages, keeping only the 40 newest messages per chat room to prevent database bloat
+- **Manual Cleanup Controls**: Admin endpoints for triggering message cleanup on-demand and checking cleanup status
+- **Cleanup Logging**: Comprehensive logging of cleanup operations with statistics on messages deleted and rooms cleaned
+
 ## External Dependencies
 
 ### Database Services
