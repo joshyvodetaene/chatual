@@ -401,11 +401,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 photoUrl: messageWithUser.photoUrl
               });
               
+              console.log(`[WEBSOCKET] About to process mentions...`);
               // Send notifications for mentions
               if (newMessage.mentionedUserIds && newMessage.mentionedUserIds.length > 0) {
                 console.log(`[WEBSOCKET] Processing mentions: ${newMessage.mentionedUserIds}`);
                 for (const mentionedUserId of newMessage.mentionedUserIds) {
                   if (mentionedUserId !== ws.userId) { // Don't notify the sender
+                    console.log(`[WEBSOCKET] Notifying mention for user: ${mentionedUserId}`);
                     await notificationService.notifyMention(
                       mentionedUserId,
                       ws.userId,
@@ -414,7 +416,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     );
                   }
                 }
+              } else {
+                console.log(`[WEBSOCKET] No mentions to process`);
               }
+              console.log(`[WEBSOCKET] Mention processing completed`);
 
               // Send notifications to room members who are not currently online in this room
               console.log(`[WEBSOCKET] Starting notification process for room ${ws.roomId}`);
