@@ -546,23 +546,40 @@
 
 /* Chat-specific layout fixes */
 .chat-messages-container {
-  position: relative;
-  z-index: 1;
-  contain: layout style;
-  isolation: isolate;
+  position: relative !important;
+  z-index: 1 !important;
+  contain: layout style !important;
+  isolation: isolate !important;
+  transform: none !important;
 }
 
 /* Message input positioning */
 .message-input-container {
-  position: relative;
-  z-index: 10;
+  position: relative !important;
+  z-index: 10 !important;
 }
 
 /* Ensure messages stay contained within their parent */
 .message-container {
-  position: relative;
-  width: 100%;
-  max-width: 100%;
-  overflow: visible;
-  contain: layout;
+  position: static !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+  contain: none !important;
+  transform: none !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+}
+
+/* Force all message children to stay in flow */
+.message-container * {
+  position: static !important;
+  transform: none !important;
+}
+
+/* Exception for reaction picker which needs absolute positioning */
+.message-container .absolute {
+  position: absolute !important;
 }

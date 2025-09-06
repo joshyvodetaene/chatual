@@ -323,9 +323,17 @@ export default function MessageList({
           <div
             key={message.id}
             className={cn(
-              "flex items-start space-x-2 relative w-full message-container",
+              "flex items-start space-x-2 w-full message-container",
               isOwnMessage && "flex-row-reverse space-x-reverse"
             )}
+            style={{
+              position: 'static',
+              transform: 'none',
+              top: 'auto',
+              left: 'auto',
+              right: 'auto',
+              bottom: 'auto'
+            }}
             data-testid={`message-${message.id}`}
           >
             {/* Always try to show profile picture first, fallback to avatar */}
