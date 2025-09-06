@@ -312,6 +312,35 @@ export default function ChatPage() {
     }
   }, [currentUser, setUserId]);
 
+  // Initialize chat layout when accessing any chatroom
+  useEffect(() => {
+    const initializeChatPage = () => {
+      // Force layout recalculation to ensure proper CSS application
+      const chatContainer = document.querySelector('.chat-messages-container');
+      if (chatContainer) {
+        const container = chatContainer as HTMLElement;
+        // Force style recalculation
+        container.style.contain = 'layout style';
+        container.style.isolation = 'isolate';
+        container.style.position = 'relative';
+        container.style.zIndex = '1';
+      }
+
+      // Ensure message input has proper z-index
+      const messageInput = document.querySelector('.message-input-container');
+      if (messageInput) {
+        const input = messageInput as HTMLElement;
+        input.style.position = 'relative';
+        input.style.zIndex = '10';
+      }
+    };
+
+    if (currentUser && activeRoom?.id) {
+      // Small delay to ensure DOM is ready
+      setTimeout(initializeChatPage, 100);
+    }
+  }, [currentUser, activeRoom?.id]);
+
   // Optimize room join with async handling
   const handleRoomJoin = useCallback(async (roomId: string, userId: string) => {
     currentJoinedRoom.current = roomId;

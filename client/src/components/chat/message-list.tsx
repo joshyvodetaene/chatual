@@ -98,11 +98,44 @@ export default function MessageList({
   const containerRef = useRef<HTMLDivElement>(null);
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true);
   const previousScrollHeight = useRef<number>(0);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Initialize chat layout properly every time user accesses a chatroom
+  useEffect(() => {
+    const initializeChatLayout = () => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      // Force layout reflow to ensure CSS is properly applied
+      container.style.display = 'none';
+      container.offsetHeight; // Trigger reflow
+      container.style.display = '';
+
+      // Ensure proper z-index stacking and containment
+      container.style.position = 'relative';
+      container.style.zIndex = '1';
+      container.style.contain = 'layout style';
+      container.style.isolation = 'isolate';
+
+      // Reset and ensure proper scroll position
+      setTimeout(() => {
+        if (messagesEndRef.current && messages.length > 0) {
+          messagesEndRef.current.scrollIntoView({ behavior: 'instant' });
+        }
+        setIsInitialized(true);
+      }, 100);
+    };
+
+    if (activeRoomData?.id) {
+      setIsInitialized(false);
+      initializeChatLayout();
+    }
+  }, [activeRoomData?.id, messages.length]);
 
   // Auto-scroll to bottom for new messages, maintain position when loading older ones
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || !isInitialized) return;
 
     // Always scroll to bottom when new messages arrive, unless user is actively viewing older messages
     if (messages.length > 0) {
@@ -132,7 +165,7 @@ export default function MessageList({
 
     // Update previous scroll height for next comparison
     previousScrollHeight.current = container.scrollHeight;
-  }, [messages, shouldScrollToBottom, isLoadingMore]);
+  }, [messages, shouldScrollToBottom, isLoadingMore, isInitialized]);
 
   // Handle infinite scroll for loading older messages (reverse pagination)
   const handleScroll = useCallback(() => {
