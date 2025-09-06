@@ -99,15 +99,31 @@ export default function MessageList({
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true);
   const previousScrollHeight = useRef<number>(0);
 
-  // Auto-scroll to bottom only for new messages, maintain position when loading older ones
+  // Auto-scroll to bottom for new messages, maintain position when loading older ones
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    if (shouldScrollToBottom && messages.length > 0) {
-      // Scroll to bottom for new messages
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    } else if (isLoadingMore && previousScrollHeight.current > 0) {
+    // Always scroll to bottom when new messages arrive, unless user is actively viewing older messages
+    if (messages.length > 0) {
+      // Check if user is near the bottom or if we should force scroll
+      const scrollHeight = container.scrollHeight;
+      const clientHeight = container.clientHeight;
+      const scrollTop = container.scrollTop;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      
+      // Force scroll if shouldScrollToBottom is true or if user is close to bottom (within 150px)
+      const isNearBottom = distanceFromBottom < 150;
+      
+      if (shouldScrollToBottom || isNearBottom) {
+        // Small delay to ensure DOM has updated with new content
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 50);
+      }
+    }
+    
+    if (isLoadingMore && previousScrollHeight.current > 0) {
       // Maintain scroll position when loading older messages (reverse pagination)
       const newScrollHeight = container.scrollHeight;
       const heightDifference = newScrollHeight - previousScrollHeight.current;
@@ -132,13 +148,16 @@ export default function MessageList({
       onLoadMore();
     }
 
-    // Re-enable auto-scroll when user scrolls near the bottom
+    // Re-enable auto-scroll when user scrolls near the bottom (more aggressive threshold)
     const scrollHeight = container.scrollHeight;
     const clientHeight = container.clientHeight;
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
 
-    if (distanceFromBottom < 100) { // Reduced threshold for better UX
+    if (distanceFromBottom < 50) { // More aggressive threshold for better UX
       setShouldScrollToBottom(true);
+    } else if (distanceFromBottom > 200) {
+      // Only disable auto-scroll if user has scrolled significantly up
+      setShouldScrollToBottom(false);
     }
   }, [onLoadMore, isLoadingMore, hasMoreMessages]);
 
