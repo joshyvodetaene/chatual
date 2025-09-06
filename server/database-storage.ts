@@ -687,7 +687,7 @@ export class DatabaseStorage implements IStorage {
       .from(messages)
       .innerJoin(users, eq(messages.userId, users.id))
       .where(and(...whereConditions))
-      .orderBy(desc(messages.createdAt))
+      .orderBy(desc(messages.sequenceId))
       .limit(limit);
 
     const searchResults = result.map(({ message, user }) => ({
@@ -1043,10 +1043,10 @@ export class DatabaseStorage implements IStorage {
           // Get messages for this room, ordered by createdAt DESC
           const roomMessages = await this.retryDatabaseOperation(async () => {
             return await db
-              .select({ id: messages.id, createdAt: messages.createdAt })
+              .select({ id: messages.id, sequenceId: messages.sequenceId, createdAt: messages.createdAt })
               .from(messages)
               .where(eq(messages.roomId, room.id))
-              .orderBy(desc(messages.createdAt));
+              .orderBy(desc(messages.sequenceId));
           });
           
           // If room has more than keepPerRoom messages, delete the older ones
@@ -1688,7 +1688,7 @@ export class DatabaseStorage implements IStorage {
         .from(messages)
         .leftJoin(rooms, eq(messages.roomId, rooms.id))
         .where(eq(messages.userId, userId))
-        .orderBy(desc(messages.createdAt))
+        .orderBy(desc(messages.sequenceId))
         .limit(1000);
 
       // Get blocked users
