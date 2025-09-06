@@ -119,6 +119,9 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
   });
 
   const onSubmit = async (data: RegisterUser) => {
+    // Set displayName to username since we removed the field
+    data.displayName = data.username;
+    
     // Check if we need to geocode the location
     const hasCoordinates = isValidCoordinates(data.latitude || '', data.longitude || '');
     const hasLocation = data.location && data.location.trim().length > 0;
@@ -241,23 +244,6 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="displayName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Display Name</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Your display name"
-                      {...field}
-                      data-testid="input-display-name"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <FormField
               control={form.control}
@@ -265,18 +251,20 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Age</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min="18"
-                      max="100"
-                      placeholder="Enter your age"
-                      {...field}
-                      onChange={(e) => field.onChange(parseInt(e.target.value) || 18)}
-                      value={field.value || ''}
-                      data-testid="input-age"
-                    />
-                  </FormControl>
+                  <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-age">
+                        <SelectValue placeholder="Select your age" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="max-h-60">
+                      {Array.from({ length: 82 }, (_, i) => i + 18).map((age) => (
+                        <SelectItem key={age} value={age.toString()}>
+                          {age}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -354,7 +342,7 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
                   <FormControl>
                     <div className="space-y-3">
                       <Textarea
-                        placeholder="Enter your location (e.g., New York, USA)"
+                        placeholder="Enter your location"
                         {...field}
                         data-testid="input-location"
                         rows={2}
