@@ -227,6 +227,10 @@ export default function MessageList({
         // Add bottom padding when mobile keyboard is open to prevent content being hidden behind fixed input
         isMobile && isKeyboardOpen && "pb-20"
       )}
+      style={{
+        contain: 'layout style',
+        isolation: 'isolate'
+      }}
       data-testid="message-list"
     >
       {/* Loading indicator for initial load */}
@@ -286,7 +290,7 @@ export default function MessageList({
           <div
             key={message.id}
             className={cn(
-              "flex items-start space-x-2",
+              "flex items-start space-x-2 relative w-full",
               isOwnMessage && "flex-row-reverse space-x-reverse"
             )}
             data-testid={`message-${message.id}`}

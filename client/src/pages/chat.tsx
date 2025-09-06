@@ -795,7 +795,13 @@ export default function ChatPage() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div 
+          className="flex-1 flex flex-col min-h-0 overflow-hidden relative"
+          style={{
+            contain: 'layout style',
+            isolation: 'isolate'
+          }}
+        >
           <MessageList
             messages={paginatedMessages}
             currentUser={currentUser}
