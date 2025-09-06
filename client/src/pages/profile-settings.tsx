@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Settings, Camera, MapPin, Shield, Users, User, Bell, Lock } from 'lucide-react';
+import { Settings, Camera, MapPin, Shield, Users, User, Bell, Lock, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import type { UserProfileSettings, User as UserType } from '@shared/schema';
@@ -15,6 +15,7 @@ import ContactFilters from '@/components/profile/contact-filters';
 import BasicProfileSettings from '@/components/profile/basic-profile-settings';
 import PrivacySettings from '@/components/profile/privacy-settings';
 import NotificationPreferences from '@/components/profile/notification-preferences';
+import AccountDeletion from '@/components/profile/account-deletion';
 import { BackButton } from '@/components/ui/back-button';
 import { useResponsive } from '@/hooks/use-responsive';
 import { cn } from '@/lib/utils';
@@ -106,7 +107,7 @@ export default function ProfileSettings() {
       <Tabs defaultValue="profile" className="w-full">
         <TabsList className={cn(
           "grid w-full glass-effect backdrop-blur-glass rounded-2xl p-2 shadow-lg",
-          isMobile ? "grid-cols-3 gap-1 h-auto" : "grid-cols-7 gap-1",
+          isMobile ? "grid-cols-4 gap-1 h-auto" : "grid-cols-8 gap-1",
         )} data-testid="settings-tabs">
           <TabsTrigger 
             value="profile" 
@@ -219,6 +220,22 @@ export default function ProfileSettings() {
             <span className={cn(
               isMobile ? "leading-tight font-medium text-xs text-center" : "font-medium",
             )}>Filters</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="account" 
+            data-testid="tab-account"
+            className={cn(
+              "flex items-center justify-center rounded-xl transition-all duration-300 hover-lift",
+              isMobile ? "flex-col gap-1 h-16 text-xs p-2" : "flex-row gap-2 h-12",
+              "data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg"
+            )}
+          >
+            <Trash2 className={cn(
+              isMobile ? "w-4 h-4" : "w-4 h-4"
+            )} />
+            <span className={cn(
+              isMobile ? "leading-tight font-medium text-xs text-center" : "font-medium",
+            )}>Account</span>
           </TabsTrigger>
         </TabsList>
 
@@ -364,6 +381,15 @@ export default function ProfileSettings() {
                 />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="account" className={cn(
+            isMobile ? "space-y-4" : "space-y-6"
+          )}>
+            <AccountDeletion 
+              user={profileSettings.user}
+              isMobile={isMobile}
+            />
           </TabsContent>
         </div>
       </Tabs>

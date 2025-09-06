@@ -1286,6 +1286,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GDPR-compliant account deletion endpoint
+  app.delete('/api/users/:userId/account', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { confirmPassword } = req.body;
+      
+      console.log(`[API] Account deletion requested for user: ${userId}`);
+      
+      // Verify user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // For security, require password confirmation (optional enhancement)
+      if (confirmPassword) {
+        const bcrypt = require('bcryptjs');
+        const isValidPassword = await bcrypt.compare(confirmPassword, user.password);
+        if (!isValidPassword) {
+          return res.status(403).json({ error: 'Invalid password confirmation' });
+        }
+      }
+      
+      // Get user photos for object storage cleanup
+      const userPhotos = await storage.getUserPhotos(userId);
+      
+      // Perform GDPR-compliant account deletion
+      const deletionResult = await storage.deleteUserAccount(userId);
+      
+      // Clean up photos from object storage
+      if (userPhotos.length > 0) {
+        console.log(`[API] Cleaning up ${userPhotos.length} photos from object storage`);
+        const objectStorage = new ObjectStorageService();
+        
+        for (const photo of userPhotos) {
+          try {
+            await objectStorage.deleteFile(photo.fileName);
+            console.log(`[API] Deleted photo from storage: ${photo.fileName}`);
+          } catch (error) {
+            console.error(`[API] Failed to delete photo from storage: ${photo.fileName}`, error);
+            // Continue with other photos even if one fails
+          }
+        }
+      }
+      
+      // Disconnect user from WebSocket if they're connected
+      if (clients.has(userId)) {
+        const client = clients.get(userId);
+        if (client && client.roomId) {
+          removeUserFromRoom(client.roomId, userId);
+        }
+        clients.delete(userId);
+      }
+      
+      console.log(`[API] Account deletion completed for user: ${user.username}`);
+      console.log(`[API] Deletion summary:`, deletionResult.deletedData);
+      
+      res.json({ 
+        success: true, 
+        message: 'Account successfully deleted according to GDPR requirements',
+        deletedData: deletionResult.deletedData
+      });
+      
+    } catch (error) {
+      console.error('Account deletion error:', error);
+      
+      // Return appropriate error message
+      if (error.message === 'User not found') {
+        res.status(404).json({ error: 'User not found' });
+      } else if (error.message.includes('administrator')) {
+        res.status(403).json({ error: 'Cannot delete administrator account' });
+      } else {
+        res.status(500).json({ error: 'Failed to delete account. Please try again later.' });
+      }
+    }
+  });
+
   // Get user notification settings
   app.get('/api/users/:userId/notification-settings', async (req, res) => {
     try {
