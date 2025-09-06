@@ -827,8 +827,10 @@ export default function ChatPage() {
         <div 
           className="flex-1 flex flex-col min-h-0 overflow-hidden relative"
           style={{
-            contain: 'layout style',
-            isolation: 'isolate'
+            contain: 'layout style size',
+            isolation: 'isolate',
+            position: 'relative',
+            zIndex: 1
           }}
         >
           <MessageList
@@ -989,18 +991,28 @@ export default function ChatPage() {
           </div>
 
           {/* Messages */}
-          <MessageList
-            messages={paginatedMessages}
-            currentUser={currentUser}
-            typingUsers={typingUsers}
-            activeRoomData={activeRoomData?.room}
-            isLoading={messagesLoading}
-            isLoadingMore={isLoadingMore}
-            hasMoreMessages={hasMoreMessages}
-            onLoadMore={loadMoreMessages}
-            onStartPrivateChat={handleStartPrivateChat}
-            isMobile={isMobile}
-          />
+          <div 
+            className="flex-1 flex flex-col min-h-0 overflow-hidden relative"
+            style={{
+              contain: 'layout style size',
+              isolation: 'isolate',
+              position: 'relative',
+              zIndex: 1
+            }}
+          >
+            <MessageList
+              messages={paginatedMessages}
+              currentUser={currentUser}
+              typingUsers={typingUsers}
+              activeRoomData={activeRoomData?.room}
+              isLoading={messagesLoading}
+              isLoadingMore={isLoadingMore}
+              hasMoreMessages={hasMoreMessages}
+              onLoadMore={loadMoreMessages}
+              onStartPrivateChat={handleStartPrivateChat}
+              isMobile={isMobile}
+            />
+          </div>
 
           {/* Message Input */}
           <MessageInputEnhanced
