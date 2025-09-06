@@ -185,16 +185,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Helper function to broadcast to room
   function broadcastToRoom(roomId: string, message: any, excludeUserId?: string) {
     let sentCount = 0;
+    console.log(`[BROADCAST] Broadcasting to room ${roomId}, message type: ${message.type}, exclude: ${excludeUserId || 'none'}`);
+    console.log(`[BROADCAST] Connected clients:`, Array.from(clients.values()).map(c => ({ userId: c.userId, roomId: c.roomId, ready: c.readyState === WebSocket.OPEN })));
+    
     Array.from(clients.values()).forEach(client => {
       if (client.roomId === roomId && client.readyState === WebSocket.OPEN && client.userId !== excludeUserId) {
         try {
           client.send(JSON.stringify(message));
           sentCount++;
+          console.log(`[BROADCAST] Sent to user ${client.userId}`);
         } catch (error) {
           console.error(`Failed to send message to user ${client.userId}:`, error);
         }
       }
     });
+    console.log(`[BROADCAST] Sent to ${sentCount} clients in room ${roomId}`);
   }
 
   // Helper function to broadcast to specific user
