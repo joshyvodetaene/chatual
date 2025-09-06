@@ -895,19 +895,27 @@ export class DatabaseStorage implements IStorage {
       gte(messages.createdAt, threeHoursAgo)
     )!;
 
-    // Add cursor-based pagination conditions
+    // Add cursor-based pagination conditions using sequenceId
     if (before) {
-      whereCondition = and(
-        eq(messages.roomId, roomId),
-        gte(messages.createdAt, threeHoursAgo),
-        gt(messages.createdAt, new Date(before))
-      )!;
+      // Parse sequenceId from before cursor
+      const beforeSeqId = parseInt(before);
+      if (!isNaN(beforeSeqId)) {
+        whereCondition = and(
+          eq(messages.roomId, roomId),
+          gte(messages.createdAt, threeHoursAgo),
+          gt(messages.sequenceId, beforeSeqId)
+        )!;
+      }
     } else if (after) {
-      whereCondition = and(
-        eq(messages.roomId, roomId),
-        gte(messages.createdAt, threeHoursAgo),
-        lt(messages.createdAt, new Date(after))
-      )!;
+      // Parse sequenceId from after cursor
+      const afterSeqId = parseInt(after);
+      if (!isNaN(afterSeqId)) {
+        whereCondition = and(
+          eq(messages.roomId, roomId),
+          gte(messages.createdAt, threeHoursAgo),
+          lt(messages.sequenceId, afterSeqId)
+        )!;
+      }
     }
 
     // Get one extra message to check if there are more
@@ -924,7 +932,7 @@ export class DatabaseStorage implements IStorage {
         eq(userPhotos.isPrimary, true)
       ))
       .where(whereCondition)
-      .orderBy(desc(messages.createdAt))
+      .orderBy(desc(messages.sequenceId)) // Order by sequenceId for consistent ordering
       .limit(limit + 1);
 
     const hasMore = roomMessages.length > limit;
@@ -943,9 +951,9 @@ export class DatabaseStorage implements IStorage {
       }
     })).reverse(); // Reverse to show oldest first
 
-    // Generate cursors
-    const nextCursor = hasMore && items.length > 0 ? items[items.length - 1].message.createdAt?.toISOString() : undefined;
-    const prevCursor = items.length > 0 ? items[0].message.createdAt?.toISOString() : undefined;
+    // Generate cursors using sequenceId
+    const nextCursor = hasMore && items.length > 0 ? items[items.length - 1].message.sequenceId?.toString() : undefined;
+    const prevCursor = items.length > 0 ? items[0].message.sequenceId?.toString() : undefined;
 
     return {
       items: messagesWithUser,
