@@ -346,7 +346,7 @@ export default function MessageInputEnhanced({
         // Calculate position for dropdown
         const rect = textarea.getBoundingClientRect();
         setMentionPosition({
-          top: rect.top - 200, // Show above textarea
+          top: Math.max(rect.top - 200, 10), // Show above textarea, but not off-screen
           left: rect.left,
         });
       } else {

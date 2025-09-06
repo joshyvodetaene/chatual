@@ -290,13 +290,6 @@ export default function MessageList({
 
         // Handle photo messages
         if (message.messageType === 'photo') {
-          console.log('Rendering photo message:', {
-            id: message.id,
-            messageType: message.messageType,
-            photoUrl: message.photoUrl,
-            photoFileName: message.photoFileName,
-            content: message.content
-          });
           return (
             <PhotoMessage
               key={message.id}

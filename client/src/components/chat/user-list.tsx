@@ -69,14 +69,6 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
     member.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
-  // Debug: Log the filtered members and online status
-  console.log('UserList rendering:', {
-    totalMembers: filteredMembers.length,
-    onlineMembers: onlineMembers.length,
-    offlineMembers: offlineMembers.length,
-    onlineUserIds: Array.from(onlineUsers),
-    memberDisplayNames: filteredMembers.map(m => ({ id: m.id, name: m.displayName }))
-  });
 
   return (
     <div className="bg-black border-l border-gray-800 flex flex-col h-full w-full sm:w-52 md:w-56 lg:w-64" data-testid="user-list">

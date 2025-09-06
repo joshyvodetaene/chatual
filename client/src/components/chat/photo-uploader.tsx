@@ -76,14 +76,12 @@ export function PhotoUploader({
   }, [uppy, onComplete]);
 
   const handleButtonClick = () => {
-    console.log('Photo uploader clicked, opening uploader...');
     // Clear any existing files
     uppy.getFiles().forEach(file => uppy.removeFile(file.id));
     setShowUploader(!showUploader);
   };
 
   const handleClose = () => {
-    console.log('Closing photo uploader...');
     setShowUploader(false);
   };
 
