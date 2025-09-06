@@ -559,6 +559,18 @@
   z-index: 10 !important;
 }
 
+/* Ensure toast notifications don't interfere with chat */
+[data-radix-toast-viewport],
+.toast-viewport {
+  z-index: 50 !important;
+}
+
+/* Reduce navigation menu z-index */
+[data-radix-navigation-menu-viewport],
+.navigation-menu-viewport {
+  z-index: 2 !important;
+}
+
 /* Ensure messages stay contained within their parent */
 .message-container {
   position: static !important;
