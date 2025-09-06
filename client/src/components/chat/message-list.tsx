@@ -255,14 +255,12 @@ export default function MessageList({
   return (
     <div 
       ref={containerRef}
-      className={cn(
-        "flex-1 overflow-y-auto hide-scrollbar p-2 sm:p-3 md:p-4 lg:p-6 space-y-0.5 chat-messages-container relative",
-        // Add bottom padding when mobile keyboard is open to prevent content being hidden behind fixed input
-        isMobile && isKeyboardOpen && "pb-20"
-      )}
+      className="flex-1 overflow-y-auto hide-scrollbar p-2 sm:p-3 md:p-4 lg:p-6 chat-messages-container"
       style={{
-        contain: 'layout style',
-        isolation: 'isolate'
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.5rem',
+        paddingBottom: isMobile && isKeyboardOpen ? '80px' : undefined
       }}
       data-testid="message-list"
     >
@@ -327,12 +325,9 @@ export default function MessageList({
               isOwnMessage && "flex-row-reverse space-x-reverse"
             )}
             style={{
-              position: 'static',
-              transform: 'none',
-              top: 'auto',
-              left: 'auto',
-              right: 'auto',
-              bottom: 'auto'
+              display: 'flex',
+              position: 'relative',
+              width: '100%'
             }}
             data-testid={`message-${message.id}`}
           >

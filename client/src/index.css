@@ -544,54 +544,32 @@
   color: #9ca3af !important;
 }
 
-/* Chat-specific layout fixes */
+/* Chat-specific layout fixes - Simple and reliable */
 .chat-messages-container {
+  display: flex !important;
+  flex-direction: column !important;
   position: relative !important;
-  z-index: 1 !important;
-  contain: layout style !important;
-  isolation: isolate !important;
-  transform: none !important;
-}
-
-/* Message input positioning */
-.message-input-container {
-  position: relative !important;
-  z-index: 10 !important;
-}
-
-/* Ensure toast notifications don't interfere with chat */
-[data-radix-toast-viewport],
-.toast-viewport {
-  z-index: 50 !important;
-}
-
-/* Reduce navigation menu z-index */
-[data-radix-navigation-menu-viewport],
-.navigation-menu-viewport {
-  z-index: 2 !important;
-}
-
-/* Ensure messages stay contained within their parent */
-.message-container {
-  position: static !important;
   width: 100% !important;
-  max-width: 100% !important;
-  overflow: visible !important;
-  contain: none !important;
-  transform: none !important;
-  top: auto !important;
-  left: auto !important;
-  right: auto !important;
-  bottom: auto !important;
+  height: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
 }
 
-/* Force all message children to stay in flow */
-.message-container * {
-  position: static !important;
-  transform: none !important;
+/* Reset all message containers to normal flow */
+.message-container {
+  display: flex !important;
+  position: relative !important;
+  width: 100% !important;
+  margin-bottom: 0.5rem !important;
 }
 
-/* Exception for reaction picker which needs absolute positioning */
-.message-container .absolute {
-  position: absolute !important;
+/* Prevent any portal content from rendering in wrong place */
+[data-radix-portal] {
+  position: fixed !important;
+  z-index: 9999 !important;
+  pointer-events: none !important;
+}
+
+[data-radix-portal] * {
+  pointer-events: auto !important;
 }
