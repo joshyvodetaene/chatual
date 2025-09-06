@@ -645,11 +645,6 @@ export default function ChatPage() {
 
   return (
     <>
-      <SkipLinkContainer>
-        <SkipLink href="#main-content">Skip to main content</SkipLink>
-        <SkipLink href="#room-list">Skip to room list</SkipLink>
-        <SkipLink href="#message-input">Skip to message input</SkipLink>
-      </SkipLinkContainer>
       
       <div className="h-screen flex sensual-gradient overflow-hidden" role="application" aria-label="Chatual - Real-time Chat Application">
       {/* Mobile Sidebar */}

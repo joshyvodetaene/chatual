@@ -11,9 +11,10 @@ export function SkipLink({ href, children, className }: SkipLinkProps) {
     <a
       href={href}
       className={cn(
-        "sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50",
+        "sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[9999]",
         "bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium",
         "transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+        "focus-visible:block",
         className
       )}
       onFocus={(e) => {
@@ -28,7 +29,7 @@ export function SkipLink({ href, children, className }: SkipLinkProps) {
 
 export function SkipLinkContainer({ children }: { children: React.ReactNode }) {
   return (
-    <div className="absolute top-0 left-0 z-50">
+    <div className="fixed top-0 left-0 z-[9999] pointer-events-none">
       {children}
     </div>
   );
