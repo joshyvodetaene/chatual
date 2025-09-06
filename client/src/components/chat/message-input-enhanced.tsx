@@ -378,9 +378,7 @@ export default function MessageInputEnhanced({
 
   return (
     <div className={cn(
-      "flex flex-col space-y-2 p-2 sm:p-3 md:p-4 bg-card/90 backdrop-blur-sm border-t border-primary/20",
-      // Adjust position when mobile keyboard is open
-      isMobile && isKeyboardOpen && "fixed bottom-0 left-0 right-0 z-10"
+      "flex flex-col space-y-2 p-2 sm:p-3 md:p-4 bg-card/90 backdrop-blur-sm border-t border-primary/20"
     )}>
       {/* Mention suggestions */}
       {showMentions && (
