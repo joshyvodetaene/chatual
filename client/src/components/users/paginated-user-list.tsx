@@ -20,7 +20,7 @@ export function PaginatedUserList({
 }: PaginatedUserListProps) {
   const queryKey = type === 'online' 
     ? ['/api/users/online']
-    : ['/api/users/with-distance', currentUserId];
+    : ['/api/users/with-distance', currentUserId || ''];
 
   const {
     items: users,
