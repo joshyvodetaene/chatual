@@ -37,10 +37,20 @@ export default function AccountDeletion({ user, isMobile = false }: AccountDelet
         throw new Error('Password confirmation is required');
       }
       
-      return await apiRequest(`/api/users/${user.id}/account`, {
+      const response = await fetch(`/api/users/${user.id}/account`, {
         method: 'DELETE',
-        body: { confirmPassword }
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ confirmPassword })
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete account');
+      }
+      
+      return await response.json();
     },
     onSuccess: (data) => {
       console.log('Account deletion successful:', data);
