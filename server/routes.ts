@@ -417,13 +417,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
 
               // Send notifications to room members who are not currently online in this room
+              console.log(`[WEBSOCKET] Starting notification process for room ${ws.roomId}`);
               try {
+                console.log(`[WEBSOCKET] Getting room members...`);
                 const roomMembers = await storage.getRoomMembers(ws.roomId);
+                console.log(`[WEBSOCKET] Found ${roomMembers?.length || 0} room members`);
+                
                 const onlineUsersInRoom = Array.from(roomUsers.get(ws.roomId) || []);
+                console.log(`[WEBSOCKET] Online users in room: ${onlineUsersInRoom.length}`);
                 
                 for (const member of roomMembers) {
                   // Don't notify the sender and those who are currently online in the room
                   if (member.id !== ws.userId && !onlineUsersInRoom.includes(member.id)) {
+                    console.log(`[WEBSOCKET] Sending notification to offline member: ${member.id}`);
                     const isDirectMessage = roomMembers.length === 2; // Simple check for direct messages
                     await notificationService.notifyNewMessage(
                       member.id,
@@ -434,6 +440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     );
                   }
                 }
+                console.log(`[WEBSOCKET] Notification process completed`);
               } catch (error) {
                 console.error('Error sending message notifications:', error);
               }
