@@ -611,11 +611,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // User routes
   app.get('/api/users/online', async (req, res) => {
-    console.log(`[API] Fetching online users at ${new Date().toISOString()}`);
+    console.log(`[API] Fetching online users with pagination`);
     try {
-      const users = await storage.getOnlineUsers();
-      console.log(`[API] Found ${users.length} online users`);
-      res.json({ users });
+      const { limit, after, before } = req.query;
+      const pagination = {
+        limit: limit ? parseInt(limit as string) : 20,
+        after: after as string,
+        before: before as string,
+      };
+      
+      const result = await storage.getOnlineUsers(pagination);
+      console.log(`[API] Found ${result.items.length} online users with pagination`);
+      res.json(result);
     } catch (error) {
       console.error(`[API] Error fetching online users:`, error);
       res.status(500).json({ error: 'Failed to fetch online users' });
@@ -626,10 +633,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log(`[API] Fetching users with distance for userId: ${req.params.userId}`);
     try {
       const { userId } = req.params;
-      console.log(`[API] Getting users with distance calculation for: ${userId}`);
-      const users = await storage.getUsersWithDistance(userId);
-      console.log(`[API] Found ${users.length} users with distance data`);
-      res.json({ users });
+      const { limit, after, before } = req.query;
+      const pagination = {
+        limit: limit ? parseInt(limit as string) : 20,
+        after: after as string,
+        before: before as string,
+      };
+      
+      console.log(`[API] Getting users with distance calculation for: ${userId} with pagination`);
+      const result = await storage.getUsersWithDistance(userId, pagination);
+      console.log(`[API] Found ${result.items.length} users with distance data`);
+      res.json(result);
     } catch (error) {
       console.error(`[API] Error fetching users with distance:`, error);
       res.status(500).json({ error: 'Failed to fetch users with distance' });
@@ -957,10 +971,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Room routes
   app.get('/api/rooms', async (req, res) => {
+    console.log(`[API] Fetching rooms with pagination`);
     try {
-      const rooms = await storage.getRooms();
-      res.json({ rooms });
+      const { limit, after, before } = req.query;
+      const pagination = {
+        limit: limit ? parseInt(limit as string) : 20,
+        after: after as string,
+        before: before as string,
+      };
+      
+      const result = await storage.getRooms(pagination);
+      console.log(`[API] Found ${result.items.length} rooms with pagination`);
+      res.json({ rooms: result });
     } catch (error) {
+      console.error(`[API] Error fetching rooms:`, error);
       res.status(500).json({ error: 'Failed to fetch rooms' });
     }
   });
