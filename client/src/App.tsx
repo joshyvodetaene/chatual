@@ -8,7 +8,9 @@ import ChatPage from "@/pages/chat";
 import ProfileSettings from "@/pages/profile-settings";
 import AdminDashboard from "@/pages/admin-dashboard";
 import UserProfilePage from "@/pages/user-profile";
+import PrivacyPolicyPage from "@/pages/privacy-policy";
 import NotFound from "@/pages/not-found";
+import CookieConsent from "@/components/gdpr/cookie-consent";
 
 function Router() {
   return (
@@ -17,6 +19,7 @@ function Router() {
       <Route path="/settings" component={ProfileSettings} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/profile/:userId" component={UserProfilePage} />
+      <Route path="/privacy-policy" component={PrivacyPolicyPage} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -29,6 +32,7 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <Router />
+          <CookieConsent />
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
