@@ -1640,6 +1640,129 @@ export class DatabaseStorage implements IStorage {
     throw lastError!;
   }
 
+  // GDPR compliance methods
+  async exportUserData(userId: string): Promise<any> {
+    try {
+      console.log(`[GDPR] Exporting data for user ${userId}`);
+      
+      // Get user basic info
+      const user = await this.getUser(userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Get user photos
+      const photos = await this.getUserPhotos(userId);
+      
+      // Get user messages (limit to last 1000 for reasonable size)
+      const userMessagesQuery = await db
+        .select({
+          id: messages.id,
+          content: messages.content,
+          messageType: messages.messageType,
+          createdAt: messages.createdAt,
+          roomName: rooms.name,
+          isPrivate: rooms.isPrivate
+        })
+        .from(messages)
+        .leftJoin(rooms, eq(messages.roomId, rooms.id))
+        .where(eq(messages.userId, userId))
+        .orderBy(desc(messages.createdAt))
+        .limit(1000);
+
+      // Get blocked users
+      const blockedUsers = await this.getBlockedUsers(userId);
+      
+      // Get user rooms
+      const userRooms = await this.getUserRooms(userId);
+      
+      // Get notification settings
+      const notificationSettings = await this.getUserNotificationSettings(userId);
+      
+      // Get recent reports made by user
+      const userReportsQuery = await db
+        .select({
+          id: reports.id,
+          reason: reports.reason,
+          description: reports.description,
+          status: reports.status,
+          reportedAt: reports.reportedAt
+        })
+        .from(reports)
+        .where(eq(reports.reporterId, userId))
+        .orderBy(desc(reports.reportedAt))
+        .limit(100);
+
+      // Compile all data
+      const exportData = {
+        exportInfo: {
+          userId: userId,
+          exportDate: new Date().toISOString(),
+          dataType: 'GDPR_USER_DATA_EXPORT',
+          version: '1.0'
+        },
+        personalInfo: {
+          id: user.id,
+          username: user.username,
+          displayName: user.displayName,
+          bio: user.bio,
+          age: user.age,
+          location: user.location,
+          isOnline: user.isOnline,
+          lastSeen: user.lastSeen
+        },
+        photos: photos.map(photo => ({
+          id: photo.id,
+          fileName: photo.fileName,
+          photoUrl: photo.photoUrl,
+          isPrimary: photo.isPrimary,
+          uploadedAt: photo.uploadedAt
+        })),
+        messages: userMessagesQuery.map(msg => ({
+          id: msg.id,
+          content: msg.content,
+          messageType: msg.messageType,
+          sentAt: msg.createdAt,
+          roomName: msg.roomName,
+          isPrivateRoom: msg.isPrivate
+        })),
+        blockedUsers: blockedUsers.map(blocked => ({
+          username: blocked.blockedUser.username,
+          displayName: blocked.blockedUser.displayName,
+          blockedAt: blocked.blockedAt
+        })),
+        joinedRooms: userRooms.map(room => ({
+          id: room.id,
+          name: room.name,
+          description: room.description,
+          isPrivate: room.isPrivate
+        })),
+        notificationSettings: notificationSettings,
+        reportsSubmitted: userReportsQuery.map(report => ({
+          id: report.id,
+          reason: report.reason,
+          description: report.description,
+          status: report.status,
+          submittedAt: report.reportedAt
+        })),
+        gdprInfo: {
+          dataController: 'Chat Application',
+          rightsInfo: 'You have the right to access, rectify, delete, or restrict processing of your personal data.',
+          contactInfo: 'For privacy concerns, contact our data protection officer.',
+          retentionPolicy: 'Personal data is retained as long as your account is active or as needed to provide services.',
+          legalBasis: 'Processing is based on legitimate interests and user consent.'
+        }
+      };
+
+      console.log(`[GDPR] Successfully exported ${Object.keys(exportData).length} data categories for user ${userId}`);
+      return exportData;
+      
+    } catch (error) {
+      console.error(`[GDPR] Error exporting data for user ${userId}:`, error);
+      throw error;
+    }
+  }
+
   // Notification methods
   async getUserNotificationSettings(userId: string): Promise<UserNotificationSettings> {
     try {

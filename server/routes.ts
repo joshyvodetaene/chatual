@@ -636,6 +636,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GDPR Data Export endpoint
+  app.get('/api/users/:userId/export-data', async (req, res) => {
+    console.log(`[GDPR] Data export request for user: ${req.params.userId}`);
+    try {
+      const { userId } = req.params;
+      
+      // Validate user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Export user data
+      const exportData = await storage.exportUserData(userId);
+      
+      // Set headers for file download
+      const filename = `user-data-export-${userId}-${new Date().toISOString().split('T')[0]}.json`;
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Type', 'application/json');
+      
+      console.log(`[GDPR] Successfully exported data for user ${userId}`);
+      res.json(exportData);
+    } catch (error) {
+      console.error(`[GDPR] Error exporting data for user ${req.params.userId}:`, error);
+      res.status(500).json({ error: 'Failed to export user data' });
+    }
+  });
+
   // Private chat routes
   app.post('/api/private-chat/create', async (req, res) => {
     try {

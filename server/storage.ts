@@ -125,6 +125,9 @@ export interface IStorage {
   getUserNotifications(userId: string, limit?: number, offset?: number): Promise<Notification[]>;
   createNotification(notificationData: InsertNotification): Promise<Notification>;
   markNotificationAsRead(notificationId: string): Promise<void>;
+  
+  // GDPR compliance methods
+  exportUserData(userId: string): Promise<any>;
 }
 
 export const storage = new DatabaseStorage();
