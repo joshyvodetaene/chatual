@@ -1012,6 +1012,12 @@ export default function ChatPage() {
               onStartPrivateChat={handleStartPrivateChat}
               isMobile={isMobile}
             />
+            {/* Debug message count on mobile */}
+            {isMobile && (
+              <div style={{ position: 'fixed', top: '100px', left: '10px', background: 'red', color: 'white', padding: '5px', zIndex: 9999, fontSize: '12px' }}>
+                Messages: {paginatedMessages.length} | Room: {activeRoom?.name}
+              </div>
+            )}
           </div>
 
           {/* Message Input */}
