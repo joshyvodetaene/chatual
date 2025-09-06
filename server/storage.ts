@@ -50,14 +50,14 @@ export interface IStorage {
   authenticateUser(credentials: LoginUser): Promise<User | null>;
   isUsernameAvailable(username: string): Promise<boolean>;
   updateUserOnlineStatus(userId: string, isOnline: boolean): Promise<void>;
-  getOnlineUsers(): Promise<User[]>;
+  getOnlineUsers(pagination?: { limit?: number; after?: string; before?: string; }): Promise<PaginatedResponse<User>>;
   getAllUsers(): Promise<User[]>;
-  getUsersWithDistance(currentUserId: string): Promise<UserWithDistance[]>;
+  getUsersWithDistance(currentUserId: string, pagination?: { limit?: number; after?: string; before?: string; }): Promise<PaginatedResponse<UserWithDistance>>;
   deleteUserAccount(userId: string): Promise<{ success: boolean; deletedData: any }>;
 
   // Room methods
   createRoom(room: InsertRoom): Promise<Room>;
-  getRooms(): Promise<Room[]>;
+  getRooms(pagination?: { limit?: number; after?: string; before?: string; }): Promise<PaginatedResponse<Room>>;
   getRoom(id: string): Promise<Room | undefined>;
   getRoomWithMembers(id: string): Promise<RoomWithMembers | undefined>;
   deleteRoom(roomId: string, adminUserId: string): Promise<boolean>;

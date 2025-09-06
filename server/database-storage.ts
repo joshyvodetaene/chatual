@@ -56,7 +56,7 @@ import {
   type InsertNotification
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, ne, sql, gt, lt, gte, like, ilike, inArray } from "drizzle-orm";
+import { eq, and, or, desc, ne, sql, gt, lt, gte, lte, like, ilike, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 import type { IStorage } from "./storage";
@@ -759,8 +759,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRoomsAndPrivateRooms(userId: string): Promise<PrivateChatData> {
-    const allRooms = await this.getRooms();
-    const publicRooms = allRooms.filter(room => !room.isPrivate);
+    // Get all public rooms without pagination (for chat data we want all rooms)
+    const allRoomsResult = await this.getRooms({ limit: 1000 }); // Large limit to get all rooms
+    const publicRooms = allRoomsResult.items.filter(room => !room.isPrivate);
     const privateRooms = await this.getPrivateRooms(userId);
 
     return {
