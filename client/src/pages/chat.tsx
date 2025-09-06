@@ -687,7 +687,7 @@ export default function ChatPage() {
         <ResizablePanelGroup direction="horizontal" className="flex-1">
           {/* Main Chat Panel */}
           <ResizablePanel defaultSize={showUserList ? 75 : 100} minSize={50}>
-            <main className="flex flex-col h-full min-w-0" id="main-content" role="main" aria-label="Chat messages and input">
+            <main className="flex flex-col h-full min-w-0 relative" id="main-content" role="main" aria-label="Chat messages and input">
         {/* Header */}
         <div className={cn(
           "bg-card/80 backdrop-blur-sm border-b border-primary/20 flex items-center justify-between red-glow",
