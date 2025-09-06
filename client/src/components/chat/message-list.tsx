@@ -106,29 +106,19 @@ export default function MessageList({
       const container = containerRef.current;
       if (!container) return;
 
-      // Force layout reflow to ensure CSS is properly applied
-      container.style.display = 'none';
-      container.offsetHeight; // Trigger reflow
-      container.style.display = '';
-
-      // Ensure proper z-index stacking and containment
-      container.style.position = 'relative';
-      container.style.zIndex = '1';
-      container.style.contain = 'layout style';
-      container.style.isolation = 'isolate';
-
-      // Reset and ensure proper scroll position
-      setTimeout(() => {
-        if (messagesEndRef.current && messages.length > 0) {
-          messagesEndRef.current.scrollIntoView({ behavior: 'instant' });
-        }
-        setIsInitialized(true);
-      }, 100);
+      // Ensure proper containment and scroll position immediately
+      if (messagesEndRef.current && messages.length > 0) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'instant' });
+      }
+      setIsInitialized(true);
     };
 
     if (activeRoomData?.id) {
       setIsInitialized(false);
-      initializeChatLayout();
+      // Use requestAnimationFrame to ensure DOM is ready
+      requestAnimationFrame(() => {
+        initializeChatLayout();
+      });
     }
   }, [activeRoomData?.id, messages.length]);
 
@@ -324,41 +314,27 @@ export default function MessageList({
               "flex items-start space-x-2 w-full message-container",
               isOwnMessage && "flex-row-reverse space-x-reverse"
             )}
-            style={{
-              display: 'flex',
-              position: 'relative',
-              width: '100%'
-            }}
             data-testid={`message-${message.id}`}
           >
             {/* Always try to show profile picture first, fallback to avatar */}
-            {message.user.primaryPhoto?.photoUrl ? (
+            {message.user.primaryPhoto?.photoUrl && (
               <img 
                 src={message.user.primaryPhoto.photoUrl}
                 alt={`${message.user.displayName} profile`}
                 className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full object-cover flex-shrink-0 border-2 border-white shadow-sm"
-                onError={(e) => {
-                  // Fallback to initials if image fails to load
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                  const fallback = target.nextElementSibling as HTMLElement;
-                  if (fallback) fallback.style.display = 'flex';
-                }}
               />
-            ) : null}
-            {/* Fallback avatar - hidden by default, shown if image fails to load or no profile picture */}
-            <div 
-              className={cn(
-                "w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white text-xs sm:text-sm md:text-base font-medium flex-shrink-0",
-                isOwnMessage ? "bg-primary" : getAvatarColor(message.user.displayName, message.user.gender),
-                message.user.primaryPhoto?.photoUrl ? "hidden" : "flex"
-              )}
-              style={{ 
-                display: message.user.primaryPhoto?.photoUrl ? 'none' : 'flex' 
-              }}
-            >
-              {getInitials(message.user.displayName)}
-            </div>
+            )}
+            {/* Fallback avatar - shown when no profile picture */}
+            {!message.user.primaryPhoto?.photoUrl && (
+              <div 
+                className={cn(
+                  "w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white text-xs sm:text-sm md:text-base font-medium flex-shrink-0",
+                  isOwnMessage ? "bg-primary" : getAvatarColor(message.user.displayName, message.user.gender)
+                )}
+              >
+                {getInitials(message.user.displayName)}
+              </div>
+            )}
             <div className={cn("flex-1", isOwnMessage && "text-right")}>
               <div className={cn(
                 "flex items-baseline space-x-2 mb-1",
