@@ -439,10 +439,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
               
               // Broadcast message to room
+              console.log(`[WEBSOCKET] About to broadcast to room ${ws.roomId}`);
               broadcastToRoom(ws.roomId, {
                 type: 'new_message',
                 message: messageWithUser,
               });
+              console.log(`[WEBSOCKET] Broadcast completed`);
             } else {
               console.log(`[WEBSOCKET] Cannot process message: missing userId=${ws.userId} or roomId=${ws.roomId}`);
             }
