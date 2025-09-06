@@ -223,7 +223,7 @@ export default function MessageList({
     <div 
       ref={containerRef}
       className={cn(
-        "flex-1 overflow-y-auto hide-scrollbar p-2 sm:p-3 md:p-4 lg:p-6 space-y-0.5 chat-messages-container",
+        "flex-1 overflow-y-auto hide-scrollbar p-2 sm:p-3 md:p-4 lg:p-6 space-y-0.5 chat-messages-container relative",
         // Add bottom padding when mobile keyboard is open to prevent content being hidden behind fixed input
         isMobile && isKeyboardOpen && "pb-20"
       )}

@@ -62,7 +62,7 @@ export default function MentionDropdown({
   return (
     <div 
       ref={dropdownRef}
-      className="absolute bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto"
+      className="fixed bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto"
       style={{ 
         top: position.top, 
         left: position.left,

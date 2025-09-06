@@ -795,18 +795,20 @@ export default function ChatPage() {
         </div>
 
         {/* Messages */}
-        <MessageList
-          messages={paginatedMessages}
-          currentUser={currentUser}
-          typingUsers={typingUsers}
-          activeRoomData={activeRoomData?.room}
-          isLoading={messagesLoading}
-          isLoadingMore={isLoadingMore}
-          hasMoreMessages={hasMoreMessages}
-          onLoadMore={loadMoreMessages}
-          onStartPrivateChat={handleStartPrivateChat}
-          isMobile={isMobile}
-        />
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <MessageList
+            messages={paginatedMessages}
+            currentUser={currentUser}
+            typingUsers={typingUsers}
+            activeRoomData={activeRoomData?.room}
+            isLoading={messagesLoading}
+            isLoadingMore={isLoadingMore}
+            hasMoreMessages={hasMoreMessages}
+            onLoadMore={loadMoreMessages}
+            onStartPrivateChat={handleStartPrivateChat}
+            isMobile={isMobile}
+          />
+        </div>
 
         {/* Message Input */}
         <MessageInputEnhanced
