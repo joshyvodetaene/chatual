@@ -183,6 +183,7 @@ export const insertRoomSchema = createInsertSchema(rooms).omit({
 export const insertMessageSchema = createInsertSchema(messages).omit({
   id: true,
   createdAt: true,
+  sequenceId: true,
 });
 
 export const insertUserPhotoSchema = createInsertSchema(userPhotos).omit({

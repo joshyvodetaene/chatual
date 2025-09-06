@@ -848,12 +848,19 @@ export class DatabaseStorage implements IStorage {
   async createMessage(data: InsertMessage): Promise<MessageWithUser> {
     console.log(`[STORAGE] Creating message - userId: ${data.userId}, roomId: ${data.roomId}, messageType: ${data.messageType}, hasPhoto: ${!!data.photoUrl}`);
 
+    // Get the next sequence ID
+    const nextSeqId = await this.getNextSequenceId();
+    const messageData = {
+      ...data,
+      sequenceId: nextSeqId
+    };
+
     const message = await this.retryDatabaseOperation(async () => {
-      const [msg] = await db.insert(messages).values(data).returning();
+      const [msg] = await db.insert(messages).values(messageData).returning();
       return msg;
     });
 
-    console.log(`[STORAGE] Message created with ID: ${message.id}, messageType: ${message.messageType}`);
+    console.log(`[STORAGE] Message created with ID: ${message.id}, sequenceId: ${message.sequenceId}, messageType: ${message.messageType}`);
 
     const user = await this.getUser(data.userId);
     if (!user) {
@@ -862,12 +869,18 @@ export class DatabaseStorage implements IStorage {
 
     console.log(`[STORAGE] Returning message with user data:`, {
       messageId: message.id,
+      sequenceId: message.sequenceId,
       messageType: message.messageType,
       photoUrl: message.photoUrl,
       userName: user.displayName
     });
 
     return { ...message, user };
+  }
+
+  private async getNextSequenceId(): Promise<number> {
+    const result = await db.execute(sql`SELECT nextval('messages_sequence_seq') as next_id`);
+    return Number(result.rows[0].next_id);
   }
 
   async getRoomMessages(roomId: string, pagination: PaginationParams = {}): Promise<PaginatedResponse<MessageWithUser>> {
