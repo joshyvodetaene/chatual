@@ -25,15 +25,30 @@ export default function PhotoMessage({ message, isOwn }: PhotoMessageProps) {
     return null;
   }
 
-  // Construct proper photo URLs for thumbnail and full-size
-  const basePhotoSrc = message.photoUrl.startsWith('http') 
-    ? message.photoUrl 
-    : message.photoUrl.startsWith('/photos/') 
-    ? message.photoUrl  // Already has /photos/ prefix
-    : `/photos${message.photoUrl}`; // Add /photos/ prefix if missing
+  // Extract normalized photo path for thumbnails (always use local /photos/ route)
+  const getNormalizedPath = (photoUrl: string): string => {
+    if (photoUrl.startsWith('https://storage.googleapis.com/')) {
+      // Extract the photo filename from Google Cloud Storage URL
+      try {
+        const url = new URL(photoUrl);
+        const pathParts = url.pathname.split('/');
+        const filename = pathParts[pathParts.length - 1];
+        return `/photos/${filename}`;
+      } catch (error) {
+        console.error('Error parsing photo URL:', error);
+        return photoUrl;
+      }
+    }
+    
+    // Handle local paths
+    return photoUrl.startsWith('/photos/') 
+      ? photoUrl  // Already has /photos/ prefix
+      : `/photos${photoUrl}`; // Add /photos/ prefix if missing
+  };
   
-  const thumbnailSrc = `${basePhotoSrc}?size=thumbnail`;
-  const fullSizeSrc = basePhotoSrc;
+  const normalizedPath = getNormalizedPath(message.photoUrl);
+  const thumbnailSrc = `${normalizedPath}?size=thumbnail`;
+  const fullSizeSrc = message.photoUrl; // Keep original URL for full-size (works for both external and local)
   
   // Preload full-size image after thumbnail loads for better UX
   const { isPreloaded } = useImagePreloader(fullSizeSrc, imageLoaded && shouldLoad);
