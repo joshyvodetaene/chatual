@@ -106,10 +106,11 @@ export function usePaginatedMessages({
     enabled: false, // Only fetch when manually triggered
   });
 
-  // Handle more data updates and cache them
+  // Handle more data updates and cache them (reverse pagination)
   useEffect(() => {
     if (moreData && roomId) {
-      // Prepend older messages to the beginning of the list
+      // For reverse pagination: prepend older messages to the beginning
+      // Newer messages stay at the end (bottom of chat)
       const updatedMessages = [...moreData.items, ...allMessages];
       const updatedCursors = {
         ...cursors,
@@ -140,7 +141,7 @@ export function usePaginatedMessages({
     }
   }, [hasMorePages, isLoadingMore, cursors.nextCursor, fetchMoreMessages]);
 
-  // Add new message (from WebSocket) to the end and cache it
+  // Add new message (from WebSocket) to the end for reverse pagination
   const addMessage = useCallback((message: MessageWithUser) => {
     if (!roomId) return;
     
@@ -164,6 +165,7 @@ export function usePaginatedMessages({
       });
     }
     
+    // For reverse pagination: append new messages at the end (bottom of chat)
     const updatedMessages = [...filteredMessages, message];
     setAllMessages(updatedMessages);
     

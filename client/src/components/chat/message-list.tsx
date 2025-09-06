@@ -97,22 +97,36 @@ export default function MessageList({
   const messagesStartRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true);
+  const previousScrollHeight = useRef<number>(0);
 
-  // Auto-scroll to bottom only for new messages, not when loading older ones
+  // Auto-scroll to bottom only for new messages, maintain position when loading older ones
   useEffect(() => {
-    if (shouldScrollToBottom && messages.length > 0) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, shouldScrollToBottom]);
+    const container = containerRef.current;
+    if (!container) return;
 
-  // Handle infinite scroll for loading older messages
+    if (shouldScrollToBottom && messages.length > 0) {
+      // Scroll to bottom for new messages
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    } else if (isLoadingMore && previousScrollHeight.current > 0) {
+      // Maintain scroll position when loading older messages (reverse pagination)
+      const newScrollHeight = container.scrollHeight;
+      const heightDifference = newScrollHeight - previousScrollHeight.current;
+      container.scrollTop = container.scrollTop + heightDifference;
+    }
+
+    // Update previous scroll height for next comparison
+    previousScrollHeight.current = container.scrollHeight;
+  }, [messages, shouldScrollToBottom, isLoadingMore]);
+
+  // Handle infinite scroll for loading older messages (reverse pagination)
   const handleScroll = useCallback(() => {
     if (!containerRef.current || !onLoadMore || isLoadingMore || !hasMoreMessages) return;
 
     const container = containerRef.current;
     const scrollTop = container.scrollTop;
-    const threshold = 100; // Load more when 100px from top
+    const threshold = 50; // Reduced threshold for more responsive loading
 
+    // Load older messages when scrolling near the top
     if (scrollTop <= threshold) {
       setShouldScrollToBottom(false); // Don't auto-scroll when loading older messages
       onLoadMore();
@@ -123,7 +137,7 @@ export default function MessageList({
     const clientHeight = container.clientHeight;
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
 
-    if (distanceFromBottom < 200) {
+    if (distanceFromBottom < 100) { // Reduced threshold for better UX
       setShouldScrollToBottom(true);
     }
   }, [onLoadMore, isLoadingMore, hasMoreMessages]);
