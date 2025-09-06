@@ -290,7 +290,7 @@ export default function MessageList({
           <div
             key={message.id}
             className={cn(
-              "flex items-start space-x-2 relative w-full",
+              "flex items-start space-x-2 relative w-full message-container",
               isOwnMessage && "flex-row-reverse space-x-reverse"
             )}
             data-testid={`message-${message.id}`}

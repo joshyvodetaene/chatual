@@ -543,3 +543,26 @@
 .uppy-Dashboard-note {
   color: #9ca3af !important;
 }
+
+/* Chat-specific layout fixes */
+.chat-messages-container {
+  position: relative;
+  z-index: 1;
+  contain: layout style;
+  isolation: isolate;
+}
+
+/* Message input positioning */
+.message-input-container {
+  position: relative;
+  z-index: 10;
+}
+
+/* Ensure messages stay contained within their parent */
+.message-container {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  overflow: visible;
+  contain: layout;
+}
