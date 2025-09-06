@@ -25,6 +25,14 @@ export function useAccessibility(options: AccessibilityOptions = {}) {
     liveRegion.setAttribute('aria-atomic', 'true');
     liveRegion.className = 'sr-only';
     liveRegion.id = 'accessibility-live-region';
+    // Ensure accessibility region is completely off-screen and can't interfere with layout
+    liveRegion.style.position = 'fixed';
+    liveRegion.style.top = '-9999px';
+    liveRegion.style.left = '-9999px';
+    liveRegion.style.zIndex = '-1';
+    liveRegion.style.width = '1px';
+    liveRegion.style.height = '1px';
+    liveRegion.style.overflow = 'hidden';
     document.body.appendChild(liveRegion);
     liveRegionRef.current = liveRegion;
 

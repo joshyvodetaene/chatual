@@ -317,6 +317,21 @@ export default function MessageList({
         }
 
         // Handle text messages
+        // Debug: Log message rendering location
+        setTimeout(() => {
+          const messageEl = document.querySelector(`[data-testid="message-${message.id}"]`);
+          if (messageEl) {
+            console.log('Message location debug:', {
+              messageId: message.id,
+              content: message.content?.substring(0, 10),
+              elementRect: messageEl.getBoundingClientRect(),
+              parentElement: messageEl.parentElement?.className,
+              inChatContainer: !!messageEl.closest('.chat-messages-container'),
+              actualParent: messageEl.parentElement?.tagName
+            });
+          }
+        }, 100);
+        
         return (
           <div
             key={message.id}
