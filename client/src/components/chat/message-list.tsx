@@ -225,9 +225,9 @@ export default function MessageList({
 
   const formatTime = (date: Date) => {
     return new Date(date).toLocaleTimeString('en-US', {
-      hour: 'numeric',
+      hour: '2-digit',
       minute: '2-digit',
-      hour12: true,
+      hour12: false,
     });
   };
 

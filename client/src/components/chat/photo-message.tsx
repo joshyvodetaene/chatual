@@ -127,7 +127,7 @@ export default function PhotoMessage({ message, isOwn }: PhotoMessageProps) {
           "px-3 pb-2 text-xs",
           "text-white text-opacity-70"
         )}>
-          {message.createdAt ? new Date(message.createdAt).toLocaleTimeString([], { 
+          {message.createdAt ? new Date(message.createdAt).toLocaleTimeString([], { hour12: false, 
             hour: '2-digit', 
             minute: '2-digit' 
           }) : ''}
