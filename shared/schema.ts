@@ -40,6 +40,7 @@ export const rooms = pgTable("rooms", {
 
 export const messages = pgTable("messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sequenceId: integer("sequence_id").notNull(),
   content: text("content").notNull(),
   userId: varchar("user_id").notNull().references(() => users.id),
   roomId: varchar("room_id").notNull().references(() => rooms.id),
