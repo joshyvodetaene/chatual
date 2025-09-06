@@ -1749,4 +1749,167 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+
+  // GDPR-compliant account deletion
+  async deleteUserAccount(userId: string): Promise<{ success: boolean; deletedData: any }> {
+    console.log(`[DB] Starting GDPR-compliant account deletion for user: ${userId}`);
+    
+    const deletedData: any = {
+      user: null,
+      messages: 0,
+      reactions: 0,
+      photos: 0,
+      roomMemberships: 0,
+      blockedUsers: 0,
+      reports: 0,
+      moderationActions: 0,
+      notifications: 0,
+      notificationSettings: 0,
+      createdRooms: 0
+    };
+
+    try {
+      // First, get user data for audit log
+      const user = await this.getUser(userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+      deletedData.user = { id: user.id, username: user.username, displayName: user.displayName };
+
+      // Protect the administrator user from deletion
+      if (user.role === 'admin' && user.username === 'administrator') {
+        throw new Error('Cannot delete the administrator account. This account is protected.');
+      }
+
+      console.log(`[DB] Deleting all data for user: ${user.username} (${userId})`);
+
+      // 1. Delete user photos (also need to delete from object storage)
+      console.log(`[DB] Deleting user photos...`);
+      const userPhotosToDelete = await this.getUserPhotos(userId);
+      deletedData.photos = userPhotosToDelete.length;
+      if (userPhotosToDelete.length > 0) {
+        await this.retryDatabaseOperation(async () => {
+          await db.delete(userPhotos).where(eq(userPhotos.userId, userId));
+        });
+      }
+
+      // 2. Delete user's message reactions
+      console.log(`[DB] Deleting message reactions...`);
+      const reactionsResult = await this.retryDatabaseOperation(async () => {
+        return await db.delete(messageReactions).where(eq(messageReactions.userId, userId));
+      });
+      deletedData.reactions = reactionsResult.rowCount || 0;
+
+      // 3. Anonymize user's messages instead of deleting them to preserve chat history
+      // Replace user content with "[deleted user]" to maintain conversation flow
+      console.log(`[DB] Anonymizing user messages...`);
+      const messagesResult = await this.retryDatabaseOperation(async () => {
+        return await db.update(messages)
+          .set({ 
+            content: '[Message from deleted user]',
+            photoUrl: null,
+            photoFileName: null,
+            mentionedUserIds: []
+          })
+          .where(eq(messages.userId, userId));
+      });
+      deletedData.messages = messagesResult.rowCount || 0;
+
+      // 4. Remove user from all room memberships
+      console.log(`[DB] Removing room memberships...`);
+      const roomMembershipsResult = await this.retryDatabaseOperation(async () => {
+        return await db.delete(roomMembers).where(eq(roomMembers.userId, userId));
+      });
+      deletedData.roomMemberships = roomMembershipsResult.rowCount || 0;
+
+      // 5. Delete blocking relationships (both ways - user blocking others and others blocking user)
+      console.log(`[DB] Deleting blocking relationships...`);
+      const blockedResult1 = await this.retryDatabaseOperation(async () => {
+        return await db.delete(blockedUsers).where(eq(blockedUsers.blockerId, userId));
+      });
+      const blockedResult2 = await this.retryDatabaseOperation(async () => {
+        return await db.delete(blockedUsers).where(eq(blockedUsers.blockedId, userId));
+      });
+      deletedData.blockedUsers = (blockedResult1.rowCount || 0) + (blockedResult2.rowCount || 0);
+
+      // 6. Delete reports (both reports made by user and reports against user)
+      console.log(`[DB] Deleting reports...`);
+      const reportsResult1 = await this.retryDatabaseOperation(async () => {
+        return await db.delete(reports).where(eq(reports.reporterId, userId));
+      });
+      const reportsResult2 = await this.retryDatabaseOperation(async () => {
+        return await db.delete(reports).where(eq(reports.reportedUserId, userId));
+      });
+      deletedData.reports = (reportsResult1.rowCount || 0) + (reportsResult2.rowCount || 0);
+
+      // 7. Delete moderation actions against the user
+      console.log(`[DB] Deleting moderation actions...`);
+      const moderationResult = await this.retryDatabaseOperation(async () => {
+        return await db.delete(userModerationActions).where(eq(userModerationActions.userId, userId));
+      });
+      deletedData.moderationActions = moderationResult.rowCount || 0;
+
+      // 8. Delete user notifications
+      console.log(`[DB] Deleting notifications...`);
+      const notificationsResult = await this.retryDatabaseOperation(async () => {
+        return await db.delete(notifications).where(eq(notifications.userId, userId));
+      });
+      deletedData.notifications = notificationsResult.rowCount || 0;
+
+      // 9. Delete user notification settings
+      console.log(`[DB] Deleting notification settings...`);
+      const notificationSettingsResult = await this.retryDatabaseOperation(async () => {
+        return await db.delete(userNotificationSettings).where(eq(userNotificationSettings.userId, userId));
+      });
+      deletedData.notificationSettings = notificationSettingsResult.rowCount || 0;
+
+      // 10. Delete or transfer ownership of rooms created by the user
+      console.log(`[DB] Handling rooms created by user...`);
+      const createdRooms = await db.select().from(rooms).where(eq(rooms.createdBy, userId));
+      deletedData.createdRooms = createdRooms.length;
+      
+      for (const room of createdRooms) {
+        if (room.isPrivate) {
+          // Delete private rooms entirely
+          await this.retryDatabaseOperation(async () => {
+            await db.delete(messages).where(eq(messages.roomId, room.id));
+            await db.delete(roomMembers).where(eq(roomMembers.roomId, room.id));
+            await db.delete(rooms).where(eq(rooms.id, room.id));
+          });
+        } else {
+          // For public rooms, transfer ownership to admin or delete if it's user-created
+          const adminUser = await db.select().from(users).where(eq(users.role, 'admin')).limit(1);
+          if (adminUser.length > 0) {
+            await this.retryDatabaseOperation(async () => {
+              await db.update(rooms)
+                .set({ createdBy: adminUser[0].id })
+                .where(eq(rooms.id, room.id));
+            });
+          } else {
+            // No admin found, delete the room
+            await this.retryDatabaseOperation(async () => {
+              await db.delete(messages).where(eq(messages.roomId, room.id));
+              await db.delete(roomMembers).where(eq(roomMembers.roomId, room.id));
+              await db.delete(rooms).where(eq(rooms.id, room.id));
+            });
+          }
+        }
+      }
+
+      // 11. Finally, delete the user record itself
+      console.log(`[DB] Deleting user record...`);
+      await this.retryDatabaseOperation(async () => {
+        await db.delete(users).where(eq(users.id, userId));
+      });
+
+      console.log(`[DB] GDPR-compliant account deletion completed successfully for user: ${userId}`);
+      console.log(`[DB] Deletion summary:`, deletedData);
+
+      return { success: true, deletedData };
+
+    } catch (error) {
+      console.error(`[DB] Error during account deletion for user ${userId}:`, error);
+      throw error;
+    }
+  }
 }

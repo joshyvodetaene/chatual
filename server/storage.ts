@@ -53,6 +53,7 @@ export interface IStorage {
   getOnlineUsers(): Promise<User[]>;
   getAllUsers(): Promise<User[]>;
   getUsersWithDistance(currentUserId: string): Promise<UserWithDistance[]>;
+  deleteUserAccount(userId: string): Promise<{ success: boolean; deletedData: any }>;
 
   // Room methods
   createRoom(room: InsertRoom): Promise<Room>;
