@@ -393,7 +393,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               console.log(`[WEBSOCKET] Getting user data for ${ws.userId}`);
               const user = await storage.getUser(ws.userId);
+              console.log(`[WEBSOCKET] Retrieved user data:`, user ? `user found` : `user is null/undefined`);
+              
               const messageWithUser = { ...newMessage, user };
+              console.log(`[WEBSOCKET] Created messageWithUser object successfully`);
               
               console.log('[WEBSOCKET] Broadcasting message:', {
                 id: messageWithUser.id,
