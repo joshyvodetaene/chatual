@@ -378,7 +378,7 @@ export default function MessageInputEnhanced({
 
   return (
     <div className={cn(
-      "flex flex-col space-y-2 p-2 sm:p-3 md:p-4 bg-card/90 backdrop-blur-sm border-t border-primary/20"
+      "flex flex-col space-y-2 p-2 sm:p-3 md:p-4 bg-card/90 backdrop-blur-sm border-t border-primary/20 relative z-10"
     )}>
       {/* Mention suggestions */}
       {showMentions && (

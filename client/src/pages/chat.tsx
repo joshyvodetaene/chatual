@@ -844,7 +844,7 @@ export default function ChatPage() {
         </ResizablePanelGroup>
       ) : (
         /* Mobile Chat Area */
-        <main className="flex-1 flex flex-col min-w-0" id="main-content-mobile" role="main" aria-label="Chat messages and input">
+        <main className="flex-1 flex flex-col min-w-0 relative" id="main-content-mobile" role="main" aria-label="Chat messages and input">
           {/* Header */}
           <div className={cn(
             "bg-card/80 backdrop-blur-sm border-b border-primary/20 flex items-center justify-between red-glow",
