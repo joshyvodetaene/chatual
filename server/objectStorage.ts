@@ -1,6 +1,7 @@
 import { Storage, File } from "@google-cloud/storage";
 import { Response } from "express";
 import { randomUUID } from "crypto";
+import sharp from 'sharp';
 
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 
@@ -75,6 +76,51 @@ export class ObjectStorageService {
       console.error("Error downloading file:", error);
       if (!res.headersSent) {
         res.status(500).json({ error: "Error downloading file" });
+      }
+    }
+  }
+
+  // Downloads a resized thumbnail version of an object to the response.
+  async downloadThumbnail(file: File, res: Response, width?: number | null, height?: number | null, cacheTtlSec: number = 86400) {
+    try {
+      // Set appropriate headers for thumbnail
+      res.set({
+        "Content-Type": "image/jpeg",
+        "Cache-Control": `public, max-age=${cacheTtlSec}`, // Cache thumbnails for 24 hours
+      });
+
+      // Create read stream from the original file
+      const stream = file.createReadStream();
+      
+      // Create sharp transform pipeline for resizing
+      const transformer = sharp()
+        .resize(width || undefined, height || undefined, {
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .jpeg({ quality: 85 }); // Convert to JPEG with good quality
+
+      // Handle errors in the pipeline
+      stream.on("error", (err) => {
+        console.error("Stream error:", err);
+        if (!res.headersSent) {
+          res.status(500).json({ error: "Error streaming file" });
+        }
+      });
+
+      transformer.on("error", (err) => {
+        console.error("Image transformation error:", err);
+        if (!res.headersSent) {
+          res.status(500).json({ error: "Error transforming image" });
+        }
+      });
+
+      // Pipe: file stream -> sharp transformer -> response
+      stream.pipe(transformer).pipe(res);
+    } catch (error) {
+      console.error("Error downloading thumbnail:", error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Error downloading thumbnail" });
       }
     }
   }

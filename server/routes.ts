@@ -765,14 +765,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Serve photos
+  // Serve photos with thumbnail support
   app.get('/photos/:photoPath(*)', async (req, res) => {
     const photoPath = '/photos/' + req.params.photoPath;
     const objectStorageService = new ObjectStorageService();
     try {
       console.log('Serving photo:', photoPath);
       const photoFile = await objectStorageService.getPhotoFile(photoPath);
-      objectStorageService.downloadObject(photoFile, res);
+      
+      // Check for thumbnail request via query parameters
+      const { size, width, height } = req.query;
+      const thumbnailWidth = size === 'thumbnail' ? 192 : parseInt(width as string) || null;
+      const thumbnailHeight = parseInt(height as string) || null;
+      
+      if (thumbnailWidth || thumbnailHeight) {
+        // Generate and serve thumbnail
+        await objectStorageService.downloadThumbnail(photoFile, res, thumbnailWidth, thumbnailHeight);
+      } else {
+        // Serve original image
+        objectStorageService.downloadObject(photoFile, res);
+      }
     } catch (error) {
       console.error('Error serving photo:', photoPath, error);
       if (error instanceof ObjectNotFoundError) {
