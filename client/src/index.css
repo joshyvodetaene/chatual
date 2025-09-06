@@ -557,46 +557,19 @@
   isolation: isolate !important;
 }
 
-/* Reset all message containers to normal flow */
+/* Ensure proper message container layout */
 .message-container {
-  display: flex !important;
-  position: relative !important;
-  width: 100% !important;
-  margin-bottom: 0.5rem !important;
-  max-width: 100% !important;
-  box-sizing: border-box !important;
+  display: flex;
+  width: 100%;
+  margin-bottom: 0.5rem;
+  position: relative;
 }
 
-/* Ensure no messages escape their parent */
-.message-container * {
-  position: relative !important;
-  z-index: auto !important;
-}
-
-/* Force all messages to stay within bounds */
-#main-content .message-container,
-#main-content-mobile .message-container {
-  position: relative !important;
-  transform: none !important;
-  top: auto !important;
-  left: auto !important;
-  right: auto !important;
-  bottom: auto !important;
-}
-
-/* Strict containment for all message elements */
-.message-container,
-.message-container * {
-  position: relative !important;
-  z-index: auto !important;
-  transform: none !important;
-  top: auto !important;
-  left: auto !important;
-  right: auto !important;
-  bottom: auto !important;
-  margin-top: 0 !important;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
+/* Ensure message containers stay within chat bounds */
+.chat-messages-container {
+  overflow-y: auto;
+  overflow-x: hidden;
+  height: 100%;
 }
 
 /* Prevent any portal content from rendering in wrong place */

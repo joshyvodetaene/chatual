@@ -242,16 +242,6 @@ export default function MessageList({
   // Use a separate array for mapping to ensure unique keys
   const displayMessages = messages;
 
-  // Debug messages on mobile
-  if (isMobile) {
-    console.log('Mobile MessageList render:', {
-      messagesCount: messages.length,
-      activeRoomId: activeRoomData?.id,
-      isLoading,
-      containerHeight: containerRef.current?.offsetHeight,
-      containerScrollHeight: containerRef.current?.scrollHeight
-    });
-  }
 
   return (
     <div 
@@ -261,7 +251,9 @@ export default function MessageList({
         display: 'flex',
         flexDirection: 'column',
         gap: '0.5rem',
-        paddingBottom: isMobile && isKeyboardOpen ? '80px' : undefined
+        paddingBottom: isMobile && isKeyboardOpen ? '80px' : undefined,
+        minHeight: 0,
+        height: '100%'
       }}
       data-testid="message-list"
     >
@@ -299,15 +291,6 @@ export default function MessageList({
       {displayMessages.map((message) => {
         const isOwnMessage = message.userId === currentUser.id;
         
-        // Debug each message render on mobile
-        if (isMobile) {
-          console.log('Rendering message on mobile:', {
-            messageId: message.id,
-            content: message.content,
-            messageType: message.messageType,
-            isOwnMessage
-          });
-        }
 
         // Handle photo messages
         if (message.messageType === 'photo') {
