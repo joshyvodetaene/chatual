@@ -363,17 +363,6 @@ export default function MessageList({
         );
       })}
 
-      {/* System Messages */}
-      {activeRoomData.members.length > 0 && (
-        <div className="flex justify-center">
-          <div className="bg-gray-100 px-4 py-2 rounded-full">
-            <p className="text-xs text-gray-600">
-              <UserPlus className="w-3 h-3 inline mr-1" />
-              Welcome to #{activeRoomData.name}
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Typing Indicator */}
       {Array.from(typingUsers).map((userId) => {
