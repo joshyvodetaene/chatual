@@ -500,6 +500,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Health check endpoint for deployment
+  app.get('/health', (req, res) => {
+    res.status(200).json({ 
+      status: 'healthy', 
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      version: '1.0.0'
+    });
+  });
+
   // Auth routes
   app.post('/api/auth/register', async (req, res) => {
     console.log(`[AUTH] Registration attempt started at ${new Date().toISOString()}`);
