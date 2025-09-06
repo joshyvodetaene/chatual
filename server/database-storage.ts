@@ -56,7 +56,7 @@ import {
   type InsertNotification
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, ne, sql, gt, lt, gte, lte, like, ilike, inArray } from "drizzle-orm";
+import { eq, and, or, desc, ne, sql, gt, lt, gte, like, ilike, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 import type { IStorage } from "./storage";
@@ -313,47 +313,12 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getOnlineUsers(pagination?: { 
-    limit?: number; 
-    after?: string; 
-    before?: string; 
-  }): Promise<PaginatedResponse<User>> {
-    console.log(`[DB] Fetching online users with pagination...`, pagination);
+  async getOnlineUsers(): Promise<User[]> {
+    console.log(`[DB] Fetching online users`);
     try {
-      const limit = Math.min(pagination?.limit || 20, 100); // Max 100 users per page
-      
-      let whereCondition = eq(users.isOnline, true);
-      
-      // Add cursor conditions based on user ID for consistent pagination
-      if (pagination?.after) {
-        whereCondition = and(whereCondition, gt(users.id, pagination.after));
-      }
-      
-      if (pagination?.before) {
-        whereCondition = and(whereCondition, lt(users.id, pagination.before));
-      }
-
-      const onlineUsers = await db
-        .select()
-        .from(users)
-        .where(whereCondition)
-        .orderBy(users.id)
-        .limit(limit + 1);
-
-      const hasMore = onlineUsers.length > limit;
-      const items = onlineUsers.slice(0, limit);
-
-      // Generate cursors based on user ID for consistent pagination
-      const nextCursor = hasMore && items.length > 0 ? items[items.length - 1].id : undefined;
-      const prevCursor = items.length > 0 ? items[0].id : undefined;
-
-      console.log(`[DB] Found ${items.length} online users with cursor pagination`);
-      return {
-        items,
-        hasMore,
-        nextCursor,
-        prevCursor
-      };
+      const onlineUsers = await db.select().from(users).where(eq(users.isOnline, true));
+      console.log(`[DB] Found ${onlineUsers.length} online users`);
+      return onlineUsers;
     } catch (error) {
       console.error(`[DB] Error fetching online users:`, error);
       throw error;
@@ -372,77 +337,36 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getUsersWithDistance(
-    currentUserId: string, 
-    pagination?: { 
-      limit?: number; 
-      after?: string; 
-      before?: string; 
-    }
-  ): Promise<PaginatedResponse<UserWithDistance>> {
-    console.log(`[DB] Fetching users with distance for ${currentUserId} with pagination...`, pagination);
-    
+  async getUsersWithDistance(currentUserId: string): Promise<UserWithDistance[]> {
     // Get current user to access their preferences
     const currentUser = await this.getUser(currentUserId);
     if (!currentUser) {
-      return { items: [], hasMore: false, nextCursor: undefined, prevCursor: undefined };
+      return [];
     }
 
-    const limit = Math.min(pagination?.limit || 20, 100); // Max 100 users per page
-    
-    let whereCondition = ne(users.id, currentUserId);
-    
-    // Add cursor conditions based on user ID for consistent pagination
-    if (pagination?.after) {
-      whereCondition = and(whereCondition, gt(users.id, pagination.after));
-    }
-    
-    if (pagination?.before) {
-      whereCondition = and(whereCondition, lt(users.id, pagination.before));
-    }
+    // Get all users except the current user
+    const allUsers = await db.select().from(users).where(ne(users.id, currentUserId));
 
-    // Add preference filters directly in the query for better performance
-    if (currentUser.genderPreference && currentUser.genderPreference !== 'all') {
-      whereCondition = and(whereCondition, eq(users.gender, currentUser.genderPreference));
-    }
-    
-    if (currentUser.ageMin || currentUser.ageMax) {
-      const minAge = currentUser.ageMin || 18;
-      const maxAge = currentUser.ageMax || 99;
-      whereCondition = and(
-        whereCondition, 
-        gte(users.age, minAge),
-        lte(users.age, maxAge)
-      );
-    }
+    // Filter users based on current user's preferences
+    const filteredUsers = allUsers.filter(user => {
+      // Check gender preference
+      if (currentUser.genderPreference !== 'all' && user.gender !== currentUser.genderPreference) {
+        return false;
+      }
 
-    const matchingUsers = await db
-      .select()
-      .from(users)
-      .where(whereCondition)
-      .orderBy(users.id)
-      .limit(limit + 1);
+      // Check age range preference
+      if (user.age < (currentUser.ageMin || 18) || user.age > (currentUser.ageMax || 99)) {
+        return false;
+      }
 
-    const hasMore = matchingUsers.length > limit;
-    const items = matchingUsers.slice(0, limit);
+      return true;
+    });
 
-    // Add mock distance to each user
-    const usersWithDistance = items.map(user => ({
+    // For now, return filtered users with mock distance - real implementation would calculate distance
+    return filteredUsers.map(user => ({
       ...user,
       distance: Math.floor(Math.random() * 50) + 1 // Mock distance 1-50 miles
     }));
-
-    // Generate cursors based on user ID for consistent pagination
-    const nextCursor = hasMore && items.length > 0 ? items[items.length - 1].id : undefined;
-    const prevCursor = items.length > 0 ? items[0].id : undefined;
-
-    console.log(`[DB] Found ${usersWithDistance.length} users with distance and cursor pagination`);
-    return {
-      items: usersWithDistance,
-      hasMore,
-      nextCursor,
-      prevCursor
-    };
   }
 
   // Room methods
@@ -451,47 +375,8 @@ export class DatabaseStorage implements IStorage {
     return newRoom;
   }
 
-  async getRooms(pagination?: { 
-    limit?: number; 
-    after?: string; 
-    before?: string; 
-  }): Promise<PaginatedResponse<Room>> {
-    console.log(`[DB] Fetching rooms with pagination...`, pagination);
-    
-    const limit = Math.min(pagination?.limit || 20, 100); // Max 100 rooms per page
-    
-    let whereCondition = eq(rooms.isPrivate, false);
-    
-    // Add cursor conditions based on room ID for consistent pagination
-    if (pagination?.after) {
-      whereCondition = and(whereCondition, gt(rooms.id, pagination.after));
-    }
-    
-    if (pagination?.before) {
-      whereCondition = and(whereCondition, lt(rooms.id, pagination.before));
-    }
-
-    const roomResults = await db
-      .select()
-      .from(rooms)
-      .where(whereCondition)
-      .orderBy(rooms.id)
-      .limit(limit + 1);
-
-    const hasMore = roomResults.length > limit;
-    const items = roomResults.slice(0, limit);
-
-    // Generate cursors based on room ID for consistent pagination
-    const nextCursor = hasMore && items.length > 0 ? items[items.length - 1].id : undefined;
-    const prevCursor = items.length > 0 ? items[0].id : undefined;
-
-    console.log(`[DB] Found ${items.length} rooms with cursor pagination`);
-    return {
-      items,
-      hasMore,
-      nextCursor,
-      prevCursor
-    };
+  async getRooms(): Promise<Room[]> {
+    return await db.select().from(rooms).where(eq(rooms.isPrivate, false));
   }
 
   async getRoom(id: string): Promise<Room | undefined> {
@@ -759,9 +644,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRoomsAndPrivateRooms(userId: string): Promise<PrivateChatData> {
-    // Get all public rooms without pagination (for chat data we want all rooms)
-    const allRoomsResult = await this.getRooms({ limit: 1000 }); // Large limit to get all rooms
-    const publicRooms = allRoomsResult.items.filter(room => !room.isPrivate);
+    const allRooms = await this.getRooms();
+    const publicRooms = allRooms.filter(room => !room.isPrivate);
     const privateRooms = await this.getPrivateRooms(userId);
 
     return {
