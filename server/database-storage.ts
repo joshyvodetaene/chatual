@@ -609,6 +609,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deletePrivateRoom(roomId: string, userId: string): Promise<{ success: boolean; otherParticipant?: User }> {
+    console.log(`[DB] Attempting to delete private room ${roomId} by user ${userId}`);
+    
     // First verify that this is a private room and the user is a member
     const room = await db
       .select()
@@ -618,7 +620,25 @@ export class DatabaseStorage implements IStorage {
         eq(rooms.isPrivate, true)
       ));
 
-    if (!room.length || !room[0].memberIds?.includes(userId)) {
+    console.log(`[DB] Found ${room.length} rooms matching roomId ${roomId}`);
+    if (room.length > 0) {
+      console.log(`[DB] Room memberIds: ${JSON.stringify(room[0].memberIds)}, checking for userId: ${userId}`);
+      console.log(`[DB] User authorized: ${room[0].memberIds?.includes(userId)}`);
+    }
+
+    // Check if user is a member using the roomMembers table instead of memberIds field
+    const userMembership = await db
+      .select()
+      .from(roomMembers)
+      .where(and(
+        eq(roomMembers.roomId, roomId),
+        eq(roomMembers.userId, userId)
+      ));
+
+    console.log(`[DB] User membership check: found ${userMembership.length} membership records for user ${userId} in room ${roomId}`);
+
+    if (!room.length || userMembership.length === 0) {
+      console.log(`[DB] Authorization failed for deleting private room ${roomId} by user ${userId}`);
       return { success: false }; // User not authorized to delete this room
     }
 

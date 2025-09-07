@@ -76,6 +76,8 @@ export default function Sidebar({
     // Prevent clicking on the chat item when clicking delete
     event.stopPropagation();
     
+    console.log(`[SIDEBAR] Attempting to delete private chat ${roomId} for user ${currentUser.id}`);
+    
     try {
       const response = await apiRequest('DELETE', `/api/private-chat/${roomId}`, {
         userId: currentUser.id
