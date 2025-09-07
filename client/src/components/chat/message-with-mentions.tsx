@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { MessageWithUser } from '@shared/schema';
 import MentionHighlight from './mention-highlight';
 
@@ -10,7 +10,7 @@ interface MessageWithMentionsProps {
   isMobile?: boolean;
 }
 
-export default function MessageWithMentions({
+const MessageWithMentions = memo(function MessageWithMentions({
   message,
   currentUserId,
   onReaction,
@@ -60,4 +60,6 @@ export default function MessageWithMentions({
       {renderMessageContent()}
     </div>
   );
-}
+});
+
+export default MessageWithMentions;

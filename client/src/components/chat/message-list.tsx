@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState, memo } from 'react';
 import { MessageWithUser, User, RoomWithMembers } from '@shared/schema';
 import { UserPlus, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -25,7 +25,7 @@ interface MessageListProps {
 }
 
 
-export default function MessageList({
+const MessageList = memo(function MessageList({
   messages,
   currentUser,
   typingUsers,
@@ -384,4 +384,6 @@ export default function MessageList({
       <div ref={messagesEndRef} />
     </div>
   );
-}
+});
+
+export default MessageList;

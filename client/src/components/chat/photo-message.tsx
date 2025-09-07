@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { MessageWithUser } from '@shared/schema';
 import { cn } from '@/lib/utils';
 import { LightboxTrigger } from '@/components/ui/lightbox';
@@ -10,7 +10,7 @@ interface PhotoMessageProps {
   isOwn: boolean;
 }
 
-export default function PhotoMessage({ message, isOwn }: PhotoMessageProps) {
+const PhotoMessage = memo(function PhotoMessage({ message, isOwn }: PhotoMessageProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   
@@ -135,4 +135,6 @@ export default function PhotoMessage({ message, isOwn }: PhotoMessageProps) {
       </div>
     </div>
   );
-}
+});
+
+export default PhotoMessage;
