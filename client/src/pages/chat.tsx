@@ -412,14 +412,17 @@ export default function ChatPage() {
       const { roomId, closedBy } = event.detail;
       console.log(`[CHAT_PAGE] Received private chat closure event for room ${roomId} by ${closedBy?.displayName}`);
       
-      // Remove from privateRooms state
-      setPrivateRooms(prev => prev.filter(room => room.id !== roomId));
-      
-      // Update localStorage
-      if (currentUser?.id) {
-        const updatedRooms = privateRooms.filter(room => room.id !== roomId);
-        localStorage.setItem(`chatual_private_rooms_${currentUser.id}`, JSON.stringify(updatedRooms));
-      }
+      // Remove from privateRooms state and update localStorage with the new state
+      setPrivateRooms(prev => {
+        const updatedRooms = prev.filter(room => room.id !== roomId);
+        
+        // Update localStorage with the current updated state
+        if (currentUser?.id) {
+          localStorage.setItem(`chatual_private_rooms_${currentUser.id}`, JSON.stringify(updatedRooms));
+        }
+        
+        return updatedRooms;
+      });
       
       // If the closed room was the active room, switch to a different room
       if (activeRoom?.id === roomId) {
@@ -594,13 +597,16 @@ export default function ChatPage() {
 
   // Function to handle private chat deletion
   const handlePrivateRoomDeleted = (roomId: string) => {
-    setPrivateRooms(prev => prev.filter(room => room.id !== roomId));
-    
-    // Update localStorage
-    if (currentUser?.id) {
-      const updatedRooms = privateRooms.filter(room => room.id !== roomId);
-      localStorage.setItem(`chatual_private_rooms_${currentUser.id}`, JSON.stringify(updatedRooms));
-    }
+    setPrivateRooms(prev => {
+      const updatedRooms = prev.filter(room => room.id !== roomId);
+      
+      // Update localStorage with the current updated state
+      if (currentUser?.id) {
+        localStorage.setItem(`chatual_private_rooms_${currentUser.id}`, JSON.stringify(updatedRooms));
+      }
+      
+      return updatedRooms;
+    });
     
     // If the deleted room was the active room, switch to the first available room
     if (activeRoom?.id === roomId) {
