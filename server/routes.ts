@@ -1857,10 +1857,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error('Manual cleanup error:', error);
-      if (error.message === 'Cleanup is already in progress') {
+      if ((error as Error).message === 'Cleanup is already in progress') {
         return res.status(409).json({ error: 'Cleanup is already in progress' });
       }
-      res.status(500).json({ error: error.message || 'Failed to run message cleanup' });
+      res.status(500).json({ error: (error as Error).message || 'Failed to run message cleanup' });
     }
   });
 
