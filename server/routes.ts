@@ -199,22 +199,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Helper function to broadcast to room
   function broadcastToRoom(roomId: string, message: any, excludeUserId?: string) {
     let sentCount = 0;
+    const availableClients = Array.from(clients.entries()).map(([userId, client]) => ({
+      userId,
+      roomId: client.roomId,
+      readyState: client.readyState,
+      isOpen: client.readyState === WebSocket.OPEN
+    }));
+    
+    console.log(`[BROADCAST] Attempting to broadcast to room ${roomId}`);
+    console.log(`[BROADCAST] Available clients:`, availableClients);
+    console.log(`[BROADCAST] Room users:`, Array.from(roomUsers.get(roomId) || []));
+    
     Array.from(clients.values()).forEach(client => {
       if (client.roomId === roomId && client.readyState === WebSocket.OPEN && client.userId !== excludeUserId) {
         try {
           client.send(JSON.stringify(message));
           sentCount++;
+          console.log(`[BROADCAST] Successfully sent ${message.type} to user ${client.userId} in room ${roomId}`);
         } catch (error) {
-          console.error(`Failed to send message to user ${client.userId}:`, error);
+          console.error(`[BROADCAST] Failed to send message to user ${client.userId}:`, error);
           // Mark client as potentially problematic for cleanup
           client.isAlive = false;
         }
       }
     });
     
-    // Log only for important messages or when no clients were reached
-    if (message.type === 'new_message' && sentCount === 0) {
-      console.log(`[BROADCAST] Warning: No clients received message in room ${roomId}`);
+    // Log for all important messages to help debug
+    if (message.type === 'new_message') {
+      if (sentCount === 0) {
+        console.log(`[BROADCAST] Warning: No clients received message in room ${roomId}`);
+      } else {
+        console.log(`[BROADCAST] Successfully sent message to ${sentCount} clients in room ${roomId}`);
+      }
     }
   }
 
@@ -376,6 +392,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             clients.set(message.userId, ws);
             
             console.log(`[WS_JOIN] User ${message.userId} joining room ${message.roomId}`);
+            console.log(`[WS_JOIN] Client details - userId: ${ws.userId}, roomId: ${ws.roomId}, readyState: ${ws.readyState}`);
             
             // Update user online status
             await storage.updateUserOnlineStatus(message.userId, true);
