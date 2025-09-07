@@ -2,12 +2,9 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { MessageWithUser, User, RoomWithMembers } from '@shared/schema';
 import { UserPlus, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import ReactionPicker from '@/components/reactions/reaction-picker';
-import ReactionDisplay from '@/components/reactions/reaction-display';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import type { ReactionSummary } from '@shared/schema';
 import PhotoMessage from './photo-message';
 import { Button } from '@/components/ui/button';
 import { useResponsive } from '@/hooks/use-responsive';
@@ -27,9 +24,6 @@ interface MessageListProps {
   isMobile?: boolean;
 }
 
-interface MessageWithReactions extends MessageWithUser {
-  reactions?: ReactionSummary[];
-}
 
 export default function MessageList({
   messages,
@@ -49,50 +43,6 @@ export default function MessageList({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Reaction mutations
-  const addReactionMutation = useMutation({
-    mutationFn: async ({ messageId, emoji }: { messageId: string; emoji: string }) => {
-      return await apiRequest('POST', `/api/messages/${messageId}/reactions`, {
-        userId: currentUser.id,
-        emoji
-      });
-    },
-    onSuccess: () => {
-      // Invalidate message queries to refresh reactions
-      queryClient.invalidateQueries({ queryKey: ['/api/rooms'] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Failed to add reaction",
-        description: error.message || "Something went wrong. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const removeReactionMutation = useMutation({
-    mutationFn: async ({ messageId, emoji }: { messageId: string; emoji: string }) => {
-      return await apiRequest('DELETE', `/api/messages/${messageId}/reactions`, {
-        userId: currentUser.id,
-        emoji
-      });
-    },
-    onSuccess: () => {
-      // Invalidate message queries to refresh reactions
-      queryClient.invalidateQueries({ queryKey: ['/api/rooms'] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Failed to remove reaction",
-        description: error.message || "Something went wrong. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleAddReaction = (messageId: string, emoji: string) => {
-    addReactionMutation.mutate({ messageId, emoji });
-  };
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesStartRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -370,25 +320,7 @@ export default function MessageList({
                     {message.content}
                   </p>
 
-                  {/* Reaction Picker */}
-                  <div className={cn(
-                    "absolute top-2 opacity-0 group-hover:opacity-100 transition-opacity",
-                    isOwnMessage ? "-left-8" : "-right-8"
-                  )}>
-                    <ReactionPicker
-                      onSelectEmoji={(emoji) => handleAddReaction(message.id, emoji)}
-                      disabled={addReactionMutation.isPending}
-                    />
-                  </div>
                 </div>
-
-                {/* Reaction Display */}
-                <ReactionDisplay
-                  reactions={[]} // Will be populated when we have real reaction data
-                  onToggleReaction={(emoji) => handleAddReaction(message.id, emoji)}
-                  disabled={addReactionMutation.isPending || removeReactionMutation.isPending}
-                  className={cn(isOwnMessage && "self-end")}
-                />
               </div>
             </div>
           </div>
