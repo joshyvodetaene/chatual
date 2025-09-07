@@ -185,21 +185,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Helper function to broadcast to room
   function broadcastToRoom(roomId: string, message: any, excludeUserId?: string) {
     let sentCount = 0;
-    console.log(`[BROADCAST] Broadcasting to room ${roomId}, message type: ${message.type}, exclude: ${excludeUserId || 'none'}`);
-    console.log(`[BROADCAST] Connected clients:`, Array.from(clients.values()).map(c => ({ userId: c.userId, roomId: c.roomId, ready: c.readyState === WebSocket.OPEN })));
-    
     Array.from(clients.values()).forEach(client => {
       if (client.roomId === roomId && client.readyState === WebSocket.OPEN && client.userId !== excludeUserId) {
         try {
           client.send(JSON.stringify(message));
           sentCount++;
-          console.log(`[BROADCAST] Sent to user ${client.userId}`);
         } catch (error) {
           console.error(`Failed to send message to user ${client.userId}:`, error);
         }
       }
     });
-    console.log(`[BROADCAST] Sent to ${sentCount} clients in room ${roomId}`);
   }
 
   // Helper function to broadcast to specific user
@@ -393,10 +388,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               console.log(`[WEBSOCKET] Getting user data for ${ws.userId}`);
               const user = await storage.getUser(ws.userId);
-              console.log(`[WEBSOCKET] Retrieved user data:`, user ? `user found` : `user is null/undefined`);
-              
               const messageWithUser = { ...newMessage, user };
-              console.log(`[WEBSOCKET] Created messageWithUser object successfully`);
               
               console.log('[WEBSOCKET] Broadcasting message:', {
                 id: messageWithUser.id,
@@ -404,13 +396,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 photoUrl: messageWithUser.photoUrl
               });
               
-              console.log(`[WEBSOCKET] About to process mentions...`);
               // Send notifications for mentions
               if (newMessage.mentionedUserIds && newMessage.mentionedUserIds.length > 0) {
                 console.log(`[WEBSOCKET] Processing mentions: ${newMessage.mentionedUserIds}`);
                 for (const mentionedUserId of newMessage.mentionedUserIds) {
                   if (mentionedUserId !== ws.userId) { // Don't notify the sender
-                    console.log(`[WEBSOCKET] Notifying mention for user: ${mentionedUserId}`);
                     await notificationService.notifyMention(
                       mentionedUserId,
                       ws.userId,
@@ -419,25 +409,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     );
                   }
                 }
-              } else {
-                console.log(`[WEBSOCKET] No mentions to process`);
               }
-              console.log(`[WEBSOCKET] Mention processing completed`);
 
               // Send notifications to room members who are not currently online in this room
-              console.log(`[WEBSOCKET] Starting notification process for room ${ws.roomId}`);
               try {
-                console.log(`[WEBSOCKET] Getting room members...`);
                 const roomMembers = await storage.getRoomMembers(ws.roomId);
-                console.log(`[WEBSOCKET] Found ${roomMembers?.length || 0} room members`);
-                
                 const onlineUsersInRoom = Array.from(roomUsers.get(ws.roomId) || []);
-                console.log(`[WEBSOCKET] Online users in room: ${onlineUsersInRoom.length}`);
                 
                 for (const member of roomMembers) {
                   // Don't notify the sender and those who are currently online in the room
                   if (member.id !== ws.userId && !onlineUsersInRoom.includes(member.id)) {
-                    console.log(`[WEBSOCKET] Sending notification to offline member: ${member.id}`);
                     const isDirectMessage = roomMembers.length === 2; // Simple check for direct messages
                     await notificationService.notifyNewMessage(
                       member.id,
@@ -448,18 +429,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     );
                   }
                 }
-                console.log(`[WEBSOCKET] Notification process completed`);
               } catch (error) {
                 console.error('Error sending message notifications:', error);
               }
               
               // Broadcast message to room
-              console.log(`[WEBSOCKET] About to broadcast to room ${ws.roomId}`);
               broadcastToRoom(ws.roomId, {
                 type: 'new_message',
                 message: messageWithUser,
               });
-              console.log(`[WEBSOCKET] Broadcast completed`);
             } else {
               console.log(`[WEBSOCKET] Cannot process message: missing userId=${ws.userId} or roomId=${ws.roomId}`);
             }
