@@ -35,10 +35,6 @@ import {
   type AdminDashboardStats,
   type PaginationParams,
   type PaginatedResponse,
-  type MessageReaction,
-  type InsertMessageReaction,
-  type ReactionSummary,
-  type MessageWithReactions,
   users,
   rooms,
   messages,
@@ -47,7 +43,6 @@ import {
   blockedUsers,
   reports,
   userModerationActions,
-  messageReactions,
   userNotificationSettings,
   notifications,
   type UserNotificationSettings,
@@ -750,99 +745,8 @@ export class DatabaseStorage implements IStorage {
     return searchResults;
   }
 
-  // Reaction methods
-  async addReaction(reactionData: InsertMessageReaction): Promise<MessageReaction> {
-    console.log(`[DB] Adding reaction: ${reactionData.emoji} to message ${reactionData.messageId} by user ${reactionData.userId}`);
-
-    // Check if user already reacted with this emoji
-    const existingReaction = await db
-      .select()
-      .from(messageReactions)
-      .where(
-        and(
-          eq(messageReactions.messageId, reactionData.messageId),
-          eq(messageReactions.userId, reactionData.userId),
-          eq(messageReactions.emoji, reactionData.emoji)
-        )
-      )
-      .limit(1);
-
-    if (existingReaction.length > 0) {
-      console.log(`[DB] User already reacted with this emoji`);
-      return existingReaction[0];
-    }
-
-    const newReaction = await this.retryDatabaseOperation(async () => {
-      const [reaction] = await db
-        .insert(messageReactions)
-        .values({ ...reactionData, id: randomUUID() })
-        .returning();
-      return reaction;
-    });
 
 
-    console.log(`[DB] Reaction added successfully: ${newReaction.id}`);
-    return newReaction;
-  }
-
-  async removeReaction(messageId: string, userId: string, emoji: string): Promise<boolean> {
-    console.log(`[DB] Removing reaction: ${emoji} from message ${messageId} by user ${userId}`);
-
-    const result = await this.retryDatabaseOperation(async () => {
-      const res = await db
-        .delete(messageReactions)
-        .where(
-          and(
-            eq(messageReactions.messageId, messageId),
-            eq(messageReactions.userId, userId),
-            eq(messageReactions.emoji, emoji)
-          )
-        );
-      return res;
-    });
-
-    console.log(`[DB] Reaction removal result: ${result.rowCount} rows affected`);
-    return (result.rowCount || 0) > 0;
-  }
-
-  async getMessageReactions(messageId: string, currentUserId?: string): Promise<ReactionSummary[]> {
-    console.log(`[DB] Getting reactions for message: ${messageId}`);
-
-    const reactions = await db
-      .select({
-        reaction: messageReactions,
-        user: users,
-      })
-      .from(messageReactions)
-      .innerJoin(users, eq(messageReactions.userId, users.id))
-      .where(eq(messageReactions.messageId, messageId))
-      .orderBy(messageReactions.createdAt);
-
-    // Group reactions by emoji
-    const reactionMap = new Map<string, ReactionSummary>();
-
-    reactions.forEach(({ reaction, user }) => {
-      const existing = reactionMap.get(reaction.emoji);
-      if (existing) {
-        existing.count++;
-        existing.users.push({ id: user.id, displayName: user.displayName });
-        if (user.id === currentUserId) {
-          existing.userReacted = true;
-        }
-      } else {
-        reactionMap.set(reaction.emoji, {
-          emoji: reaction.emoji,
-          count: 1,
-          userReacted: user.id === currentUserId,
-          users: [{ id: user.id, displayName: user.displayName }]
-        });
-      }
-    });
-
-    const summary = Array.from(reactionMap.values());
-    console.log(`[DB] Found ${summary.length} different reaction types for message ${messageId}`);
-    return summary;
-  }
 
   // Message methods
   async createMessage(data: InsertMessage): Promise<MessageWithUser> {
@@ -1007,10 +911,6 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log('[DB] Clearing all messages from database');
       
-      // First delete all message reactions
-      await this.retryDatabaseOperation(async () => {
-        await db.delete(messageReactions);
-      });
       
       // Then delete all messages
       const result = await this.retryDatabaseOperation(async () => {
@@ -1056,12 +956,6 @@ export class DatabaseStorage implements IStorage {
             
             console.log(`[DB] Room ${room.id}: Found ${roomMessages.length} messages, deleting ${messagesToDelete.length} old messages`);
             
-            // First delete associated reactions for these messages
-            await this.retryDatabaseOperation(async () => {
-              await db.delete(messageReactions).where(
-                inArray(messageReactions.messageId, messageIdsToDelete)
-              );
-            });
             
             // Then delete the old messages
             const deleteResult = await this.retryDatabaseOperation(async () => {
@@ -1937,12 +1831,6 @@ export class DatabaseStorage implements IStorage {
         });
       }
 
-      // 2. Delete user's message reactions
-      console.log(`[DB] Deleting message reactions...`);
-      const reactionsResult = await this.retryDatabaseOperation(async () => {
-        return await db.delete(messageReactions).where(eq(messageReactions.userId, userId));
-      });
-      deletedData.reactions = reactionsResult.rowCount || 0;
 
       // 3. Anonymize user's messages instead of deleting them to preserve chat history
       // Replace user content with "[deleted user]" to maintain conversation flow
