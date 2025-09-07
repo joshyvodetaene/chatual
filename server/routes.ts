@@ -192,9 +192,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sentCount++;
         } catch (error) {
           console.error(`Failed to send message to user ${client.userId}:`, error);
+          // Mark client as potentially problematic for cleanup
+          client.isAlive = false;
         }
       }
     });
+    
+    // Log only for important messages or when no clients were reached
+    if (message.type === 'new_message' && sentCount === 0) {
+      console.log(`[BROADCAST] Warning: No clients received message in room ${roomId}`);
+    }
   }
 
   // Helper function to broadcast to specific user
@@ -315,14 +322,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
             break;
             
           case 'join':
+            console.log(`[WS_JOIN] Join request from userId=${message.userId}, roomId=${message.roomId}`);
+            
+            // Store previous room for cleanup
+            const previousRoomId = ws.roomId;
+            
             // Remove user from previous room if any
             if (ws.roomId && ws.userId) {
+              console.log(`[WS_JOIN] Removing user ${ws.userId} from previous room ${ws.roomId}`);
               removeUserFromRoom(ws.roomId, ws.userId);
+              broadcastToRoom(ws.roomId, {
+                type: 'user_left',
+                userId: ws.userId,
+              });
             }
             
-            // Check if user already has a connection and close it
+            // Check if user already has a connection and clean up
             const existingConnection = clients.get(message.userId);
             if (existingConnection && existingConnection !== ws) {
+              console.log(`[WS_JOIN] Closing existing connection for user ${message.userId}`);
+              if (existingConnection.roomId && existingConnection.userId) {
+                removeUserFromRoom(existingConnection.roomId, existingConnection.userId);
+                broadcastToRoom(existingConnection.roomId, {
+                  type: 'user_left',
+                  userId: existingConnection.userId,
+                });
+              }
               existingConnection.close();
               clients.delete(message.userId);
             }
@@ -352,6 +377,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
               type: 'user_joined',
               userId: message.userId,
             }, message.userId);
+            break;
+
+          case 'leave':
+            console.log(`[WS_LEAVE] Leave request from userId=${message.userId || ws.userId}, roomId=${message.roomId || ws.roomId}`);
+            const leaveUserId = message.userId || ws.userId;
+            const leaveRoomId = message.roomId || ws.roomId;
+            
+            if (leaveUserId && leaveRoomId) {
+              removeUserFromRoom(leaveRoomId, leaveUserId);
+              broadcastToRoom(leaveRoomId, {
+                type: 'user_left',
+                userId: leaveUserId,
+              });
+              console.log(`[WS_LEAVE] User ${leaveUserId} left room ${leaveRoomId}`);
+            }
             break;
 
           case 'message':

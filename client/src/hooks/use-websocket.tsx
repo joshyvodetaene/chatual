@@ -123,33 +123,36 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
       console.log(`[WS_HOOK] WebSocket connected successfully at ${new Date().toISOString()}`);
       console.log(`[WS_HOOK] Connection established on attempt ${retryCountRef.current + 1}`);
       setConnectionStatus('connected');
+      setLastError(null);
       retryCountRef.current = 0; // Reset retry count on successful connection
       isReconnectingRef.current = false;
 
       // Rejoin current room if we were in one
       if (currentRoomRef.current) {
         console.log(`[WS_HOOK] Rejoining room: ${currentRoomRef.current}`);
-        try {
-          ws.current?.send(JSON.stringify({
-            type: 'join',
-            userId,
-            roomId: currentRoomRef.current,
-          }));
-        } catch (error) {
-          console.error('[WS_HOOK] Error rejoining room:', error);
-        }
-
-        // Fetch missed messages if this is a reconnection
+        
+        // If this is a reconnection, fetch missed messages first
         if (isReconnect && disconnectionTimeRef.current) {
           console.log(`[WS_HOOK] Smart reconnection - fetching missed messages since ${disconnectionTimeRef.current.toISOString()}`);
-          fetchMissedMessages(currentRoomRef.current);
+          fetchMissedMessages(currentRoomRef.current).then(() => {
+            // Join room after fetching missed messages
+            joinRoom(currentRoomRef.current!, false);
+          }).catch((error) => {
+            console.error('[WS_HOOK] Error fetching missed messages, joining room anyway:', error);
+            joinRoom(currentRoomRef.current!, false);
+          });
+        } else {
+          // First connection or no disconnection time - just join
+          joinRoom(currentRoomRef.current, false);
         }
       }
 
-      // Process any queued messages
+      // Process any queued messages after a short delay to ensure room join completes
       if (queuedCount > 0) {
         console.log(`[WS_HOOK] Processing ${queuedCount} queued messages...`);
-        processQueuedMessages();
+        setTimeout(() => {
+          processQueuedMessages();
+        }, 500);
       }
 
       // Clear disconnection time after successful reconnection
@@ -280,7 +283,7 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     };
 
     ws.current.onclose = (event) => {
-      console.log('WebSocket closed:', event.code, event.reason);
+      console.log(`[WS_HOOK] WebSocket closed: code=${event.code}, reason='${event.reason}', clean=${event.wasClean}`);
       setConnectionStatus('disconnected');
       
       // Record disconnection time for smart reconnection
@@ -292,16 +295,19 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
         retryCountRef.current += 1;
         const delay = calculateRetryDelay(retryCountRef.current - 1);
 
-        console.log(`Reconnecting in ${delay}ms (attempt ${retryCountRef.current}/${retryConfig.maxAttempts})`);
+        console.log(`[WS_HOOK] Reconnecting in ${delay}ms (attempt ${retryCountRef.current}/${retryConfig.maxAttempts})`);
         setLastError(`Connection lost. Retrying in ${Math.ceil(delay / 1000)}s (${retryCountRef.current}/${retryConfig.maxAttempts})`);
 
         reconnectTimeoutRef.current = setTimeout(() => {
           connect();
         }, delay);
       } else if (retryCountRef.current >= retryConfig.maxAttempts) {
-        setLastError('Connection failed after maximum retry attempts');
+        setLastError('Connection failed after maximum retry attempts. Check your internet connection.');
         setConnectionStatus('error');
         isReconnectingRef.current = false;
+        console.error('[WS_HOOK] Max reconnection attempts reached');
+      } else if (event.code === 1000) {
+        console.log('[WS_HOOK] Normal WebSocket closure');
       }
     };
   }, [userId, retryConfig, calculateRetryDelay]);
@@ -326,15 +332,34 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
   }, [userId, connect]);
 
   const joinRoom = useCallback((roomId: string, clearMessages: boolean = true) => {
-    currentRoomRef.current = roomId; // Store current room for reconnection
+    console.log(`[WS_HOOK] Joining room: ${roomId}, clearMessages: ${clearMessages}`);
+    
+    // Store previous room for cleanup
+    const previousRoom = currentRoomRef.current;
+    currentRoomRef.current = roomId;
     
     // Clear messages only when explicitly requested (new room join, not reconnection)
     if (clearMessages) {
       setMessages([]);
+      // Clear typing users when switching rooms
+      setTypingUsers(new Set());
+      setRoomOnlineUsers(new Set());
     }
 
     if (ws.current && ws.current.readyState === WebSocket.OPEN && userId) {
       try {
+        // Send leave message for previous room if switching rooms
+        if (previousRoom && previousRoom !== roomId && clearMessages) {
+          console.log(`[WS_HOOK] Leaving previous room: ${previousRoom}`);
+          ws.current.send(JSON.stringify({
+            type: 'leave',
+            userId,
+            roomId: previousRoom,
+          }));
+        }
+        
+        // Join new room
+        console.log(`[WS_HOOK] Sending join request for room: ${roomId}`);
         ws.current.send(JSON.stringify({
           type: 'join',
           userId,
@@ -342,7 +367,11 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
         }));
       } catch (error) {
         console.error('[WS_HOOK] Error joining room:', error);
+        setLastError(`Failed to join room: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
+    } else {
+      console.log(`[WS_HOOK] Cannot join room - WebSocket not ready. Status: ${ws.current?.readyState}, userId: ${userId}`);
+      // If WebSocket is not ready, we'll rejoin when it reconnects
     }
   }, [userId]);
 
@@ -487,8 +516,37 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     }
   }, []);
 
+  // Connection health check
+  const healthCheck = useCallback(() => {
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+      try {
+        ws.current.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
+        return true;
+      } catch (error) {
+        console.error('[WS_HOOK] Health check failed:', error);
+        return false;
+      }
+    }
+    return false;
+  }, []);
+
+  // Periodic health check
+  useEffect(() => {
+    if (connectionStatus === 'connected') {
+      const healthCheckInterval = setInterval(() => {
+        if (!healthCheck()) {
+          console.log('[WS_HOOK] Health check failed, attempting reconnection');
+          reconnect();
+        }
+      }, 30000); // Check every 30 seconds
+
+      return () => clearInterval(healthCheckInterval);
+    }
+  }, [connectionStatus, healthCheck]);
+
   // Manual reconnect function
   const reconnect = useCallback(() => {
+    console.log('[WS_HOOK] Manual reconnection triggered');
     retryCountRef.current = 0;
     isReconnectingRef.current = true;
     connect();
