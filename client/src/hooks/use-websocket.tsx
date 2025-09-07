@@ -225,11 +225,11 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
             });
             break;
           case 'private_chat_request':
-            console.log(`[WS_HOOK] Private chat request from ${message.fromUser?.displayName}: room ${message.roomId}`);
+            console.log(`[WS_HOOK] Private chat request from ${message.fromUser?.username}: room ${message.roomId}`);
             // Show notification to user
             toast({
               title: "New Private Chat",
-              description: `${message.fromUser?.displayName || 'Someone'} wants to start a private chat with you`,
+              description: `${message.fromUser?.username || 'Someone'} wants to start a private chat with you`,
               duration: 5000,
             });
             // Refresh chat data to include the new private room
@@ -238,11 +238,11 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
             }
             break;
           case 'private_chat_closed':
-            console.log(`[WS_HOOK] Private chat closed by ${message.closedBy?.displayName}: room ${message.roomId}`);
+            console.log(`[WS_HOOK] Private chat closed by ${message.closedBy?.username}: room ${message.roomId}`);
             // Show notification to user
             toast({
               title: "Private Chat Closed",
-              description: message.message || `${message.closedBy?.displayName || 'Someone'} has closed this private chat`,
+              description: message.message || `${message.closedBy?.username || 'Someone'} has closed this private chat`,
               variant: "destructive",
               duration: 5000,
             });

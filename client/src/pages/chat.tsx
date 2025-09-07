@@ -410,7 +410,7 @@ export default function ChatPage() {
   useEffect(() => {
     const handlePrivateChatClosed = (event: CustomEvent) => {
       const { roomId, closedBy } = event.detail;
-      console.log(`[CHAT_PAGE] Received private chat closure event for room ${roomId} by ${closedBy?.displayName}`);
+      console.log(`[CHAT_PAGE] Received private chat closure event for room ${roomId} by ${closedBy?.username}`);
       
       // Remove from privateRooms state and update localStorage with the new state
       setPrivateRooms(prev => {

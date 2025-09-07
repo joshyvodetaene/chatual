@@ -148,22 +148,22 @@ export default function Sidebar({
           {currentUser.primaryPhoto?.photoUrl ? (
             <img 
               src={currentUser.primaryPhoto.photoUrl}
-              alt={`${currentUser.displayName} profile`}
+              alt={`${currentUser.username} profile`}
               className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full object-cover border-2 border-white"
             />
           ) : (
             <div className={cn(
               "w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white text-xs sm:text-sm md:text-base font-medium",
-              getAvatarColor(currentUser.displayName, currentUser.gender)
+              getAvatarColor(currentUser.username, currentUser.gender)
             )}>
-              {getInitials(currentUser.displayName)}
+              {getInitials(currentUser.username)}
             </div>
           )}
           {/* Benutzer-Informationen */}
           <div className="flex-1 min-w-0">
             {/* Anzeigename */}
             <p className="text-xs sm:text-sm md:text-base font-medium text-white truncate">
-              {currentUser.displayName}
+              {currentUser.username}
             </p>
             {/* Benutzername mit @ Symbol */}
             <p className="text-xs sm:text-sm md:text-base text-gray-300 truncate">
@@ -308,7 +308,7 @@ export default function Sidebar({
                       // Erstellt ein Room-Objekt für den privaten Chat
                       const room: Room = {
                         id: privateRoom.id,
-                        name: privateRoom.participant2.displayName,
+                        name: privateRoom.participant2.username,
                         description: 'Private chat',
                         isPrivate: true,
                         memberIds: null,
@@ -324,15 +324,15 @@ export default function Sidebar({
                       {privateRoom.participant2.primaryPhoto?.photoUrl ? (
                         <img 
                           src={privateRoom.participant2.primaryPhoto.photoUrl}
-                          alt={`${privateRoom.participant2.displayName} profile`}
+                          alt={`${privateRoom.participant2.username} profile`}
                           className="w-8 h-8 rounded-full object-cover border-2 border-white"
                         />
                       ) : (
                         <div className={cn(
                           "w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium",
-                          getAvatarColor(privateRoom.participant2.displayName, privateRoom.participant2.gender)
+                          getAvatarColor(privateRoom.participant2.username, privateRoom.participant2.gender)
                         )}>
-                          {getInitials(privateRoom.participant2.displayName)}
+                          {getInitials(privateRoom.participant2.username)}
                         </div>
                       )}
                       {/* Online-Status-Indikator */}
@@ -345,7 +345,7 @@ export default function Sidebar({
                         "text-xs sm:text-sm md:text-base font-medium truncate",
                         activeRoom?.id === privateRoom.id ? "text-white" : "text-gray-300"
                       )}>
-                        {privateRoom.participant2.displayName}
+                        {privateRoom.participant2.username}
                       </p>
                       {/* Chat-Typ Beschreibung */}
                       <p className={cn(
@@ -365,8 +365,8 @@ export default function Sidebar({
                         "hover:bg-red-500/20 hover:text-red-400",
                         activeRoom?.id === privateRoom.id && "text-white/70 hover:text-red-400"
                       )}
-                      onClick={(e) => handleDeletePrivateChat(privateRoom.id, privateRoom.participant2.displayName, e)}
-                      aria-label={`Close chat with ${privateRoom.participant2.displayName}`}
+                      onClick={(e) => handleDeletePrivateChat(privateRoom.id, privateRoom.participant2.username, e)}
+                      aria-label={`Close chat with ${privateRoom.participant2.username}`}
                       data-testid={`close-private-chat-${privateRoom.participant2.username}`}
                     >
                       <X className="w-4 h-4" aria-hidden="true" />

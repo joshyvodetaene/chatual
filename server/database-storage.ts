@@ -122,8 +122,7 @@ export class DatabaseStorage implements IStorage {
         
         const masterAdmin = {
           id: adminUserId,
-          username: 'administrator',
-          displayName: 'Administrator',
+          username: 'admin',
           password: hashedPassword,
           gender: 'male' as const,
           location: 'System',
@@ -159,7 +158,7 @@ export class DatabaseStorage implements IStorage {
             .set({ 
               role: 'admin',
               password: hashedPassword,
-              displayName: 'Administrator'
+              username: 'admin'
             })
             .where(eq(users.id, adminUser.id));
           console.log('Administrator user credentials restored');
@@ -591,7 +590,7 @@ export class DatabaseStorage implements IStorage {
       const currentUser = members.find(member => member.id === userId);
 
       if (otherUser && currentUser) {
-        console.log(`[DB] Private room ${room.id}: ${currentUser.displayName} <-> ${otherUser.displayName}`);
+        console.log(`[DB] Private room ${room.id}: ${currentUser.username} <-> ${otherUser.username}`);
         privateRoomsWithOtherUser.push({
           id: room.id,
           participant1Id: userId,
@@ -720,7 +719,7 @@ export class DatabaseStorage implements IStorage {
     let whereConditions = [
       or(
         ilike(users.username, `%${query}%`),
-        ilike(users.displayName, `%${query}%`)
+        ilike(users.username, `%${query}%`)
       )
     ];
 
@@ -736,7 +735,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(users)
       .where(and(...whereConditions))
-      .orderBy(desc(users.isOnline), users.displayName)
+      .orderBy(desc(users.isOnline), users.username)
       .limit(limit);
 
     console.log(`[DB] Found ${searchResults.length} user search results`);
@@ -796,7 +795,7 @@ export class DatabaseStorage implements IStorage {
       sequenceId: message.sequenceId,
       messageType: message.messageType,
       photoUrl: message.photoUrl,
-      userName: user.displayName
+      userName: user.username
     });
 
     return { ...message, user };

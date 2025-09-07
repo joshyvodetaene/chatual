@@ -754,7 +754,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           fromUser: {
             id: user1.id,
             username: user1.username,
-            displayName: user1.displayName,
+            username: user1.username,
             primaryPhoto: user1.primaryPhoto
           },
           room: room
@@ -799,9 +799,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             closedBy: {
               id: currentUser?.id,
               username: currentUser?.username,
-              displayName: currentUser?.displayName
+              username: currentUser?.username
             },
-            message: `${currentUser?.displayName || 'Someone'} has closed this private chat`
+            message: `${currentUser?.username || 'Someone'} has closed this private chat`
           });
           
           console.log(`[PRIVATE_CHAT] Chat closure notification sent to ${result.otherParticipant.id}: ${notificationSent}`);
