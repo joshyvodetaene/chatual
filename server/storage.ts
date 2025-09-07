@@ -30,9 +30,6 @@ import {
   type ModerationData,
   type PaginationParams,
   type PaginatedResponse,
-  type MessageReaction,
-  type InsertMessageReaction,
-  type ReactionSummary,
   type UserNotificationSettings,
   type UpdateNotificationSettings,
   type Notification,
@@ -81,10 +78,6 @@ export interface IStorage {
   searchUsers(query: string, currentUserId?: string, limit?: number): Promise<User[]>;
   searchRooms(query: string, userId?: string, limit?: number): Promise<Room[]>;
 
-  // Reaction methods
-  addReaction(reactionData: InsertMessageReaction): Promise<MessageReaction>;
-  removeReaction(messageId: string, userId: string, emoji: string): Promise<boolean>;
-  getMessageReactions(messageId: string, currentUserId?: string): Promise<ReactionSummary[]>;
 
   // Message methods
   createMessage(message: InsertMessage): Promise<Message>;

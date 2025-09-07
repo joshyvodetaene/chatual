@@ -1575,6 +1575,7 @@ export class DatabaseStorage implements IStorage {
     throw lastError!;
   }
 
+
   // GDPR compliance methods
   async exportUserData(userId: string): Promise<any> {
     try {

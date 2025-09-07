@@ -538,6 +538,7 @@ export default function ChatPage() {
     if (photoUrl && photoFileName && roomToUse) {
       const optimisticMessage: MessageWithUser = {
         id: `temp-${Date.now()}-${Math.random()}`,
+        sequenceId: 0, // Temporary placeholder for optimistic messages
         content: content || '',
         messageType: 'photo',
         photoUrl,
