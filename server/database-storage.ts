@@ -123,6 +123,7 @@ export class DatabaseStorage implements IStorage {
         const masterAdmin = {
           id: adminUserId,
           username: 'admin',
+          displayName: 'Administrator',
           password: hashedPassword,
           gender: 'male' as const,
           location: 'System',

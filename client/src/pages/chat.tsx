@@ -87,10 +87,9 @@ export default function ChatPage() {
       const response = await apiRequest('GET', `/api/chat-data/${currentUser.id}`);
       const data = await response.json();
 
-      // Store private rooms in localStorage for persistence
-      if (data.privateRooms && data.privateRooms.length > 0) {
-        localStorage.setItem(`chatual_private_rooms_${currentUser.id}`, JSON.stringify(data.privateRooms));
-      }
+      // Store private rooms in localStorage for persistence (including empty arrays)
+      // This ensures localStorage is always synchronized with the latest API response
+      localStorage.setItem(`chatual_private_rooms_${currentUser.id}`, JSON.stringify(data.privateRooms || []));
 
       return data as PrivateChatData;
     },
@@ -195,27 +194,30 @@ export default function ChatPage() {
   // Update rooms and private rooms when chat data changes
   useEffect(() => {
     if (currentUser) {
-      // Handle private rooms with localStorage fallback
-      let privateRoomsToSet: PrivateRoom[] = [];
-      
-      if (chatData?.privateRooms && chatData.privateRooms.length > 0) {
-        privateRoomsToSet = chatData.privateRooms;
+      // Always prioritize fresh API data over localStorage
+      if (chatData !== undefined) {
+        // API data is available (even if empty), use it and update localStorage
+        const privateRoomsToSet = chatData?.privateRooms || [];
+        setPrivateRooms(privateRoomsToSet);
+        
+        // Update localStorage with the fresh API data (even if empty)
+        localStorage.setItem(`chatual_private_rooms_${currentUser.id}`, JSON.stringify(privateRoomsToSet));
       } else {
-        // Try to restore from localStorage if API doesn't return private rooms
+        // API data not yet loaded, use localStorage as temporary fallback
         const stored = localStorage.getItem(`chatual_private_rooms_${currentUser.id}`);
         if (stored) {
           try {
             const storedRooms = JSON.parse(stored);
-            if (Array.isArray(storedRooms) && storedRooms.length > 0) {
-              privateRoomsToSet = storedRooms;
+            if (Array.isArray(storedRooms)) {
+              setPrivateRooms(storedRooms);
             }
           } catch (e) {
-            // Silent error handling for localStorage parsing
+            // Clear corrupted localStorage data
+            localStorage.removeItem(`chatual_private_rooms_${currentUser.id}`);
+            setPrivateRooms([]);
           }
         }
       }
-
-      setPrivateRooms(privateRoomsToSet);
     }
   }, [chatData, currentUser]);
 
