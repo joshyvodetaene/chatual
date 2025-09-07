@@ -39,7 +39,6 @@ export default function ChatPage() {
   const { isMobile, isTablet, isDesktop, isSmallMobile, isLargeMobile } = useResponsive();
   const { toast } = useToast();
   const [showCreateRoom, setShowCreateRoom] = useState(false);
-  const { setUserId } = useTheme();
   const [privateRooms, setPrivateRooms] = useState<PrivateRoom[]>([]);
   const currentJoinedRoom = useRef<string | null>(null);
   const { toasts, showNotification, removeToast } = useNotificationManager();
@@ -170,8 +169,7 @@ export default function ChatPage() {
       const userId = currentUser?.id;
       setCurrentUser(null);
       localStorage.removeItem('chatual_user');
-      // Reset theme context to login page (light theme)
-      setUserId(null);
+
       // Clear query cache but preserve specific keys for private rooms
       queryClient.clear();
     },
@@ -180,8 +178,7 @@ export default function ChatPage() {
       const userId = currentUser?.id;
       setCurrentUser(null);
       localStorage.removeItem('chatual_user');
-      // Reset theme context to login page (light theme)
-      setUserId(null);
+
       queryClient.clear();
     },
   });
@@ -189,8 +186,6 @@ export default function ChatPage() {
   const handleAuthSuccess = (user: User) => {
     setCurrentUser(user);
     localStorage.setItem('chatual_user', JSON.stringify(user));
-    // Set user ID for theme context
-    setUserId(user.id);
   };
 
   const handleLogout = () => {
@@ -303,12 +298,6 @@ export default function ChatPage() {
     }
   }, [messages, paginatedMessages, addMessage, currentUser, activeRoom?.id]);
 
-  // Set user ID for theme context when user is available
-  useEffect(() => {
-    if (currentUser) {
-      setUserId(currentUser.id);
-    }
-  }, [currentUser, setUserId]);
 
   // Initialize chat layout when accessing any chatroom
   useEffect(() => {
