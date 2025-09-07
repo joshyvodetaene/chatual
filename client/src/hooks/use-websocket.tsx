@@ -16,10 +16,10 @@ interface RetryConfig {
 }
 
 const DEFAULT_RETRY_CONFIG: RetryConfig = {
-  maxAttempts: 5,
-  baseDelay: 1000, // 1 second
-  maxDelay: 30000, // 30 seconds
-  backoffMultiplier: 2
+  maxAttempts: 8, // More retry attempts for better resilience
+  baseDelay: 500, // Faster initial retry (0.5 seconds)
+  maxDelay: 15000, // Shorter max delay to reconnect faster (15 seconds)
+  backoffMultiplier: 1.5 // Less aggressive backoff
 };
 
 export interface WebSocketMessage {
@@ -178,7 +178,7 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
         const message = JSON.parse(event.data);
         console.log(`[WS_HOOK] Parsed message type: ${message.type}`);
 
-        // Use requestIdleCallback for non-critical updates to improve performance
+        // Use requestIdleCallback for non-critical updates to improve performance and prevent HMR interruptions
         const processMessage = () => {
           switch (message.type) {
           case 'new_message':
@@ -284,13 +284,35 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
 
     ws.current.onclose = (event) => {
       console.log(`[WS_HOOK] WebSocket closed: code=${event.code}, reason='${event.reason}', clean=${event.wasClean}`);
+      
+      // Handle normal closures (user logout, component unmounting)
+      if (event.code === 1000 || event.reason === 'Component unmounting') {
+        console.log('[WS_HOOK] Normal WebSocket closure');
+        setConnectionStatus('disconnected');
+        return;
+      }
+      
+      // Handle server cleanup (code 1001) - treat as temporary interruption  
+      if (event.code === 1001) {
+        console.log('[WS_HOOK] Server cleanup closure - treating as temporary interruption');
+        setConnectionStatus('connecting');
+        
+        // Quick reconnect for server cleanup events without counting as retry
+        setTimeout(() => {
+          if (userId && ws.current?.readyState !== WebSocket.OPEN) {
+            connect();
+          }
+        }, 300); // Very short delay for cleanup events
+        return;
+      }
+      
       setConnectionStatus('disconnected');
       
       // Record disconnection time for smart reconnection
       disconnectionTimeRef.current = new Date();
 
-      // Only attempt reconnection if it wasn't a normal closure and we haven't exceeded max attempts
-      if (event.code !== 1000 && retryCountRef.current < retryConfig.maxAttempts && userId) {
+      // Only attempt reconnection if we haven't exceeded max attempts
+      if (retryCountRef.current < retryConfig.maxAttempts && userId) {
         isReconnectingRef.current = true;
         retryCountRef.current += 1;
         const delay = calculateRetryDelay(retryCountRef.current - 1);
@@ -306,8 +328,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
         setConnectionStatus('error');
         isReconnectingRef.current = false;
         console.error('[WS_HOOK] Max reconnection attempts reached');
-      } else if (event.code === 1000) {
-        console.log('[WS_HOOK] Normal WebSocket closure');
       }
     };
   }, [userId, retryConfig, calculateRetryDelay]);

@@ -43,17 +43,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   console.log('WebSocket server initialized on path /ws');
 
-  // Connection health tracking constants
+  // Connection health tracking constants - more lenient settings
   const HEARTBEAT_INTERVAL = 30000; // 30 seconds
-  const CONNECTION_TIMEOUT = 60000; // 60 seconds
-  const CLEANUP_INTERVAL = 45000; // 45 seconds
+  const CONNECTION_TIMEOUT = 180000; // 3 minutes (much more lenient)
+  const CLEANUP_INTERVAL = 120000; // 2 minutes (less frequent cleanup)
 
-  // Enhanced connection validation function
+  // Enhanced connection validation function - less aggressive
   function isConnectionAlive(client: WebSocketClient): boolean {
+    // Only consider a connection stale if:
+    // 1. WebSocket is not in OPEN state, OR
+    // 2. Client explicitly marked as not alive (failed ping), OR  
+    // 3. No activity for more than 3 minutes AND no recent pong response
+    if (client.readyState !== WebSocket.OPEN) {
+      return false;
+    }
+    
+    // If client responded to recent ping, it's definitely alive
+    if (client.isAlive === true) {
+      return true;
+    }
+    
+    // Only mark as stale if both conditions: no recent activity AND failed ping
     const now = Date.now();
-    return client.readyState === WebSocket.OPEN && 
-           client.isAlive === true && 
-           (!client.lastActivity || (now - client.lastActivity) < CONNECTION_TIMEOUT);
+    const hasRecentActivity = !client.lastActivity || (now - client.lastActivity) < CONNECTION_TIMEOUT;
+    
+    return hasRecentActivity || client.isAlive !== false;
   }
 
   // Clean up stale connections and room users
