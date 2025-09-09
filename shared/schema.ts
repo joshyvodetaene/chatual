@@ -143,6 +143,41 @@ export const notifications = pgTable('notifications', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+// Friend requests table
+export const friendRequests = pgTable("friend_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  senderId: varchar("sender_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  receiverId: varchar("receiver_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  status: varchar("status").notNull().default("pending"), // "pending", "accepted", "declined"
+  createdAt: timestamp("created_at").defaultNow(),
+  respondedAt: timestamp("responded_at"),
+});
+
+// Friendships table
+export const friendships = pgTable("friendships", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  user1Id: varchar("user1_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  user2Id: varchar("user2_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// User privacy settings table
+export const userPrivacySettings = pgTable("user_privacy_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }).unique(),
+  profileVisibility: varchar("profile_visibility").notNull().default("public"), // "public", "friends", "private"
+  showOnlineStatus: boolean("show_online_status").default(true).notNull(),
+  showLastSeen: boolean("show_last_seen").default(true).notNull(),
+  showAge: boolean("show_age").default(true).notNull(),
+  showLocation: boolean("show_location").default(true).notNull(),
+  allowDirectMessages: varchar("allow_direct_messages").notNull().default("everyone"), // "everyone", "friends", "nobody"
+  showPhotosToStrangers: boolean("show_photos_to_strangers").default(true).notNull(),
+  discoverableInSearch: boolean("discoverable_in_search").default(true).notNull(),
+  allowMentions: boolean("allow_mentions").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   isOnline: true,
@@ -230,7 +265,31 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
   read: true,
 });
 
+// Friend request schemas
+export const insertFriendRequestSchema = createInsertSchema(friendRequests).omit({
+  id: true,
+  createdAt: true,
+  respondedAt: true,
+});
 
+export const friendRequestActionSchema = z.object({
+  action: z.enum(["accept", "decline"]),
+});
+
+// Friendship schemas
+export const insertFriendshipSchema = createInsertSchema(friendships).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Privacy settings schemas
+export const insertPrivacySettingsSchema = createInsertSchema(userPrivacySettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updatePrivacySettingsSchema = insertPrivacySettingsSchema.partial();
 
 export const warnUserSchema = z.object({
   userId: z.string().min(1, "User ID is required"),
@@ -298,6 +357,14 @@ export type InsertNotificationSettings = z.infer<typeof insertNotificationSettin
 export type UpdateNotificationSettings = z.infer<typeof updateNotificationSettingsSchema>;
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type FriendRequest = typeof friendRequests.$inferSelect;
+export type InsertFriendRequest = z.infer<typeof insertFriendRequestSchema>;
+export type FriendRequestAction = z.infer<typeof friendRequestActionSchema>;
+export type Friendship = typeof friendships.$inferSelect;
+export type InsertFriendship = z.infer<typeof insertFriendshipSchema>;
+export type UserPrivacySettings = typeof userPrivacySettings.$inferSelect;
+export type InsertPrivacySettings = z.infer<typeof insertPrivacySettingsSchema>;
+export type UpdatePrivacySettings = z.infer<typeof updatePrivacySettingsSchema>;
 
 export type MessageWithUser = Message & {
   user: User;
@@ -369,6 +436,21 @@ export type AdminDashboardStats = {
   totalReports: number;
   recentWarnings: number;
   activeUsers: number;
+};
+
+export type FriendRequestWithUser = FriendRequest & {
+  sender: User;
+  receiver: User;
+};
+
+export type FriendshipWithUser = Friendship & {
+  friend: User;
+};
+
+export type UserWithFriendStatus = User & {
+  friendshipStatus: 'none' | 'pending_sent' | 'pending_received' | 'friends';
+  friendshipId?: string;
+  friendRequestId?: string;
 };
 
 export type PaginationParams = {
