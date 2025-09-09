@@ -48,7 +48,20 @@ import {
   type UserNotificationSettings,
   type UpdateNotificationSettings,
   type Notification,
-  type InsertNotification
+  type InsertNotification,
+  type FriendRequest,
+  type InsertFriendRequest,
+  type FriendRequestWithUser,
+  type Friendship,
+  type InsertFriendship,
+  type FriendshipWithUser,
+  type UserWithFriendStatus,
+  type UserPrivacySettings,
+  type InsertPrivacySettings,
+  type UpdatePrivacySettings,
+  friendRequests,
+  friendships,
+  userPrivacySettings
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, ne, sql, gt, lt, gte, like, ilike, inArray } from "drizzle-orm";
@@ -1575,6 +1588,312 @@ export class DatabaseStorage implements IStorage {
     throw lastError!;
   }
 
+
+  // Friend methods
+  async sendFriendRequest(senderId: string, receiverId: string): Promise<FriendRequest> {
+    // Check if users are already friends or have pending request
+    const existingFriendship = await this.retryDatabaseOperation(async () => {
+      return await db.select().from(friendships)
+        .where(or(
+          and(eq(friendships.user1Id, senderId), eq(friendships.user2Id, receiverId)),
+          and(eq(friendships.user1Id, receiverId), eq(friendships.user2Id, senderId))
+        ));
+    });
+
+    if (existingFriendship.length > 0) {
+      throw new Error('Users are already friends');
+    }
+
+    const existingRequest = await this.retryDatabaseOperation(async () => {
+      return await db.select().from(friendRequests)
+        .where(and(
+          eq(friendRequests.senderId, senderId),
+          eq(friendRequests.receiverId, receiverId),
+          eq(friendRequests.status, 'pending')
+        ));
+    });
+
+    if (existingRequest.length > 0) {
+      throw new Error('Friend request already sent');
+    }
+
+    const [request] = await this.retryDatabaseOperation(async () => {
+      return await db.insert(friendRequests)
+        .values({
+          senderId,
+          receiverId,
+          status: 'pending'
+        })
+        .returning();
+    });
+
+    // Create notification for receiver
+    await this.createNotification({
+      userId: receiverId,
+      type: 'friend_request',
+      title: 'New Friend Request',
+      body: 'Someone sent you a friend request',
+      data: {
+        senderId,
+        requestId: request.id
+      }
+    });
+
+    return request;
+  }
+
+  async getFriendRequests(userId: string): Promise<FriendRequestWithUser[]> {
+    return await this.retryDatabaseOperation(async () => {
+      return await db
+        .select({
+          id: friendRequests.id,
+          senderId: friendRequests.senderId,
+          receiverId: friendRequests.receiverId,
+          status: friendRequests.status,
+          createdAt: friendRequests.createdAt,
+          respondedAt: friendRequests.respondedAt,
+          sender: users,
+          receiver: users
+        })
+        .from(friendRequests)
+        .innerJoin(users, eq(users.id, friendRequests.senderId))
+        .where(and(
+          eq(friendRequests.receiverId, userId),
+          eq(friendRequests.status, 'pending')
+        ))
+        .orderBy(desc(friendRequests.createdAt)) as any;
+    });
+  }
+
+  async respondToFriendRequest(requestId: string, action: 'accept' | 'decline'): Promise<boolean> {
+    const [request] = await this.retryDatabaseOperation(async () => {
+      return await db.select().from(friendRequests)
+        .where(eq(friendRequests.id, requestId));
+    });
+
+    if (!request || request.status !== 'pending') {
+      throw new Error('Friend request not found or already responded to');
+    }
+
+    // Update request status
+    await this.retryDatabaseOperation(async () => {
+      return await db.update(friendRequests)
+        .set({
+          status: action === 'accept' ? 'accepted' : 'declined',
+          respondedAt: new Date()
+        })
+        .where(eq(friendRequests.id, requestId));
+    });
+
+    if (action === 'accept') {
+      // Create friendship
+      await this.retryDatabaseOperation(async () => {
+        return await db.insert(friendships)
+          .values({
+            user1Id: request.senderId,
+            user2Id: request.receiverId
+          });
+      });
+
+      // Notify sender that request was accepted
+      await this.createNotification({
+        userId: request.senderId,
+        type: 'friend_request',
+        title: 'Friend Request Accepted',
+        body: 'Your friend request was accepted',
+        data: {
+          friendId: request.receiverId
+        }
+      });
+    }
+
+    return true;
+  }
+
+  async getFriends(userId: string): Promise<FriendshipWithUser[]> {
+    return await this.retryDatabaseOperation(async () => {
+      const friendships1 = await db
+        .select({
+          id: friendships.id,
+          user1Id: friendships.user1Id,
+          user2Id: friendships.user2Id,
+          createdAt: friendships.createdAt,
+          friend: users
+        })
+        .from(friendships)
+        .innerJoin(users, eq(users.id, friendships.user2Id))
+        .where(eq(friendships.user1Id, userId));
+
+      const friendships2 = await db
+        .select({
+          id: friendships.id,
+          user1Id: friendships.user1Id,
+          user2Id: friendships.user2Id,
+          createdAt: friendships.createdAt,
+          friend: users
+        })
+        .from(friendships)
+        .innerJoin(users, eq(users.id, friendships.user1Id))
+        .where(eq(friendships.user2Id, userId));
+
+      return [...friendships1, ...friendships2] as any;
+    });
+  }
+
+  async removeFriend(userId: string, friendId: string): Promise<boolean> {
+    const result = await this.retryDatabaseOperation(async () => {
+      return await db.delete(friendships)
+        .where(or(
+          and(eq(friendships.user1Id, userId), eq(friendships.user2Id, friendId)),
+          and(eq(friendships.user1Id, friendId), eq(friendships.user2Id, userId))
+        ));
+    });
+
+    return result.rowCount > 0;
+  }
+
+  async getFriendshipStatus(userId: string, otherUserId: string): Promise<UserWithFriendStatus['friendshipStatus']> {
+    // Check if they're friends
+    const friendship = await this.retryDatabaseOperation(async () => {
+      return await db.select().from(friendships)
+        .where(or(
+          and(eq(friendships.user1Id, userId), eq(friendships.user2Id, otherUserId)),
+          and(eq(friendships.user1Id, otherUserId), eq(friendships.user2Id, userId))
+        ));
+    });
+
+    if (friendship.length > 0) {
+      return 'friends';
+    }
+
+    // Check for pending friend requests
+    const sentRequest = await this.retryDatabaseOperation(async () => {
+      return await db.select().from(friendRequests)
+        .where(and(
+          eq(friendRequests.senderId, userId),
+          eq(friendRequests.receiverId, otherUserId),
+          eq(friendRequests.status, 'pending')
+        ));
+    });
+
+    if (sentRequest.length > 0) {
+      return 'pending_sent';
+    }
+
+    const receivedRequest = await this.retryDatabaseOperation(async () => {
+      return await db.select().from(friendRequests)
+        .where(and(
+          eq(friendRequests.senderId, otherUserId),
+          eq(friendRequests.receiverId, userId),
+          eq(friendRequests.status, 'pending')
+        ));
+    });
+
+    if (receivedRequest.length > 0) {
+      return 'pending_received';
+    }
+
+    return 'none';
+  }
+
+  async getUserWithFriendStatus(userId: string, currentUserId: string): Promise<UserWithFriendStatus | undefined> {
+    const user = await this.getUser(userId);
+    if (!user) return undefined;
+
+    const friendshipStatus = await this.getFriendshipStatus(currentUserId, userId);
+    
+    return {
+      ...user,
+      friendshipStatus
+    } as UserWithFriendStatus;
+  }
+
+  async areFriends(userId1: string, userId2: string): Promise<boolean> {
+    const friendship = await this.retryDatabaseOperation(async () => {
+      return await db.select().from(friendships)
+        .where(or(
+          and(eq(friendships.user1Id, userId1), eq(friendships.user2Id, userId2)),
+          and(eq(friendships.user1Id, userId2), eq(friendships.user2Id, userId1))
+        ));
+    });
+
+    return friendship.length > 0;
+  }
+
+  // Privacy settings methods
+  async getUserPrivacySettings(userId: string): Promise<UserPrivacySettings> {
+    const [settings] = await this.retryDatabaseOperation(async () => {
+      return await db.select().from(userPrivacySettings)
+        .where(eq(userPrivacySettings.userId, userId));
+    });
+
+    if (!settings) {
+      // Create default privacy settings
+      const [newSettings] = await this.retryDatabaseOperation(async () => {
+        return await db.insert(userPrivacySettings)
+          .values({ userId })
+          .returning();
+      });
+      return newSettings;
+    }
+
+    return settings;
+  }
+
+  async updateUserPrivacySettings(userId: string, settings: UpdatePrivacySettings): Promise<UserPrivacySettings> {
+    // Ensure user has privacy settings record
+    await this.getUserPrivacySettings(userId);
+
+    const [updated] = await this.retryDatabaseOperation(async () => {
+      return await db.update(userPrivacySettings)
+        .set({
+          ...settings,
+          updatedAt: new Date()
+        })
+        .where(eq(userPrivacySettings.userId, userId))
+        .returning();
+    });
+
+    return updated;
+  }
+
+  async canViewProfile(viewerId: string, targetUserId: string): Promise<boolean> {
+    if (viewerId === targetUserId) return true;
+
+    const privacy = await this.getUserPrivacySettings(targetUserId);
+    
+    switch (privacy.profileVisibility) {
+      case 'public':
+        return true;
+      case 'friends':
+        return await this.areFriends(viewerId, targetUserId);
+      case 'private':
+        return false;
+      default:
+        return true;
+    }
+  }
+
+  async canSendDirectMessage(senderId: string, receiverId: string): Promise<boolean> {
+    if (senderId === receiverId) return false;
+
+    // Check if receiver has blocked sender
+    const isBlocked = await this.isUserBlocked(receiverId, senderId);
+    if (isBlocked) return false;
+
+    const privacy = await this.getUserPrivacySettings(receiverId);
+    
+    switch (privacy.allowDirectMessages) {
+      case 'everyone':
+        return true;
+      case 'friends':
+        return await this.areFriends(senderId, receiverId);
+      case 'nobody':
+        return false;
+      default:
+        return true;
+    }
+  }
 
   // GDPR compliance methods
   async exportUserData(userId: string): Promise<any> {

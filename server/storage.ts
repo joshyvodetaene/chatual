@@ -33,7 +33,17 @@ import {
   type UserNotificationSettings,
   type UpdateNotificationSettings,
   type Notification,
-  type InsertNotification
+  type InsertNotification,
+  type FriendRequest,
+  type InsertFriendRequest,
+  type FriendRequestWithUser,
+  type Friendship,
+  type InsertFriendship,
+  type FriendshipWithUser,
+  type UserWithFriendStatus,
+  type UserPrivacySettings,
+  type InsertPrivacySettings,
+  type UpdatePrivacySettings,
 } from "@shared/schema";
 import { DatabaseStorage } from "./database-storage";
 import { randomUUID } from "crypto";
@@ -118,6 +128,22 @@ export interface IStorage {
   getUserNotifications(userId: string, limit?: number, offset?: number): Promise<Notification[]>;
   createNotification(notificationData: InsertNotification): Promise<Notification>;
   markNotificationAsRead(notificationId: string): Promise<void>;
+  
+  // Friend methods
+  sendFriendRequest(senderId: string, receiverId: string): Promise<FriendRequest>;
+  getFriendRequests(userId: string): Promise<FriendRequestWithUser[]>;
+  respondToFriendRequest(requestId: string, action: 'accept' | 'decline'): Promise<boolean>;
+  getFriends(userId: string): Promise<FriendshipWithUser[]>;
+  removeFriend(userId: string, friendId: string): Promise<boolean>;
+  getFriendshipStatus(userId: string, otherUserId: string): Promise<UserWithFriendStatus['friendshipStatus']>;
+  getUserWithFriendStatus(userId: string, currentUserId: string): Promise<UserWithFriendStatus | undefined>;
+  areFriends(userId1: string, userId2: string): Promise<boolean>;
+
+  // Privacy settings methods
+  getUserPrivacySettings(userId: string): Promise<UserPrivacySettings>;
+  updateUserPrivacySettings(userId: string, settings: UpdatePrivacySettings): Promise<UserPrivacySettings>;
+  canViewProfile(viewerId: string, targetUserId: string): Promise<boolean>;
+  canSendDirectMessage(senderId: string, receiverId: string): Promise<boolean>;
   
   // GDPR compliance methods
   exportUserData(userId: string): Promise<any>;

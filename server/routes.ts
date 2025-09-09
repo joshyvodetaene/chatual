@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { insertUserSchema, insertRoomSchema, insertMessageSchema, registerUserSchema, loginSchema, insertUserPhotoSchema, updateUserProfileSchema, insertBlockedUserSchema, insertReportSchema, reportSchema, updateReportStatusSchema, warnUserSchema, banUserSchema, updateNotificationSettingsSchema } from "@shared/schema";
+import { insertUserSchema, insertRoomSchema, insertMessageSchema, registerUserSchema, loginSchema, insertUserPhotoSchema, updateUserProfileSchema, insertBlockedUserSchema, insertReportSchema, reportSchema, updateReportStatusSchema, warnUserSchema, banUserSchema, updateNotificationSettingsSchema, insertFriendRequestSchema, friendRequestActionSchema, updatePrivacySettingsSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { NotificationService } from "./notification-service";
 
@@ -1427,6 +1427,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Mark notification as read error:', error);
       res.status(500).json({ error: 'Failed to mark notification as read' });
+    }
+  });
+
+  // Friend system routes
+  app.post('/api/friend-requests', async (req, res) => {
+    try {
+      const requestData = insertFriendRequestSchema.parse(req.body);
+      
+      if (requestData.senderId === requestData.receiverId) {
+        return res.status(400).json({ error: 'Cannot send friend request to yourself' });
+      }
+
+      const friendRequest = await storage.sendFriendRequest(requestData.senderId, requestData.receiverId);
+      res.json({ friendRequest });
+    } catch (error: any) {
+      console.error('Send friend request error:', error);
+      res.status(400).json({ error: error.message || 'Failed to send friend request' });
+    }
+  });
+
+  app.get('/api/users/:userId/friend-requests', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const friendRequests = await storage.getFriendRequests(userId);
+      res.json({ friendRequests });
+    } catch (error) {
+      console.error('Get friend requests error:', error);
+      res.status(500).json({ error: 'Failed to fetch friend requests' });
+    }
+  });
+
+  app.put('/api/friend-requests/:requestId', async (req, res) => {
+    try {
+      const { requestId } = req.params;
+      const actionData = friendRequestActionSchema.parse(req.body);
+      
+      const success = await storage.respondToFriendRequest(requestId, actionData.action);
+      res.json({ success });
+    } catch (error: any) {
+      console.error('Respond to friend request error:', error);
+      res.status(400).json({ error: error.message || 'Failed to respond to friend request' });
+    }
+  });
+
+  app.get('/api/users/:userId/friends', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const friends = await storage.getFriends(userId);
+      res.json({ friends });
+    } catch (error) {
+      console.error('Get friends error:', error);
+      res.status(500).json({ error: 'Failed to fetch friends' });
+    }
+  });
+
+  app.delete('/api/users/:userId/friends/:friendId', async (req, res) => {
+    try {
+      const { userId, friendId } = req.params;
+      const success = await storage.removeFriend(userId, friendId);
+      res.json({ success });
+    } catch (error) {
+      console.error('Remove friend error:', error);
+      res.status(500).json({ error: 'Failed to remove friend' });
+    }
+  });
+
+  app.get('/api/users/:userId/friendship-status/:otherUserId', async (req, res) => {
+    try {
+      const { userId, otherUserId } = req.params;
+      const status = await storage.getFriendshipStatus(userId, otherUserId);
+      res.json({ status });
+    } catch (error) {
+      console.error('Get friendship status error:', error);
+      res.status(500).json({ error: 'Failed to get friendship status' });
+    }
+  });
+
+  // Privacy settings routes  
+  app.get('/api/users/:userId/privacy-settings', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const settings = await storage.getUserPrivacySettings(userId);
+      res.json(settings);
+    } catch (error) {
+      console.error('Get privacy settings error:', error);
+      res.status(500).json({ error: 'Failed to get privacy settings' });
+    }
+  });
+
+  app.put('/api/users/:userId/privacy-settings', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const settingsData = updatePrivacySettingsSchema.parse(req.body);
+      
+      const updatedSettings = await storage.updateUserPrivacySettings(userId, settingsData);
+      res.json(updatedSettings);
+    } catch (error) {
+      console.error('Update privacy settings error:', error);
+      res.status(400).json({ error: 'Failed to update privacy settings' });
     }
   });
 
