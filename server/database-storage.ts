@@ -1749,7 +1749,7 @@ export class DatabaseStorage implements IStorage {
         ));
     });
 
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async getFriendshipStatus(userId: string, otherUserId: string): Promise<UserWithFriendStatus['friendshipStatus']> {

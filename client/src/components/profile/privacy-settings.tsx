@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,32 +7,28 @@ import { Separator } from '@/components/ui/separator';
 import { Shield, Eye, EyeOff, Lock, Globe, Users, MessageCircle, Camera, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
-import type { User } from '@shared/schema';
+import type { User, UserPrivacySettings } from '@shared/schema';
 
 interface PrivacySettingsProps {
   user: User;
   isMobile?: boolean;
 }
 
-interface PrivacyPreferences {
-  profileVisibility: 'public' | 'friends' | 'private';
-  showOnlineStatus: boolean;
-  showLastSeen: boolean;
-  showAge: boolean;
-  showLocation: boolean;
-  allowDirectMessages: 'everyone' | 'friends' | 'nobody';
-  showPhotosToStrangers: boolean;
-  discoverableInSearch: boolean;
-  allowMentions: boolean;
-}
+type PrivacyPreferences = Omit<UserPrivacySettings, 'id' | 'userId' | 'createdAt' | 'updatedAt'>;
 
 export default function PrivacySettings({ user, isMobile = false }: PrivacySettingsProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Initialize with default privacy settings (in a real app, this would come from the database)
+  // Fetch current privacy settings
+  const { data: privacyData, isLoading } = useQuery({
+    queryKey: [`/api/users/${user.id}/privacy-settings`],
+    queryFn: () => apiRequest('GET', `/api/users/${user.id}/privacy-settings`),
+  });
+
   const [privacySettings, setPrivacySettings] = useState<PrivacyPreferences>({
     profileVisibility: 'public',
     showOnlineStatus: true,
@@ -45,11 +41,25 @@ export default function PrivacySettings({ user, isMobile = false }: PrivacySetti
     allowMentions: true,
   });
 
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  // Update local state when data is loaded
+  useEffect(() => {
+    if (privacyData) {
+      setPrivacySettings({
+        profileVisibility: privacyData.profileVisibility,
+        showOnlineStatus: privacyData.showOnlineStatus,
+        showLastSeen: privacyData.showLastSeen,
+        showAge: privacyData.showAge,
+        showLocation: privacyData.showLocation,
+        allowDirectMessages: privacyData.allowDirectMessages,
+        showPhotosToStrangers: privacyData.showPhotosToStrangers,
+        discoverableInSearch: privacyData.discoverableInSearch,
+        allowMentions: privacyData.allowMentions,
+      });
+    }
+  }, [privacyData]);
 
   const updatePrivacyMutation = useMutation({
     mutationFn: async (settings: PrivacyPreferences) => {
-      // In a real app, you'd create an API endpoint to save privacy settings
       return await apiRequest('PUT', `/api/users/${user.id}/privacy-settings`, settings);
     },
     onSuccess: () => {
@@ -58,7 +68,7 @@ export default function PrivacySettings({ user, isMobile = false }: PrivacySetti
         description: "Privacy settings updated successfully",
       });
       setHasUnsavedChanges(false);
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${user.id}/profile-settings`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${user.id}/privacy-settings`] });
     },
     onError: (error: any) => {
       toast({
@@ -89,6 +99,18 @@ export default function PrivacySettings({ user, isMobile = false }: PrivacySetti
       default: return <Eye className="w-4 h-4" />;
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6" data-testid="privacy-settings-loading">
+        <div className="animate-pulse">
+          <div className="h-32 bg-gray-700 rounded-lg mb-6"></div>
+          <div className="h-48 bg-gray-700 rounded-lg mb-6"></div>
+          <div className="h-40 bg-gray-700 rounded-lg"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6" data-testid="privacy-settings">
