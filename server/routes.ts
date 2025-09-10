@@ -212,11 +212,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Helper function to broadcast to room
   function broadcastToRoom(roomId: string, message: any, excludeUserId?: string) {
     let sentCount = 0;
+    console.log(`[BROADCAST] Broadcasting to room ${roomId}, found ${clients.size} total clients, message type: ${message.type}`);
+    
     Array.from(clients.values()).forEach(client => {
-      if (client.roomId === roomId && client.readyState === WebSocket.OPEN && client.userId !== excludeUserId) {
+      const roomMatch = client.roomId === roomId;
+      const isOpen = client.readyState === WebSocket.OPEN;
+      const notExcluded = client.userId !== excludeUserId;
+      
+      console.log(`[BROADCAST] ${message.type}: userId=${client.userId}, roomId=${client.roomId}, readyState=${client.readyState}, excluded=${!notExcluded}`);
+      
+      if (roomMatch && isOpen && notExcluded) {
         try {
           client.send(JSON.stringify(message));
           sentCount++;
+          console.log(`[BROADCAST] Message sent to user ${client.userId}`);
         } catch (error) {
           console.error(`Failed to send message to user ${client.userId}:`, error);
           // Mark client as potentially problematic for cleanup
@@ -224,6 +233,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
     });
+    
+    console.log(`[BROADCAST] Successfully sent to ${sentCount} clients in room ${roomId}`);
 
     // Log only for important messages when no clients were reached
     if (message.type === 'new_message' && sentCount === 0) {
@@ -403,7 +414,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             broadcastToRoom(message.roomId, {
               type: 'user_joined',
               userId: message.userId,
-            }, message.userId);
+            });
             break;
 
           case 'leave':
