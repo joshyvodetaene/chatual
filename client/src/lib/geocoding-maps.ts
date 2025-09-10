@@ -35,7 +35,7 @@ export async function validateCityWithGoogleMaps(cityName: string): Promise<City
   }
 
   try {
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
       console.error('Google Maps API key not found');
       return {

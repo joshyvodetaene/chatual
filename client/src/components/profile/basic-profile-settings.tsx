@@ -6,15 +6,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CityAutocomplete } from '@/components/ui/city-autocomplete';
+import { type CityValidationResult } from '@/lib/geocoding-maps';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { updateUserProfileSchema } from '@shared/schema';
 import type { User, UpdateUserProfile } from '@shared/schema';
 import { Loader2, User as UserIcon, Edit3, Heart, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { validateCityWithGoogleMaps, type CityValidationResult } from '@/lib/geocoding-maps';
 import { useState } from 'react';
 
 interface BasicProfileSettingsProps {
@@ -34,7 +34,7 @@ export default function BasicProfileSettings({ user, isMobile = false }: BasicPr
       age: user.age || 18,
       gender: (user.gender as 'male' | 'female' | 'non-binary' | 'other') || undefined,
       bio: user.bio || '',
-      location: user.location,
+      location: user.location || '',
       latitude: user.latitude || undefined,
       longitude: user.longitude || undefined,
       genderPreference: (user.genderPreference as 'all' | 'male' | 'female') || 'all',
