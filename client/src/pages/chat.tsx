@@ -15,7 +15,7 @@ import AuthScreen from '@/components/auth/auth-screen';
 import { Button } from '@/components/ui/button';
 import { MobileMenu } from '@/components/ui/mobile-menu';
 import { SkipLink, SkipLinkContainer } from '@/components/ui/skip-link';
-import { Hash, Users, Search, Settings, LogOut, Shield, Menu } from 'lucide-react';
+import { Hash, Users, Search, Settings, LogOut, Shield, Menu, UserPlus } from 'lucide-react';
 import { BackButton } from '@/components/ui/back-button';
 import { ConnectionStatusIndicator } from '@/components/chat/connection-status';
 import { useToast } from '@/hooks/use-toast';
@@ -775,6 +775,18 @@ export default function ChatPage() {
 
             <NotificationCenter />
 
+            <Link href="/friends">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
+                data-testid="button-friends"
+                aria-label="Open friends"
+              >
+                <UserPlus className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" aria-hidden="true" />
+              </Button>
+            </Link>
+
             <Link href="/settings">
               <Button
                 variant="ghost"
@@ -938,6 +950,18 @@ export default function ChatPage() {
             </Button>
 
             <NotificationCenter />
+
+            <Link href="/friends">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-white hover:bg-white hover:bg-opacity-10 hover:text-white"
+                data-testid="button-friends"
+                aria-label="Open friends"
+              >
+                <UserPlus className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" aria-hidden="true" />
+              </Button>
+            </Link>
 
             <Link href="/settings">
               <Button

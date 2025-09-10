@@ -2,6 +2,7 @@ import { RoomWithMembers, User } from '@shared/schema';
 import { cn } from '@/lib/utils';
 import UserDistance from './user-distance';
 import { UserProfileMenu } from './user-profile-menu';
+import FriendButton from '@/components/friends/friend-button';
 import { MoreVertical, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -154,20 +155,30 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                       </div>
                     </div>
                   </div>
-                  <UserProfileMenu
-                    user={member}
-                    currentUser={currentUser!}
-                    onStartPrivateChat={onStartPrivateChat}
-                  >
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 sm:p-1 md:p-2 h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8"
-                      data-testid={`online-user-menu-${member.id}`}
+                  <div className="flex items-center space-x-1">
+                    {currentUser && member.id !== currentUser.id && (
+                      <FriendButton
+                        currentUser={currentUser}
+                        targetUser={member}
+                        size="sm"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      />
+                    )}
+                    <UserProfileMenu
+                      user={member}
+                      currentUser={currentUser!}
+                      onStartPrivateChat={onStartPrivateChat}
                     >
-                      <MoreVertical className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5" />
-                    </Button>
-                  </UserProfileMenu>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 sm:p-1 md:p-2 h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8"
+                        data-testid={`online-user-menu-${member.id}`}
+                      >
+                        <MoreVertical className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5" />
+                      </Button>
+                    </UserProfileMenu>
+                  </div>
                 </div>
               ))}
             </div>
