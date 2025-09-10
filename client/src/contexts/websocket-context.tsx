@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useWebSocket } from '@/hooks/use-websocket';
 import type { User, MessageWithUser } from '@shared/schema';
 
@@ -19,6 +19,7 @@ interface WebSocketContextType {
   setMessages: React.Dispatch<React.SetStateAction<MessageWithUser[]>>;
   reconnect: () => void;
   clearFailedMessages: () => void;
+  disconnect: () => void;
   currentRoom: string | null;
 }
 
@@ -36,7 +37,8 @@ export function WebSocketProvider({ children, user }: WebSocketProviderProps) {
     return saved ? JSON.parse(saved).id : null;
   });
 
-  const websocketData = useWebSocket(user?.id);
+  // Pass user and username to ensure proper user switching
+  const websocketData = useWebSocket(user?.id, user?.username);
 
   // Track the current room for the context
   const joinRoom = (roomId: string, clearMessages: boolean = true) => {

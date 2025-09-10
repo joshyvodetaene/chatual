@@ -75,26 +75,17 @@ export default function ChatPage() {
     disconnect
   } = useWebSocketContext();
 
-  // Effect to handle user changes and reconnect WebSocket
+  // Effect to log user changes (connection management handled by WebSocket provider)
   useEffect(() => {
     console.log('[CHAT_PAGE] User changed effect:', { 
       currentUserId: currentUser?.id, 
       currentUsername: currentUser?.username 
     });
 
-    // If user changed, disconnect and reconnect WebSocket
     if (currentUser?.id) {
-      console.log('[CHAT_PAGE] User detected, ensuring WebSocket connection for:', currentUser.username);
-      // Force a reconnection to ensure proper user association
-      if (isConnected) {
-        console.log('[CHAT_PAGE] Reconnecting WebSocket for user change');
-        disconnect();
-        setTimeout(() => {
-          reconnect();
-        }, 100);
-      }
+      console.log('[CHAT_PAGE] User detected, WebSocket will handle connection for:', currentUser.username);
     }
-  }, [currentUser?.id]); // Only depend on user ID to avoid excessive reconnections
+  }, [currentUser?.id]);
 
   const { data: roomsData } = useQuery<{ rooms: Room[] }>({
     queryKey: ['/api/rooms'],
@@ -205,11 +196,19 @@ export default function ChatPage() {
   });
 
   const handleAuthSuccess = (user: User) => {
+    console.log('[CHAT_PAGE] Authentication success for user:', {
+      currentUserId: user.id,
+      currentUsername: user.username
+    });
+    
     setCurrentUser(user);
     localStorage.setItem('chatual_user', JSON.stringify(user));
+    
+    console.log('[CHAT_PAGE] User set, WebSocket provider will handle connection for:', user.username);
   };
 
   const handleLogout = () => {
+    console.log('[CHAT_PAGE] Initiating logout');
     logoutMutation.mutate();
   };
 

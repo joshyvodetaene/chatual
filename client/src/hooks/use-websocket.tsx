@@ -27,7 +27,7 @@ export interface WebSocketMessage {
   [key: string]: any;
 }
 
-export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT_RETRY_CONFIG) {
+export function useWebSocket(userId?: string, username?: string, retryConfig: RetryConfig = DEFAULT_RETRY_CONFIG) {
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const currentRoomRef = useRef<string | null>(null);
@@ -327,14 +327,59 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     };
   }, [userId, retryConfig, calculateRetryDelay]);
 
-  // Initial connection
-  useEffect(() => {
-    if (!userId) {
-      setConnectionStatus('disconnected');
-      return;
-    }
+  // User switching and connection management - centralized state machine
+  const previousUserIdRef = useRef<string | null>(null);
+  const sessionIdRef = useRef(0);
 
-    connect();
+  useEffect(() => {
+    const currentUserId = userId || null;
+    const previousUserId = previousUserIdRef.current;
+
+    // User changed - implement ordered state machine
+    if (previousUserId !== currentUserId) {
+      console.log('[WS_HOOK] User change detected:', {
+        previousUserId,
+        currentUserId,
+        username,
+        sessionId: sessionIdRef.current
+      });
+
+      // Step 1: Teardown current connection
+      if (ws.current) {
+        console.log('[WS_HOOK] Tearing down previous connection for user switch');
+        ws.current.close(1000, 'User session change');
+        ws.current = null;
+        setConnectionStatus('disconnected');
+      }
+
+      // Step 2: Clear timeouts
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+
+      // Step 3: Reset state for new user
+      setMessages([]);
+      setOnlineUsers(new Set());
+      setRoomOnlineUsers(new Set());
+      setTypingUsers(new Set());
+      setLastError(null);
+      retryCountRef.current = 0;
+      isReconnectingRef.current = false;
+      currentRoomRef.current = null;
+
+      // Step 4: Increment session ID to ignore late events
+      sessionIdRef.current += 1;
+
+      // Step 5: Update user reference
+      previousUserIdRef.current = currentUserId;
+
+      // Step 6: Connect for new user if available
+      if (currentUserId) {
+        console.log('[WS_HOOK] Establishing new connection for user:', username, 'session:', sessionIdRef.current);
+        connect();
+      }
+    }
 
     return () => {
       if (reconnectTimeoutRef.current) {
@@ -344,7 +389,7 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
         ws.current.close(1000, 'Component unmounting');
       }
     };
-  }, [userId, connect]);
+  }, [userId, username, connect]);
 
   const joinRoom = useCallback((roomId: string, clearMessages: boolean = true) => {
     console.log(`[WS_HOOK] Joining room: ${roomId}, clearMessages: ${clearMessages}`);
