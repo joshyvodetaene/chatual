@@ -450,56 +450,6 @@ export class DatabaseStorage implements IStorage {
       console.log(`[API] Returning ${usersWithDistance.length} users with distance data`);
       return usersWithDistance;
 
-      // Calculate distances and transform to UserWithDistance
-      const usersWithDistance: UserWithDistance[] = allUsers.map(user => {
-        const userLat = parseFloat(user.latitude || '0');
-        const userLng = parseFloat(user.longitude || '0');
-
-        let distance: number | undefined;
-
-        // Only calculate distance if both users have valid coordinates (not 0,0)
-        if (
-          currentLat !== 0 && currentLng !== 0 && 
-          userLat !== 0 && userLng !== 0 &&
-          !isNaN(currentLat) && !isNaN(currentLng) &&
-          !isNaN(userLat) && !isNaN(userLng) &&
-          // Additional validation for reasonable coordinate ranges
-          Math.abs(currentLat) <= 90 && Math.abs(currentLng) <= 180 &&
-          Math.abs(userLat) <= 90 && Math.abs(userLng) <= 180
-        ) {
-          distance = this.calculateDistance(currentLat, currentLng, userLat, userLng);
-          console.log(`[API] Distance calculated for ${user.username}: ${distance}km (from ${currentUser.location} to ${user.location})`);
-        } else {
-          console.log(`[API] No distance calculated for ${user.username}: invalid coordinates (current: ${currentLat},${currentLng}, user: ${userLat},${userLng})`);
-        }
-
-        return {
-          id: user.id,
-          username: user.username,
-          displayName: user.displayName,
-          age: user.age,
-          gender: user.gender,
-          location: user.location,
-          latitude: user.latitude,
-          longitude: user.longitude,
-          lastSeen: user.lastSeen ? new Date(user.lastSeen) : null,
-          isOnline: user.isOnline,
-          isBanned: user.isBanned,
-          isBlocked: user.isBlocked,
-          primaryPhoto: user.photoUrl ? {
-            id: user.photoId || '',
-            userId: user.id,
-            photoUrl: user.photoUrl,
-            fileName: user.photoFileName || '',
-            isPrimary: user.photoIsPrimary || false,
-            uploadedAt: new Date(),
-          } : null,
-          distance,
-        };
-      });
-
-      console.log(`[API] Found ${usersWithDistance.length} users with distance data`);
-      return usersWithDistance;
     } catch (error) {
       console.error('Error in getUsersWithDistance:', error);
       throw error;
