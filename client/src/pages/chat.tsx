@@ -71,8 +71,30 @@ export default function ChatPage() {
     sendTyping,
     setMessages,
     reconnect,
-    clearFailedMessages
+    clearFailedMessages,
+    disconnect
   } = useWebSocketContext();
+
+  // Effect to handle user changes and reconnect WebSocket
+  useEffect(() => {
+    console.log('[CHAT_PAGE] User changed effect:', { 
+      currentUserId: currentUser?.id, 
+      currentUsername: currentUser?.username 
+    });
+
+    // If user changed, disconnect and reconnect WebSocket
+    if (currentUser?.id) {
+      console.log('[CHAT_PAGE] User detected, ensuring WebSocket connection for:', currentUser.username);
+      // Force a reconnection to ensure proper user association
+      if (isConnected) {
+        console.log('[CHAT_PAGE] Reconnecting WebSocket for user change');
+        disconnect();
+        setTimeout(() => {
+          reconnect();
+        }, 100);
+      }
+    }
+  }, [currentUser?.id]); // Only depend on user ID to avoid excessive reconnections
 
   const { data: roomsData } = useQuery<{ rooms: Room[] }>({
     queryKey: ['/api/rooms'],

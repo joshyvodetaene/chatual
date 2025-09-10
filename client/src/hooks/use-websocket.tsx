@@ -121,7 +121,7 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
 
     ws.current.onopen = () => {
       console.log(`[WS_HOOK] WebSocket connected successfully at ${new Date().toISOString()}`);
-      console.log(`[WS_HOOK] Connection established on attempt ${retryCountRef.current + 1}`);
+      console.log(`[WS_HOOK] Connection established on attempt ${retryCountRef.current + 1} for user: ${userId}`);
       setConnectionStatus('connected');
       setLastError(null);
       retryCountRef.current = 0; // Reset retry count on successful connection
@@ -129,7 +129,7 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
 
       // Rejoin current room if we were in one
       if (currentRoomRef.current) {
-        console.log(`[WS_HOOK] Rejoining room: ${currentRoomRef.current}`);
+        console.log(`[WS_HOOK] Rejoining room: ${currentRoomRef.current} for user: ${userId}`);
 
         // If this is a reconnection, fetch missed messages first
         if (isReconnect && disconnectionTimeRef.current) {
@@ -281,7 +281,7 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
       console.log(`[WS_HOOK] WebSocket closed: code=${event.code}, reason='${event.reason}', clean=${event.wasClean}`);
 
       // Handle normal closures (user logout, component unmounting)
-      if (event.code === 1000 || event.reason === 'Component unmounting') {
+      if (event.code === 1000 || event.reason === 'User session change' || event.reason === 'Component unmounting') {
         console.log('[WS_HOOK] Normal WebSocket closure');
         setConnectionStatus('disconnected');
         return;
@@ -349,46 +349,51 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
   const joinRoom = useCallback((roomId: string, clearMessages: boolean = true) => {
     console.log(`[WS_HOOK] Joining room: ${roomId}, clearMessages: ${clearMessages}`);
 
-    // Store previous room for cleanup
-    const previousRoom = currentRoomRef.current;
-    currentRoomRef.current = roomId;
-
-    // Clear messages only when explicitly requested (new room join, not reconnection)
-    if (clearMessages) {
-      setMessages([]);
-      // Clear typing users when switching rooms
-      setTypingUsers(new Set());
-      setRoomOnlineUsers(new Set());
+    if (!userId) {
+      console.log(`[WS_HOOK] Cannot join room - no userId`);
+      return;
     }
 
-    if (ws.current && ws.current.readyState === WebSocket.OPEN && userId) {
-      try {
-        // Send leave message for previous room if switching rooms
-        if (previousRoom && previousRoom !== roomId && clearMessages) {
-          console.log(`[WS_HOOK] Leaving previous room: ${previousRoom}`);
-          ws.current.send(JSON.stringify({
-            type: 'leave',
-            userId,
-            roomId: previousRoom,
-          }));
-        }
+    if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+      console.log(`[WS_HOOK] Cannot join room - WebSocket not ready. Status: ${ws.current?.readyState}, userId: ${userId}`);
+      currentRoomRef.current = roomId; // Store room to join upon connection
+      return;
+    }
 
-        // Join new room
-        console.log(`[WS_HOOK] Sending join request for room: ${roomId}`);
+    // Leave previous room if we're in one and switching rooms
+    if (currentRoomRef.current && currentRoomRef.current !== roomId) {
+      console.log(`[WS_HOOK] Leaving previous room: ${currentRoomRef.current} for user: ${userId}`);
+      try {
         ws.current.send(JSON.stringify({
-          type: 'join',
-          userId,
-          roomId,
+          type: 'leave',
+          userId: userId,
+          roomId: currentRoomRef.current,
         }));
       } catch (error) {
-        console.error('[WS_HOOK] Error joining room:', error);
-        setLastError(`Failed to join room: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        console.error('[WS_HOOK] Error leaving previous room:', error);
       }
-    } else {
-      console.log(`[WS_HOOK] Cannot join room - WebSocket not ready. Status: ${ws.current?.readyState}, userId: ${userId}`);
-      // If WebSocket is not ready, we'll rejoin when it reconnects
     }
-  }, [userId]);
+
+    console.log(`[WS_HOOK] Sending join request for room: ${roomId} with user: ${userId}`);
+    try {
+      ws.current.send(JSON.stringify({
+        type: 'join',
+        userId: userId,
+        roomId: roomId,
+      }));
+    } catch (error) {
+      console.error('[WS_HOOK] Error joining room:', error);
+      setLastError(`Failed to join room: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    currentRoomRef.current = roomId;
+
+    if (clearMessages) {
+      setMessages([]);
+      setTypingUsers(new Set()); // Clear typing users when switching rooms
+      setRoomOnlineUsers(new Set()); // Clear room online users
+    }
+  }, [ws, userId]);
 
   // Fetch messages that were missed during disconnection
   const fetchMissedMessages = useCallback(async (roomId: string) => {
@@ -444,11 +449,16 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
           ws.current.send(JSON.stringify({
             type: 'message',
             content: queuedMessage.content,
+            roomId: currentRoomRef.current,
+            userId: userId,
+            username: userId // Placeholder, ideally should be fetched user name
           }));
         } else if (queuedMessage.type === 'typing') {
           ws.current.send(JSON.stringify({
             type: 'typing',
             isTyping: queuedMessage.content === 'true',
+            roomId: currentRoomRef.current,
+            userId: userId
           }));
         }
         return true;
@@ -457,41 +467,45 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
         return false;
       }
     });
-  }, [processQueue]);
+  }, [processQueue, userId]);
 
   const sendMessage = useCallback((content: string, photoUrl?: string, photoFileName?: string, mentionedUserIds?: string[]) => {
     // Only treat as photo if we have a valid photo URL (not just 'photo' string)
     const messageType = (photoUrl && photoUrl !== 'photo' && photoUrl.length > 5) ? 'photo' : 'text';
 
-    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-      try {
-        console.log('Sending WebSocket message:', {
-          type: 'message',
-          content: content?.substring(0, 20),
-          photoUrl: messageType === 'photo' ? photoUrl?.substring(photoUrl?.length - 30) : undefined,
-          photoFileName,
-          messageType
-        });
-
-        ws.current.send(JSON.stringify({
-          type: 'message',
-          content,
-          photoUrl: messageType === 'photo' ? photoUrl : undefined,
-          photoFileName: messageType === 'photo' ? photoFileName : undefined,
-          messageType,
-          mentionedUserIds: mentionedUserIds || [],
-        }));
-      } catch (error) {
-        console.error('Failed to send message:', error);
-        // Queue the message for offline sending
-        enqueueMessage(content, 'message', currentRoomRef.current || undefined);
-      }
-    } else {
-      // Queue message for offline sending
-      console.log('Queuing message for offline sending:', content);
-      enqueueMessage(content, 'message', currentRoomRef.current || undefined);
+    if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+      console.log(`[WS_HOOK] Cannot send message - WebSocket not open. Queuing message for room ${currentRoomRef.current}`);
+      enqueueMessage(content, 'message', currentRoomRef.current || undefined, { photoUrl, photoFileName, mentionedUserIds });
+      return;
     }
-  }, [enqueueMessage]);
+
+    try {
+      console.log(`[WS_HOOK] Sending message from user: ${userId} to room: ${currentRoomRef.current}`, {
+        type: 'message',
+        content: messageType === 'photo' ? '[Photo]' : content,
+        messageType,
+        photoUrl: photoUrl ? 'present' : undefined,
+        photoFileName,
+        mentionedUserIds
+      });
+
+      ws.current.send(JSON.stringify({
+        type: 'message',
+        content,
+        photoUrl: messageType === 'photo' ? photoUrl : undefined,
+        photoFileName: messageType === 'photo' ? photoFileName : undefined,
+        messageType,
+        mentionedUserIds: mentionedUserIds || [],
+        userId: userId,
+        roomId: currentRoomRef.current,
+        username: userId // Placeholder, ideally should be fetched user name
+      }));
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      // Queue the message for offline sending
+      enqueueMessage(content, 'message', currentRoomRef.current || undefined, { photoUrl, photoFileName, mentionedUserIds });
+    }
+  }, [enqueueMessage, userId]);
 
   // Add debouncing for typing indicators
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -503,40 +517,49 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
       typingTimeoutRef.current = null;
     }
 
-    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-      try {
-        // Send typing indicator immediately
-        ws.current.send(JSON.stringify({
-          type: 'typing',
-          isTyping,
-        }));
-
-        // If starting to type, set timeout to auto-stop after 3 seconds
-        if (isTyping) {
-          typingTimeoutRef.current = setTimeout(() => {
-            if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-              try {
-                ws.current.send(JSON.stringify({
-                  type: 'typing',
-                  isTyping: false,
-                }));
-              } catch (error) {
-                console.error('Failed to send auto-stop typing indicator:', error);
-              }
-            }
-          }, 3000);
-        }
-      } catch (error) {
-        console.error('Failed to send typing indicator:', error);
-      }
+    if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+      console.log(`[WS_HOOK] Cannot send typing - WebSocket not open. Queuing typing status for room ${currentRoomRef.current}`);
+      enqueueMessage(isTyping.toString(), 'typing', currentRoomRef.current || undefined);
+      return;
     }
-  }, []);
+
+    try {
+      // Send typing indicator immediately
+      ws.current.send(JSON.stringify({
+        type: 'typing',
+        isTyping,
+        roomId: currentRoomRef.current,
+        userId: userId
+      }));
+
+      // If starting to type, set timeout to auto-stop after 3 seconds
+      if (isTyping) {
+        typingTimeoutRef.current = setTimeout(() => {
+          if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+            try {
+              ws.current.send(JSON.stringify({
+                type: 'typing',
+                isTyping: false,
+                roomId: currentRoomRef.current,
+                userId: userId
+              }));
+            } catch (error) {
+              console.error('Failed to send auto-stop typing indicator:', error);
+            }
+          }
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Failed to send typing indicator:', error);
+      enqueueMessage(isTyping.toString(), 'typing', currentRoomRef.current || undefined);
+    }
+  }, [enqueueMessage, userId]);
 
   // Connection health check
   const healthCheck = useCallback(() => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       try {
-        ws.current.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
+        ws.current.send(JSON.stringify({ type: 'ping', timestamp: Date.now(), userId: userId }));
         return true;
       } catch (error) {
         console.error('[WS_HOOK] Health check failed:', error);
@@ -544,7 +567,7 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
       }
     }
     return false;
-  }, []);
+  }, [userId]);
 
   // Periodic health check
   useEffect(() => {
@@ -558,7 +581,7 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
 
       return () => clearInterval(healthCheckInterval);
     }
-  }, [connectionStatus, healthCheck]);
+  }, [connectionStatus, healthCheck, reconnect]);
 
   // Manual reconnect function
   const reconnect = useCallback(() => {
@@ -576,16 +599,22 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     onlineUsers,
     roomOnlineUsers,
     typingUsers,
+    queuedCount,
+    failedCount,
+    isProcessingQueue,
     joinRoom,
     sendMessage,
     sendTyping,
     setMessages,
     reconnect,
-    // Offline queue status
-    queuedMessages,
-    queuedCount,
-    failedCount,
-    isProcessingQueue,
     clearFailedMessages,
+    disconnect: () => {
+      console.log('[WS_HOOK] Manual disconnect requested');
+      if (ws.current) {
+        ws.current.close(1000, 'User session change');
+        ws.current = null; // Clear the ref
+        setConnectionStatus('disconnected');
+      }
+    },
   };
 }
