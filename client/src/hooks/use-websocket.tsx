@@ -147,12 +147,10 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
         }
       }
 
-      // Process any queued messages after a short delay to ensure room join completes
+      // Process any queued messages immediately - no delay needed
       if (queuedCount > 0) {
-        console.log(`[WS_HOOK] Processing ${queuedCount} queued messages...`);
-        setTimeout(() => {
-          processQueuedMessages();
-        }, 500);
+        console.log(`[WS_HOOK] Processing ${queuedCount} queued messages immediately...`);
+        processQueuedMessages();
       }
 
       // Clear disconnection time after successful reconnection
