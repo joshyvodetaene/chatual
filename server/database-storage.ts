@@ -1666,11 +1666,15 @@ export class DatabaseStorage implements IStorage {
         ))
         .orderBy(desc(friendRequests.createdAt));
 
+      console.log(`[DB] Found ${requests.length} pending friend requests for user ${userId}`);
+
       // Fetch sender and receiver details separately
       const requestsWithUsers = await Promise.all(
         requests.map(async (request) => {
           const [sender] = await db.select().from(users).where(eq(users.id, request.senderId));
           const [receiver] = await db.select().from(users).where(eq(users.id, request.receiverId));
+          
+          console.log(`[DB] Friend request ${request.id}: sender=${sender?.username}, receiver=${receiver?.username}`);
           
           return {
             ...request,
@@ -1680,7 +1684,7 @@ export class DatabaseStorage implements IStorage {
         })
       );
 
-      return requestsWithUsers as any;
+      return requestsWithUsers as FriendRequestWithUser[];
     });
   }
 
@@ -1702,11 +1706,15 @@ export class DatabaseStorage implements IStorage {
         ))
         .orderBy(desc(friendRequests.createdAt));
 
+      console.log(`[DB] Found ${requests.length} sent friend requests for user ${userId}`);
+
       // Fetch sender and receiver details separately
       const requestsWithUsers = await Promise.all(
         requests.map(async (request) => {
           const [sender] = await db.select().from(users).where(eq(users.id, request.senderId));
           const [receiver] = await db.select().from(users).where(eq(users.id, request.receiverId));
+          
+          console.log(`[DB] Sent friend request ${request.id}: sender=${sender?.username}, receiver=${receiver?.username}`);
           
           return {
             ...request,
@@ -1716,7 +1724,7 @@ export class DatabaseStorage implements IStorage {
         })
       );
 
-      return requestsWithUsers as any;
+      return requestsWithUsers as FriendRequestWithUser[];
     });
   }
 

@@ -24,8 +24,12 @@ export default function SentFriendRequests({ user, isMobile = false }: SentFrien
     queryKey: [`/api/users/${user.id}/sent-friend-requests`],
     queryFn: async () => {
       const response = await apiRequest('GET', `/api/users/${user.id}/sent-friend-requests`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch sent friend requests');
+      }
       return await response.json();
     },
+    refetchInterval: 10000, // Refetch every 10 seconds
   });
 
   const sentFriendRequests = requestsData?.sentFriendRequests || [];

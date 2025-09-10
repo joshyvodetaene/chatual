@@ -24,8 +24,12 @@ export default function FriendRequests({ user, isMobile = false }: FriendRequest
     queryKey: [`/api/users/${user.id}/friend-requests`],
     queryFn: async () => {
       const response = await apiRequest('GET', `/api/users/${user.id}/friend-requests`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch friend requests');
+      }
       return await response.json();
     },
+    refetchInterval: 10000, // Refetch every 10 seconds
   });
 
   const friendRequests = requestsData?.friendRequests || [];
@@ -34,6 +38,10 @@ export default function FriendRequests({ user, isMobile = false }: FriendRequest
   const respondToRequestMutation = useMutation({
     mutationFn: async ({ requestId, action }: { requestId: string; action: 'accept' | 'decline' }) => {
       const response = await apiRequest('PUT', `/api/friend-requests/${requestId}`, { action });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to respond to friend request');
+      }
       return await response.json();
     },
     onSuccess: (_, { action }) => {
@@ -43,8 +51,10 @@ export default function FriendRequests({ user, isMobile = false }: FriendRequest
       });
       queryClient.invalidateQueries({ queryKey: [`/api/users/${user.id}/friend-requests`] });
       queryClient.invalidateQueries({ queryKey: [`/api/users/${user.id}/friends`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${user.id}/friendship-status`] });
     },
     onError: (error: any) => {
+      console.error('Friend request response error:', error);
       toast({
         title: "Error",
         description: error?.message || "Failed to respond to friend request",
@@ -157,7 +167,7 @@ export default function FriendRequests({ user, isMobile = false }: FriendRequest
                     data-testid={`button-accept-${request.id}`}
                   >
                     <Check className="w-4 h-4 mr-1" />
-                    Accept
+                    {respondToRequestMutation.isPending ? 'Processing...' : 'Accept'}
                   </Button>
                   <Button
                     size="sm"
@@ -168,7 +178,7 @@ export default function FriendRequests({ user, isMobile = false }: FriendRequest
                     data-testid={`button-decline-${request.id}`}
                   >
                     <X className="w-4 h-4 mr-1" />
-                    Decline
+                    {respondToRequestMutation.isPending ? 'Processing...' : 'Decline'}
                   </Button>
                 </div>
               </div>

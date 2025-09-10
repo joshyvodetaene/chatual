@@ -1450,7 +1450,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/users/:userId/friend-requests', async (req, res) => {
     try {
       const { userId } = req.params;
+      console.log(`[API] Fetching friend requests for user: ${userId}`);
       const friendRequests = await storage.getFriendRequests(userId);
+      console.log(`[API] Returning ${friendRequests.length} friend requests for user ${userId}`);
       res.json({ friendRequests });
     } catch (error) {
       console.error('Get friend requests error:', error);
@@ -1461,7 +1463,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/users/:userId/sent-friend-requests', async (req, res) => {
     try {
       const { userId } = req.params;
+      console.log(`[API] Fetching sent friend requests for user: ${userId}`);
       const sentFriendRequests = await storage.getSentFriendRequests(userId);
+      console.log(`[API] Returning ${sentFriendRequests.length} sent friend requests for user ${userId}`);
       res.json({ sentFriendRequests });
     } catch (error) {
       console.error('Get sent friend requests error:', error);
