@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils';
 import { NotificationCenter } from '@/components/notifications/notification-center';
 import { NotificationToast } from '@/components/notifications/notification-toast';
 import { useNotificationManager } from '@/hooks/use-notification-manager';
+import { updateUserAuth } from '@/utils/auth-helpers';
 
 export default function ChatPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -167,7 +168,7 @@ export default function ChatPage() {
       // Don't remove private rooms from localStorage during logout
       const userId = currentUser?.id;
       setCurrentUser(null);
-      localStorage.removeItem('chatual_user');
+      updateUserAuth(null); // This will notify App component via userAuthChanged event
 
       // Clear query cache but preserve specific keys for private rooms
       queryClient.clear();
@@ -176,7 +177,7 @@ export default function ChatPage() {
       // Even if logout fails on server, clear local state but preserve private rooms
       const userId = currentUser?.id;
       setCurrentUser(null);
-      localStorage.removeItem('chatual_user');
+      updateUserAuth(null); // This will notify App component via userAuthChanged event
 
       queryClient.clear();
     },
@@ -184,7 +185,7 @@ export default function ChatPage() {
 
   const handleAuthSuccess = (user: User) => {
     setCurrentUser(user);
-    localStorage.setItem('chatual_user', JSON.stringify(user));
+    updateUserAuth(user); // This will notify App component via userAuthChanged event
   };
 
   const handleLogout = () => {

@@ -63,7 +63,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <TooltipProvider>
-          <WebSocketProvider user={currentUser}>
+          <WebSocketProvider key={currentUser?.id || 'anonymous'} user={currentUser}>
             <Toaster />
             <Router />
             <CookieConsent />
