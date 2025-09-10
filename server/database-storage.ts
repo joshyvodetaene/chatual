@@ -403,7 +403,7 @@ export class DatabaseStorage implements IStorage {
         .map(user => {
           const userLat = parseFloat(user.latitude || '0');
           const userLng = parseFloat(user.longitude || '0');
-          
+
           // Only include users with valid coordinates
           if (
             userLat !== 0 && userLng !== 0 &&
@@ -454,7 +454,7 @@ export class DatabaseStorage implements IStorage {
       // Transform to UserWithDistance
       const usersWithDistance: UserWithDistance[] = allUsers.map(user => {
         const distanceData = distanceResults.get(user.id);
-        
+
         if (distanceData) {
           console.log(`[API] Distance for ${user.username}: ${distanceData.distance}km, ${distanceData.duration}min, mode: ${distanceData.mode}`);
         }
@@ -899,51 +899,79 @@ export class DatabaseStorage implements IStorage {
 
 
   // Message methods
-  async createMessage(data: InsertMessage): Promise<MessageWithUser> {
-    console.log(`[STORAGE] Creating message - userId: ${data.userId}, roomId: ${data.roomId}, messageType: ${data.messageType}, hasPhoto: ${!!data.photoUrl}`);
+  async createMessage(data: {
+    content: string;
+    photoUrl?: string;
+    photoFileName?: string;
+    messageType?: string;
+    mentionedUserIds?: string[];
+    userId: string;
+    roomId: string;
+    username?: string;
+  }): Promise<MessageWithUser> {
+    try {
+      console.log(`[DB] Creating message for user ID: ${data.userId}`);
 
-    // Get the next sequence ID
-    const nextSeqId = await this.getNextSequenceId();
-    const messageData = {
-      ...data,
-      sequenceId: nextSeqId
-    };
+      // Get the next sequence ID for this room
+      const nextSequenceId = await this.getNextSequenceId(data.roomId);
 
-    const message = await this.retryDatabaseOperation(async () => {
-      const [msg] = await db.insert(messages).values(messageData).returning();
-      return msg;
-    });
+      // Get the user data FIRST to ensure we have the correct user
+      const user = await this.getUser(data.userId);
+      if (!user) {
+        throw new Error(`User not found: ${data.userId}`);
+      }
 
-    console.log(`[STORAGE] Message created with ID: ${message.id}, sequenceId: ${message.sequenceId}, messageType: ${message.messageType}`);
+      console.log(`[DB] Verified user for message: ${user.username} (${user.id})`);
 
-    const user = await this.getUser(data.userId);
-    if (!user) {
-      throw new Error('User not found');
+      // Insert the message with verified user ID
+      const [message] = await db
+        .insert(messages)
+        .values({
+          id: crypto.randomUUID(),
+          content: data.content,
+          photoUrl: data.photoUrl,
+          photoFileName: data.photoFileName,
+          messageType: data.messageType || 'text',
+          mentionedUserIds: data.mentionedUserIds || [],
+          sequenceId: nextSequenceId,
+          userId: user.id, // Use the verified user ID
+          roomId: data.roomId,
+          createdAt: new Date(),
+        })
+        .returning();
+
+      console.log(`[DB] Message created with ID: ${message.id} for user: ${user.username}`);
+
+      return {
+        ...message,
+        user,
+      };
+    } catch (error) {
+      console.error('Error creating message:', error);
+      throw error;
     }
-
-    console.log(`[STORAGE] Returning message with user data:`, {
-      messageId: message.id,
-      sequenceId: message.sequenceId,
-      messageType: message.messageType,
-      photoUrl: message.photoUrl,
-      userName: user.username
-    });
-
-    return { ...message, user };
   }
 
-  private async getNextSequenceId(): Promise<number> {
+  private async getNextSequenceId(roomId: string): Promise<number> {
     try {
-      const result = await db.execute(sql`SELECT nextval('messages_sequence_seq')`);
+      // Use a sequence specific to each room or a global sequence if preferred.
+      // For simplicity, using a global sequence here.
+      // If room-specific sequences are needed, a more complex approach is required.
+
+      // Attempt to get the next value from a global sequence.
+      // If it doesn't exist, create it.
+      const result = await db.execute(sql`SELECT nextval('message_sequence_seq')`);
       return result.rows[0].nextval as number;
-    } catch (error) {
-      // If sequence doesn't exist, create it and try again
-      if (error instanceof Error && error.message.includes('does not exist')) {
-        console.log('[DB] Creating missing messages_sequence_seq');
-        await db.execute(sql`CREATE SEQUENCE IF NOT EXISTS messages_sequence_seq START 1`);
-        const result = await db.execute(sql`SELECT nextval('messages_sequence_seq')`);
+    } catch (error: any) {
+      // If the sequence doesn't exist, create it.
+      if (error.message.includes('does not exist')) {
+        console.log('[DB] Creating missing message_sequence_seq');
+        await db.execute(sql`CREATE SEQUENCE IF NOT EXISTS message_sequence_seq START 1`);
+        // Retry getting the next value after creation.
+        const result = await db.execute(sql`SELECT nextval('message_sequence_seq')`);
         return result.rows[0].nextval as number;
       }
+      // Re-throw other errors.
       throw error;
     }
   }

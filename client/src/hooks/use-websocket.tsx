@@ -473,6 +473,11 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     // Only treat as photo if we have a valid photo URL (not just 'photo' string)
     const messageType = (photoUrl && photoUrl !== 'photo' && photoUrl.length > 5) ? 'photo' : 'text';
 
+    if (!userId) {
+      console.error('[WS_HOOK] Cannot send message - no user ID available');
+      return;
+    }
+
     if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
       console.log(`[WS_HOOK] Cannot send message - WebSocket not open. Queuing message for room ${currentRoomRef.current}`);
       enqueueMessage(content, 'message', currentRoomRef.current || undefined, { photoUrl, photoFileName, mentionedUserIds });
@@ -486,20 +491,23 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
         messageType,
         photoUrl: photoUrl ? 'present' : undefined,
         photoFileName,
-        mentionedUserIds
+        mentionedUserIds,
+        userId: userId
       });
 
-      ws.current.send(JSON.stringify({
+      const messagePayload = {
         type: 'message',
         content,
         photoUrl: messageType === 'photo' ? photoUrl : undefined,
         photoFileName: messageType === 'photo' ? photoFileName : undefined,
         messageType,
         mentionedUserIds: mentionedUserIds || [],
-        userId: userId,
-        roomId: currentRoomRef.current,
-        username: userId // Placeholder, ideally should be fetched user name
-      }));
+        userId: userId, // Explicitly use the current user's ID
+        roomId: currentRoomRef.current
+      };
+
+      console.log('Sending WebSocket message:', messagePayload);
+      ws.current.send(JSON.stringify(messagePayload));
     } catch (error) {
       console.error('Failed to send message:', error);
       // Queue the message for offline sending

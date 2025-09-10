@@ -86,7 +86,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Clean up stale clients
     for (const [userId, clientSet] of clients.entries()) {
       const activeClients = new Set<WebSocketClient>();
-      
+
       for (const client of clientSet) {
         if (!isConnectionAlive(client)) {
           console.log(`[WS_CLEANUP] Removing stale connection for user ${userId}`);
@@ -112,7 +112,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (activeClients.size === 0) {
         // No active connections for this user
         clients.delete(userId);
-        
+
         // Update database status only when user has no active connections
         storage.updateUserOnlineStatus(userId, false).catch(error => {
           console.error(`[WS_CLEANUP] Failed to update user status for ${userId}:`, error);
@@ -134,7 +134,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const hasActiveConnection = Array.from(clientSet).some(client => 
             isConnectionAlive(client) && client.roomId === roomId
           );
-          
+
           if (hasActiveConnection) {
             validUsers.add(userId);
           } else {
@@ -239,7 +239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Iterate through all users and their connections
     for (const [userId, clientSet] of clients.entries()) {
       if (userId === excludeUserId) continue;
-      
+
       for (const client of clientSet) {
         if (client.roomId === roomId && client.readyState === WebSocket.OPEN) {
           try {
@@ -264,7 +264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   function broadcastToUser(userId: string, message: any) {
     const clientSet = clients.get(userId);
     if (!clientSet) return false;
-    
+
     let sentToAny = false;
     for (const client of clientSet) {
       if (client.readyState === WebSocket.OPEN) {
@@ -338,7 +338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const hasActiveConnection = Array.from(clientSet).some(client => 
           isConnectionAlive(client) && client.roomId === roomId
         );
-        
+
         if (hasActiveConnection) {
           validUsers.add(userId);
         } else {
@@ -458,91 +458,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
             break;
 
           case 'message':
-            console.log(`[WEBSOCKET] Processing message from userId=${ws.userId}, roomId=${ws.roomId}`);
-            if (ws.userId && ws.roomId) {
-              console.log(`[WEBSOCKET] Message content length: ${message.content?.length || 0}, messageType: ${message.messageType}`);
+            try {
+              console.log(`[WS_MESSAGE] Message from user ${message.userId} in room ${message.roomId}: ${message.content?.substring(0, 50)}`);
 
-              // Normalize photo URL if this is a photo message
-              let normalizedPhotoUrl = message.photoUrl;
-              if (message.photoUrl && message.messageType === 'photo') {
-                console.log(`[WEBSOCKET] Normalizing photo URL: ${message.photoUrl}`);
-                const objectStorageService = new ObjectStorageService();
-                normalizedPhotoUrl = objectStorageService.normalizePhotoPath(message.photoUrl);
-                console.log(`[WEBSOCKET] Normalized photo URL: ${normalizedPhotoUrl}`);
+              // Get user data to include in the message - use the userId from the WebSocket connection
+              const actualUserId = ws.userId || message.userId;
+              const userData = await storage.getUser(actualUserId);
+              if (!userData) {
+                console.error(`[WS_MESSAGE] User not found: ${actualUserId}`);
+                ws.send(JSON.stringify({
+                  type: 'error',
+                  message: 'User not found'
+                }));
+                return;
               }
 
-              console.log(`[WEBSOCKET] Creating message in storage...`);
-              const newMessage = await storage.createMessage({
+              console.log(`[WS_MESSAGE] Creating message for user: ${userData.username} (${userData.id})`);
+
+              // Create and store the message with the correct user ID from WebSocket connection
+              const messageData = await storage.createMessage({
                 content: message.content,
-                userId: ws.userId,
-                roomId: ws.roomId,
-                photoUrl: normalizedPhotoUrl,
+                photoUrl: message.photoUrl,
                 photoFileName: message.photoFileName,
                 messageType: message.messageType || 'text',
                 mentionedUserIds: message.mentionedUserIds || [],
+                userId: actualUserId, // Use the user ID from the WebSocket connection
+                roomId: message.roomId,
+                username: userData.username // Use actual username from database
               });
 
-              console.log('[WEBSOCKET] Created message:', {
-                id: newMessage.id,
-                messageType: newMessage.messageType,
-                photoUrl: newMessage.photoUrl,
-                photoFileName: newMessage.photoFileName
-              });
+              console.log(`[WS_MESSAGE] Message stored with ID: ${messageData.id} for user: ${userData.username}`);
 
-              console.log(`[WEBSOCKET] Getting user data for ${ws.userId}`);
-              const user = await storage.getUser(ws.userId);
-              const messageWithUser = { ...newMessage, user };
-
-              console.log('[WEBSOCKET] Broadcasting message:', {
-                id: messageWithUser.id,
-                messageType: messageWithUser.messageType,
-                photoUrl: messageWithUser.photoUrl
-              });
-
-              // Send notifications for mentions
-              if (newMessage.mentionedUserIds && newMessage.mentionedUserIds.length > 0) {
-                console.log(`[WEBSOCKET] Processing mentions: ${newMessage.mentionedUserIds}`);
-                for (const mentionedUserId of newMessage.mentionedUserIds) {
-                  if (mentionedUserId !== ws.userId) { // Don't notify the sender
-                    await notificationService.notifyMention(
-                      mentionedUserId,
-                      ws.userId,
-                      ws.roomId,
-                      newMessage.content || '[Photo]'
-                    );
-                  }
-                }
-              }
-
-              // Send notifications to room members who are not currently online in this room
-              try {
-                const roomMembers = await storage.getRoomMembers(ws.roomId);
-                const onlineUsersInRoom = Array.from(roomUsers.get(ws.roomId) || []);
-
-                for (const member of roomMembers) {
-                  // Don't notify the sender and those who are currently online in the room
-                  if (member.id !== ws.userId && !onlineUsersInRoom.includes(member.id)) {
-                    const isDirectMessage = roomMembers.length === 2; // Simple check for direct messages
-                    await notificationService.notifyNewMessage(
-                      member.id,
-                      ws.userId,
-                      ws.roomId,
-                      newMessage.content || '[Photo]',
-                      isDirectMessage
-                    );
-                  }
-                }
-              } catch (error) {
-                console.error('Error sending message notifications:', error);
-              }
-
-              // Broadcast message to room
-              broadcastToRoom(ws.roomId, {
+              // Broadcast to all users in the room
+              broadcastToRoom(message.roomId, {
                 type: 'new_message',
-                message: messageWithUser,
+                message: messageData
               });
-            } else {
-              console.log(`[WEBSOCKET] Cannot process message: missing userId=${ws.userId} or roomId=${ws.roomId}`);
+
+            } catch (error) {
+              console.error('[WS_MESSAGE] Error handling message:', error);
+              ws.send(JSON.stringify({
+                type: 'error',
+                message: 'Failed to send message'
+              }));
             }
             break;
 
@@ -572,11 +530,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const userConnections = clients.get(ws.userId);
         if (userConnections) {
           userConnections.delete(ws);
-          
+
           if (userConnections.size === 0) {
             // No more connections for this user
             clients.delete(ws.userId);
-            
+
             // Update user's online status to false
             try {
               await storage.updateUserOnlineStatus(ws.userId, false);
@@ -892,7 +850,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/geocode/validate', async (req, res) => {
     try {
       const { city } = req.query;
-      
+
       if (!city || typeof city !== 'string') {
         return res.status(400).json({ 
           isValid: false, 
@@ -915,7 +873,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/cities/validate', async (req, res) => {
     try {
       const { cityName, allowedCountries } = req.body;
-      
+
       if (!cityName || typeof cityName !== 'string') {
         return res.status(400).json({ 
           isValid: false, 
