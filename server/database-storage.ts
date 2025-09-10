@@ -84,14 +84,14 @@ export class DatabaseStorage implements IStorage {
     try {
       // Check if default rooms exist
       const existingRooms = await db.select().from(rooms);
-      
+
       const defaultRoomData = [
         {
           name: "Flirt",
           description: "Connect and flirt with other users",
         },
         {
-          name: "Sub & dom", 
+          name: "Sub & dom",
           description: "Explore power dynamics and relationships",
         },
         {
@@ -127,12 +127,12 @@ export class DatabaseStorage implements IStorage {
     try {
       // Check if administrator user exists
       const adminUser = await this.getUserByUsername('administrator');
-      
+
       if (!adminUser) {
         // Create master admin user
         const hashedPassword = await bcrypt.hash('12345678', 10);
         const adminUserId = randomUUID();
-        
+
         const masterAdmin = {
           id: adminUserId,
           username: 'admin',
@@ -157,19 +157,19 @@ export class DatabaseStorage implements IStorage {
           bannedBy: null,
           banReason: null,
         };
-        
+
         await db.insert(users).values([masterAdmin]);
         console.log('Master admin user created: administrator');
       } else {
         // Verify admin still has correct role and password
         const passwordMatch = await bcrypt.compare('12345678', adminUser.password);
-        
+
         if (adminUser.role !== 'admin' || !passwordMatch) {
           // Reset admin credentials
           const hashedPassword = await bcrypt.hash('12345678', 10);
           await db
             .update(users)
-            .set({ 
+            .set({
               role: 'admin',
               password: hashedPassword,
               username: 'admin'
@@ -623,7 +623,7 @@ export class DatabaseStorage implements IStorage {
 
   async deletePrivateRoom(roomId: string, userId: string): Promise<{ success: boolean; otherParticipant?: User }> {
     console.log(`[DB] Attempting to delete private room ${roomId} by user ${userId}`);
-    
+
     // First verify that this is a private room and the user is a member
     const room = await db
       .select()
@@ -816,8 +816,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   private async getNextSequenceId(): Promise<number> {
-    const result = await db.execute(sql`SELECT nextval('messages_sequence_seq') as next_id`);
-    return Number(result.rows[0].next_id);
+    try {
+      const result = await db.execute(sql`SELECT nextval('messages_sequence_seq')`);
+      return result.rows[0].nextval as number;
+    } catch (error) {
+      // If sequence doesn't exist, create it and try again
+      if (error instanceof Error && error.message.includes('does not exist')) {
+        console.log('[DB] Creating missing messages_sequence_seq');
+        await db.execute(sql`CREATE SEQUENCE IF NOT EXISTS messages_sequence_seq START 1`);
+        const result = await db.execute(sql`SELECT nextval('messages_sequence_seq')`);
+        return result.rows[0].nextval as number;
+      }
+      throw error;
+    }
   }
 
   async getRoomMessages(roomId: string, pagination: PaginationParams = {}): Promise<PaginatedResponse<MessageWithUser>> {
@@ -943,14 +954,14 @@ export class DatabaseStorage implements IStorage {
   async clearAllMessages(): Promise<boolean> {
     try {
       console.log('[DB] Clearing all messages from database');
-      
-      
+
+
       // Then delete all messages
       const result = await this.retryDatabaseOperation(async () => {
         const res = await db.delete(messages);
         return res;
       });
-      
+
       console.log(`[DB] Cleared all messages successfully. Rows affected: ${result.rowCount}`);
       return true;
     } catch (error) {
@@ -962,15 +973,15 @@ export class DatabaseStorage implements IStorage {
   async cleanupOldMessages(keepPerRoom: number = 40): Promise<{ totalDeleted: number; roomsCleaned: number }> {
     try {
       console.log(`[DB] Starting cleanup of old messages, keeping ${keepPerRoom} messages per room`);
-      
+
       // Get all rooms
       const allRooms = await this.retryDatabaseOperation(async () => {
         return await db.select({ id: rooms.id }).from(rooms);
       });
-      
+
       let totalDeleted = 0;
       let roomsCleaned = 0;
-      
+
       for (const room of allRooms) {
         try {
           // Get messages for this room, ordered by createdAt DESC
@@ -981,22 +992,22 @@ export class DatabaseStorage implements IStorage {
               .where(eq(messages.roomId, room.id))
               .orderBy(desc(messages.sequenceId));
           });
-          
+
           // If room has more than keepPerRoom messages, delete the older ones
           if (roomMessages.length > keepPerRoom) {
             const messagesToDelete = roomMessages.slice(keepPerRoom);
             const messageIdsToDelete = messagesToDelete.map(m => m.id);
-            
+
             console.log(`[DB] Room ${room.id}: Found ${roomMessages.length} messages, deleting ${messagesToDelete.length} old messages`);
-            
-            
+
+
             // Then delete the old messages
             const deleteResult = await this.retryDatabaseOperation(async () => {
               return await db.delete(messages).where(
                 inArray(messages.id, messageIdsToDelete)
               );
             });
-            
+
             totalDeleted += deleteResult.rowCount || 0;
             roomsCleaned++;
             console.log(`[DB] Room ${room.id}: Deleted ${deleteResult.rowCount} old messages`);
@@ -1006,7 +1017,7 @@ export class DatabaseStorage implements IStorage {
           // Continue with other rooms even if one fails
         }
       }
-      
+
       console.log(`[DB] Cleanup completed: ${totalDeleted} messages deleted from ${roomsCleaned} rooms`);
       return { totalDeleted, roomsCleaned };
     } catch (error) {
@@ -1150,7 +1161,7 @@ export class DatabaseStorage implements IStorage {
             eq(blockedUsers.blockedId, blockedId)
           ));
       });
-      
+
       console.log(`[DB] Successfully unblocked user ${blockedId}`);
       return true;
     } catch (error) {
@@ -1673,9 +1684,9 @@ export class DatabaseStorage implements IStorage {
         requests.map(async (request) => {
           const [sender] = await db.select().from(users).where(eq(users.id, request.senderId));
           const [receiver] = await db.select().from(users).where(eq(users.id, request.receiverId));
-          
+
           console.log(`[DB] Friend request ${request.id}: sender=${sender?.username}, receiver=${receiver?.username}`);
-          
+
           return {
             ...request,
             sender: sender,
@@ -1713,9 +1724,9 @@ export class DatabaseStorage implements IStorage {
         requests.map(async (request) => {
           const [sender] = await db.select().from(users).where(eq(users.id, request.senderId));
           const [receiver] = await db.select().from(users).where(eq(users.id, request.receiverId));
-          
+
           console.log(`[DB] Sent friend request ${request.id}: sender=${sender?.username}, receiver=${receiver?.username}`);
-          
+
           return {
             ...request,
             sender: sender,
@@ -1835,7 +1846,7 @@ export class DatabaseStorage implements IStorage {
 
       // Combine and format results
       const allFriendships = [...friendships1, ...friendships2];
-      
+
       return allFriendships.map(f => ({
         id: f.id,
         user1Id: f.user1Id,
@@ -1915,7 +1926,7 @@ export class DatabaseStorage implements IStorage {
     if (!user) return undefined;
 
     const friendshipStatus = await this.getFriendshipStatus(currentUserId, userId);
-    
+
     return {
       ...user,
       friendshipStatus
@@ -1975,7 +1986,7 @@ export class DatabaseStorage implements IStorage {
     if (viewerId === targetUserId) return true;
 
     const privacy = await this.getUserPrivacySettings(targetUserId);
-    
+
     switch (privacy.profileVisibility) {
       case 'public':
         return true;
@@ -1996,7 +2007,7 @@ export class DatabaseStorage implements IStorage {
     if (isBlocked) return false;
 
     const privacy = await this.getUserPrivacySettings(receiverId);
-    
+
     switch (privacy.allowDirectMessages) {
       case 'everyone':
         return true;
@@ -2013,7 +2024,7 @@ export class DatabaseStorage implements IStorage {
   async exportUserData(userId: string): Promise<any> {
     try {
       console.log(`[GDPR] Exporting data for user ${userId}`);
-      
+
       // Get user basic info
       const user = await this.getUser(userId);
       if (!user) {
@@ -2022,7 +2033,7 @@ export class DatabaseStorage implements IStorage {
 
       // Get user photos
       const photos = await this.getUserPhotos(userId);
-      
+
       // Get user messages (limit to last 1000 for reasonable size)
       const userMessagesQuery = await db
         .select({
@@ -2041,13 +2052,13 @@ export class DatabaseStorage implements IStorage {
 
       // Get blocked users
       const blockedUsers = await this.getBlockedUsers(userId);
-      
+
       // Get user rooms
       const userRooms = await this.getUserRooms(userId);
-      
+
       // Get notification settings
       const notificationSettings = await this.getUserNotificationSettings(userId);
-      
+
       // Get recent reports made by user
       const userReportsQuery = await db
         .select({
@@ -2125,7 +2136,7 @@ export class DatabaseStorage implements IStorage {
 
       console.log(`[GDPR] Successfully exported ${Object.keys(exportData).length} data categories for user ${userId}`);
       return exportData;
-      
+
     } catch (error) {
       console.error(`[GDPR] Error exporting data for user ${userId}:`, error);
       throw error;
@@ -2245,7 +2256,7 @@ export class DatabaseStorage implements IStorage {
   // GDPR-compliant account deletion
   async deleteUserAccount(userId: string): Promise<{ success: boolean; deletedData: any }> {
     console.log(`[DB] Starting GDPR-compliant account deletion for user: ${userId}`);
-    
+
     const deletedData: any = {
       user: null,
       messages: 0,
@@ -2291,7 +2302,7 @@ export class DatabaseStorage implements IStorage {
       console.log(`[DB] Anonymizing user messages...`);
       const messagesResult = await this.retryDatabaseOperation(async () => {
         return await db.update(messages)
-          .set({ 
+          .set({
             content: '[Message from deleted user]',
             photoUrl: null,
             photoFileName: null,
@@ -2353,7 +2364,7 @@ export class DatabaseStorage implements IStorage {
       console.log(`[DB] Handling rooms created by user...`);
       const createdRooms = await db.select().from(rooms).where(eq(rooms.createdBy, userId));
       deletedData.createdRooms = createdRooms.length;
-      
+
       for (const room of createdRooms) {
         if (room.isPrivate) {
           // Delete private rooms entirely
