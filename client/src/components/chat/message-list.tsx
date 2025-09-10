@@ -276,10 +276,10 @@ const MessageList = memo(function MessageList({
               <div 
                 className={cn(
                   "w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white text-xs sm:text-sm md:text-base font-medium flex-shrink-0",
-                  isOwnMessage ? "bg-primary" : getAvatarColor(message.user.displayName, message.user.gender)
+                  isOwnMessage ? "bg-primary" : getAvatarColor(message.user.displayName || 'User', message.user.gender || undefined)
                 )}
               >
-                {getInitials(message.user.displayName)}
+                {getInitials(message.user.displayName || 'User')}
               </div>
             )}
             <div className={cn("flex-1", isOwnMessage && "text-right")}>
@@ -353,14 +353,14 @@ const MessageList = memo(function MessageList({
             <div 
               className={cn(
                 "w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white text-xs sm:text-sm md:text-base font-medium flex-shrink-0",
-                getAvatarColor(typingUser.displayName, typingUser.gender),
+                getAvatarColor(typingUser.displayName || 'User', typingUser.gender || undefined),
                 typingUser.primaryPhoto?.photoUrl ? "hidden" : "flex"
               )}
               style={{ 
                 display: typingUser.primaryPhoto?.photoUrl ? 'none' : 'flex' 
               }}
             >
-              {getInitials(typingUser.displayName)}
+              {getInitials(typingUser.displayName || 'User')}
             </div>
             <div className="flex-1">
               <div className="flex items-baseline space-x-2 mb-0.5">
