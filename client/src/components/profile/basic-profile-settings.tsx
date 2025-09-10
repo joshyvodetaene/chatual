@@ -34,7 +34,7 @@ export default function BasicProfileSettings({ user, isMobile = false }: BasicPr
       age: user.age || 18,
       gender: (user.gender as 'male' | 'female' | 'non-binary' | 'other') || undefined,
       bio: user.bio || '',
-      location: user.location || '',
+      location: user.location || undefined,
       latitude: user.latitude || undefined,
       longitude: user.longitude || undefined,
       genderPreference: (user.genderPreference as 'all' | 'male' | 'female') || 'all',

@@ -22,7 +22,7 @@ const COUNTRY_NAMES = {
 };
 
 /**
- * Validates a city using Google Maps Geocoding API
+ * Validates a city using the backend API
  * @param cityName The city name to validate
  * @returns Promise with validation result
  */
@@ -35,71 +35,34 @@ export async function validateCityWithGoogleMaps(cityName: string): Promise<City
   }
 
   try {
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
-    if (!apiKey) {
-      console.error('Google Maps API key not found');
-      return {
-        isValid: false,
-        error: 'Geocoding service not available'
-      };
-    }
-
-    // Construct the geocoding URL
-    const url = new URL('https://maps.googleapis.com/maps/api/geocode/json');
-    url.searchParams.set('address', cityName.trim());
-    url.searchParams.set('key', apiKey);
-    url.searchParams.set('region', 'eu'); // Bias towards Europe
-    
-    const response = await fetch(url.toString());
+    // Use the backend endpoint for city validation
+    const response = await fetch(`/api/geocode/validate?city=${encodeURIComponent(cityName.trim())}`);
     const data = await response.json();
 
-    if (data.status === 'ZERO_RESULTS') {
+    if (!response.ok) {
       return {
         isValid: false,
-        error: 'City not found'
+        error: data.message || 'Unable to validate city'
       };
     }
 
-    if (data.status !== 'OK') {
-      console.error('Geocoding API error:', data.status, data.error_message);
+    // Map the backend response to our frontend interface
+    if (data.isValid) {
+      return {
+        isValid: true,
+        formattedAddress: data.suggestion || data.formattedAddress,
+        city: data.suggestion || cityName,
+        country: data.country,
+        countryCode: data.countryCode,
+        latitude: data.latitude,
+        longitude: data.longitude
+      };
+    } else {
       return {
         isValid: false,
-        error: 'Unable to validate city at this time'
+        error: data.message || 'City not found'
       };
     }
-
-    // Check if any result is in our allowed countries
-    for (const result of data.results) {
-      const countryComponent = result.address_components?.find(
-        (component: any) => component.types.includes('country')
-      );
-
-      if (countryComponent && ALLOWED_COUNTRIES.includes(countryComponent.short_name)) {
-        // Extract city name
-        const cityComponent = result.address_components?.find(
-          (component: any) => 
-            component.types.includes('locality') || 
-            component.types.includes('administrative_area_level_2') ||
-            component.types.includes('sublocality')
-        );
-
-        return {
-          isValid: true,
-          formattedAddress: result.formatted_address,
-          city: cityComponent?.long_name || cityName,
-          country: COUNTRY_NAMES[countryComponent.short_name as keyof typeof COUNTRY_NAMES],
-          countryCode: countryComponent.short_name,
-          latitude: result.geometry?.location?.lat,
-          longitude: result.geometry?.location?.lng
-        };
-      }
-    }
-
-    // No results in allowed countries
-    return {
-      isValid: false,
-      error: 'City must be in Germany, Switzerland, or Austria'
-    };
 
   } catch (error) {
     console.error('Error validating city:', error);
