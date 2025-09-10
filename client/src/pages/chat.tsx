@@ -1074,7 +1074,12 @@ export default function ChatPage() {
       />
 
       {/* Notification Toasts */}
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+      <div className={cn(
+        "fixed z-50 flex flex-col gap-2",
+        isMobile
+          ? "top-4 left-4 right-4" // Mobile: full width at top to avoid chat input conflicts
+          : "bottom-4 right-4"     // Desktop: bottom-right as before
+      )}>
         {toasts.map((toast) => (
           <NotificationToast
             key={toast.id}
