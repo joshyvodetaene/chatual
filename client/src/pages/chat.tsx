@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { User, Room, RoomWithMembers, MessageWithUser, PrivateRoom, PrivateChatData, BlockedUserWithDetails } from '@shared/schema';
-import { useWebSocket } from '@/hooks/use-websocket';
+import { useWebSocketContext } from '@/contexts/websocket-context';
 import { usePaginatedMessages } from '@/hooks/use-paginated-messages';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useAccessibility } from '@/hooks/use-accessibility';
@@ -72,7 +72,7 @@ export default function ChatPage() {
     setMessages,
     reconnect,
     clearFailedMessages
-  } = useWebSocket(currentUser?.id);
+  } = useWebSocketContext();
 
   const { data: roomsData } = useQuery<{ rooms: Room[] }>({
     queryKey: ['/api/rooms'],
@@ -560,7 +560,7 @@ export default function ChatPage() {
       });
     }
 
-    sendMessage(content, photoUrl, photoFileName, mentionedUserIds);
+    sendMessage(content, 'photo', photoUrl);
   };
 
   const handleStartPrivateChat = async (userId: string) => {
