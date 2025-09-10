@@ -1644,7 +1644,7 @@ export class DatabaseStorage implements IStorage {
 
   async getFriendRequests(userId: string): Promise<FriendRequestWithUser[]> {
     return await this.retryDatabaseOperation(async () => {
-      return await db
+      const requests = await db
         .select({
           id: friendRequests.id,
           senderId: friendRequests.senderId,
@@ -1652,16 +1652,29 @@ export class DatabaseStorage implements IStorage {
           status: friendRequests.status,
           createdAt: friendRequests.createdAt,
           respondedAt: friendRequests.respondedAt,
-          sender: users,
-          receiver: users
         })
         .from(friendRequests)
-        .innerJoin(users, eq(users.id, friendRequests.senderId))
         .where(and(
           eq(friendRequests.receiverId, userId),
           eq(friendRequests.status, 'pending')
         ))
-        .orderBy(desc(friendRequests.createdAt)) as any;
+        .orderBy(desc(friendRequests.createdAt));
+
+      // Fetch sender and receiver details separately
+      const requestsWithUsers = await Promise.all(
+        requests.map(async (request) => {
+          const [sender] = await db.select().from(users).where(eq(users.id, request.senderId));
+          const [receiver] = await db.select().from(users).where(eq(users.id, request.receiverId));
+          
+          return {
+            ...request,
+            sender: sender,
+            receiver: receiver
+          };
+        })
+      );
+
+      return requestsWithUsers as any;
     });
   }
 
