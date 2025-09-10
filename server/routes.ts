@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { insertUserSchema, insertRoomSchema, insertMessageSchema, registerUserSchema, loginSchema, insertUserPhotoSchema, updateUserProfileSchema, insertBlockedUserSchema, insertReportSchema, reportSchema, updateReportStatusSchema, warnUserSchema, banUserSchema, updateNotificationSettingsSchema, insertFriendRequestSchema, friendRequestActionSchema, updatePrivacySettingsSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { NotificationService } from "./notification-service";
+import { validateCityWithGoogle } from "./lib/geocoding";
 
 interface WebSocketClient extends WebSocket {
   userId?: string;
@@ -824,6 +825,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(chatData);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch chat data' });
+    }
+  });
+
+  // Geocode validation endpoint
+  app.get('/api/geocode/validate', async (req, res) => {
+    try {
+      const { city } = req.query;
+      
+      if (!city || typeof city !== 'string') {
+        return res.status(400).json({ 
+          isValid: false, 
+          message: 'City parameter is required' 
+        });
+      }
+
+      const result = await validateCityWithGoogle(city, ['DE', 'CH', 'AT']);
+      res.json(result);
+    } catch (error) {
+      console.error('Geocode validation error:', error);
+      res.status(500).json({ 
+        isValid: false, 
+        message: 'Internal server error during city validation' 
+      });
+    }
+  });
+
+  // City validation endpoint for the new autocomplete component
+  app.post('/api/cities/validate', async (req, res) => {
+    try {
+      const { cityName, allowedCountries } = req.body;
+      
+      if (!cityName || typeof cityName !== 'string') {
+        return res.status(400).json({ 
+          isValid: false, 
+          message: 'City name is required' 
+        });
+      }
+
+      const allowedCountryCodes = allowedCountries || ['DE', 'CH', 'AT'];
+      const result = await validateCityWithGoogle(cityName, allowedCountryCodes);
+      res.json(result);
+    } catch (error) {
+      console.error('City validation error:', error);
+      res.status(500).json({ 
+        isValid: false, 
+        message: 'Internal server error during city validation' 
+      });
     }
   });
 

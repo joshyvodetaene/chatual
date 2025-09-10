@@ -341,11 +341,11 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
                   </FormLabel>
                   <FormControl>
                     <div className="space-y-3">
-                      <Textarea
-                        placeholder="Enter your location"
-                        {...field}
+                      <CityAutocomplete
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Enter your city (Germany, Switzerland, Austria)"
                         data-testid="input-location"
-                        rows={2}
                       />
                       
                       {/* Location detection section */}
