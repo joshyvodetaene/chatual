@@ -92,7 +92,7 @@ export default function MessageInput({
     }
   };
 
-  
+
 
   // Handle emoji selection
   const handleEmojiSelect = (emoji: string) => {

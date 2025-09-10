@@ -560,7 +560,7 @@ export default function ChatPage() {
       });
     }
 
-    sendMessage(content, 'photo', photoUrl);
+    sendMessage(content, photoUrl, photoFileName, mentionedUserIds);
   };
 
   const handleStartPrivateChat = async (userId: string) => {

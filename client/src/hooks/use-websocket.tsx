@@ -462,14 +462,15 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
   }, [processQueue]);
 
   const sendMessage = useCallback((content: string, photoUrl?: string, photoFileName?: string, mentionedUserIds?: string[]) => {
-    const messageType = photoUrl ? 'photo' : 'text';
+    // Only treat as photo if we have a valid photo URL (not just 'photo' string)
+    const messageType = (photoUrl && photoUrl !== 'photo' && photoUrl.length > 5) ? 'photo' : 'text';
 
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       try {
         console.log('Sending WebSocket message:', {
           type: 'message',
           content: content?.substring(0, 20),
-          photoUrl: photoUrl?.substring(photoUrl?.length - 30),
+          photoUrl: messageType === 'photo' ? photoUrl?.substring(photoUrl?.length - 30) : undefined,
           photoFileName,
           messageType
         });
@@ -477,8 +478,8 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
         ws.current.send(JSON.stringify({
           type: 'message',
           content,
-          photoUrl,
-          photoFileName,
+          photoUrl: messageType === 'photo' ? photoUrl : undefined,
+          photoFileName: messageType === 'photo' ? photoFileName : undefined,
           messageType,
           mentionedUserIds: mentionedUserIds || [],
         }));
