@@ -7,12 +7,15 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CityAutocomplete } from '@/components/ui/city-autocomplete';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { updateUserProfileSchema } from '@shared/schema';
 import type { User, UpdateUserProfile } from '@shared/schema';
 import { Loader2, User as UserIcon, Edit3, Heart, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { validateCityWithGoogleMaps, type CityValidationResult } from '@/lib/geocoding-maps';
+import { useState } from 'react';
 
 interface BasicProfileSettingsProps {
   user: User;
@@ -22,6 +25,7 @@ interface BasicProfileSettingsProps {
 export default function BasicProfileSettings({ user, isMobile = false }: BasicProfileSettingsProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [cityValidationResult, setCityValidationResult] = useState<CityValidationResult | null>(null);
 
   const form = useForm<UpdateUserProfile>({
     resolver: zodResolver(updateUserProfileSchema),
@@ -41,7 +45,14 @@ export default function BasicProfileSettings({ user, isMobile = false }: BasicPr
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: UpdateUserProfile) => {
-      return await apiRequest('PUT', `/api/users/${user.id}/profile`, data);
+      // Use coordinates from city validation if available
+      if (cityValidationResult?.isValid && cityValidationResult.latitude && cityValidationResult.longitude) {
+        data.latitude = cityValidationResult.latitude.toString();
+        data.longitude = cityValidationResult.longitude.toString();
+      }
+      
+      const response = await apiRequest('PUT', `/api/users/${user.id}/profile`, data);
+      return await response.json();
     },
     onSuccess: () => {
       toast({
@@ -176,11 +187,13 @@ export default function BasicProfileSettings({ user, isMobile = false }: BasicPr
                   name="location"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Location</FormLabel>
+                      <FormLabel>City</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="City, Country" 
-                          {...field}
+                        <CityAutocomplete
+                          value={field.value || ''}
+                          onValueChange={field.onChange}
+                          onValidationChange={setCityValidationResult}
+                          placeholder="Enter your city (Germany, Switzerland, Austria)"
                           data-testid="input-location"
                         />
                       </FormControl>

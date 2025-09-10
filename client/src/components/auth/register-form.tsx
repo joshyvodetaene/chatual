@@ -7,6 +7,8 @@ import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useGeolocation } from '@/hooks/use-geolocation';
 import { geocodeLocation, isValidCoordinates } from '@/lib/geocoding';
+import { CityAutocomplete } from '@/components/ui/city-autocomplete';
+import { validateCityWithGoogleMaps, type CityValidationResult } from '@/lib/geocoding-maps';
 import {
   Card,
   CardContent,
@@ -44,6 +46,7 @@ interface RegisterFormProps {
 export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) {
   const [usernameToCheck, setUsernameToCheck] = useState('');
   const [isGeocodingLocation, setIsGeocodingLocation] = useState(false);
+  const [cityValidationResult, setCityValidationResult] = useState<CityValidationResult | null>(null);
   const { toast } = useToast();
   const { isMobile } = useResponsive();
   
@@ -122,41 +125,46 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
     // Set displayName to username since we removed the field
     data.displayName = data.username;
     
-    // Check if we need to geocode the location
-    const hasCoordinates = isValidCoordinates(data.latitude || '', data.longitude || '');
-    const hasLocation = data.location && data.location.trim().length > 0;
-    
-    if (!hasCoordinates && hasLocation) {
-      setIsGeocodingLocation(true);
+    // Use coordinates from city validation if available
+    if (cityValidationResult?.isValid && cityValidationResult.latitude && cityValidationResult.longitude) {
+      data.latitude = cityValidationResult.latitude.toString();
+      data.longitude = cityValidationResult.longitude.toString();
+    } else {
+      // Fallback to existing geocoding logic
+      const hasCoordinates = isValidCoordinates(data.latitude || '', data.longitude || '');
+      const hasLocation = data.location && data.location.trim().length > 0;
       
-      try {
-        const geocodeResult = await geocodeLocation(data.location);
+      if (!hasCoordinates && hasLocation) {
+        setIsGeocodingLocation(true);
         
-        if (geocodeResult) {
-          // Update form with geocoded coordinates
-          data.latitude = geocodeResult.latitude.toString();
-          data.longitude = geocodeResult.longitude.toString();
+        try {
+          const geocodeResult = await geocodeLocation(data.location);
           
+          if (geocodeResult) {
+            data.latitude = geocodeResult.latitude.toString();
+            data.longitude = geocodeResult.longitude.toString();
+            
+            toast({
+              title: 'Location found',
+              description: `Found coordinates for: ${geocodeResult.display_name}`,
+            });
+          } else {
+            toast({
+              title: 'Location not found',
+              description: 'Could not find coordinates for the specified location. Registration will continue without precise coordinates.',
+              variant: 'destructive',
+            });
+          }
+        } catch (error) {
+          console.error('Geocoding failed:', error);
           toast({
-            title: 'Location found',
-            description: `Found coordinates for: ${geocodeResult.display_name}`,
-          });
-        } else {
-          toast({
-            title: 'Location not found',
-            description: 'Could not find coordinates for the specified location. Registration will continue without precise coordinates.',
+            title: 'Location lookup failed',
+            description: 'Could not look up location coordinates. Registration will continue without precise coordinates.',
             variant: 'destructive',
           });
+        } finally {
+          setIsGeocodingLocation(false);
         }
-      } catch (error) {
-        console.error('Geocoding failed:', error);
-        toast({
-          title: 'Location lookup failed',
-          description: 'Could not look up location coordinates. Registration will continue without precise coordinates.',
-          variant: 'destructive',
-        });
-      } finally {
-        setIsGeocodingLocation(false);
       }
     }
     
@@ -337,13 +345,14 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
                 <FormItem>
                   <FormLabel className="flex items-center gap-2">
                     <MapPin className="w-4 h-4" />
-                    Location
+                    City
                   </FormLabel>
                   <FormControl>
                     <div className="space-y-3">
                       <CityAutocomplete
-                        value={field.value}
-                        onChange={field.onChange}
+                        value={field.value || ''}
+                        onValueChange={field.onChange}
+                        onValidationChange={setCityValidationResult}
                         placeholder="Enter your city (Germany, Switzerland, Austria)"
                         data-testid="input-location"
                       />
