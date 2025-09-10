@@ -14,7 +14,7 @@ interface WebSocketContextType {
   failedCount: number;
   isProcessingQueue: boolean;
   joinRoom: (roomId: string, clearMessages?: boolean) => void;
-  sendMessage: (content: string, messageType?: string, photoUrl?: string) => void;
+  sendMessage: (content: string, photoUrl?: string, photoFileName?: string, mentionedUserIds?: string[]) => void;
   sendTyping: (isTyping: boolean) => void;
   setMessages: React.Dispatch<React.SetStateAction<MessageWithUser[]>>;
   reconnect: () => void;
