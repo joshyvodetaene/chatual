@@ -380,10 +380,10 @@ export class DatabaseStorage implements IStorage {
           isOnline: users.isOnline,
           isBanned: users.isBanned,
           isBlocked: users.isBlocked,
-          photoId: userPhotos.id,
-          photoUrl: userPhotos.photoUrl,
-          photoFileName: userPhotos.fileName,
-          photoIsPrimary: userPhotos.isPrimary,
+          photoId: sql<string | null>`${userPhotos.id}`,
+          photoUrl: sql<string | null>`${userPhotos.photoUrl}`,
+          photoFileName: sql<string | null>`${userPhotos.fileName}`,
+          photoIsPrimary: sql<boolean | null>`${userPhotos.isPrimary}`,
         })
         .from(users)
         .leftJoin(userPhotos, and(
