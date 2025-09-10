@@ -555,6 +555,14 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     }
   }, [enqueueMessage, userId]);
 
+  // Manual reconnect function - defined before usage
+  const reconnect = useCallback(() => {
+    console.log('[WS_HOOK] Manual reconnection triggered');
+    retryCountRef.current = 0;
+    isReconnectingRef.current = true;
+    connect();
+  }, [connect]);
+
   // Connection health check
   const healthCheck = useCallback(() => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
@@ -582,14 +590,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
       return () => clearInterval(healthCheckInterval);
     }
   }, [connectionStatus, healthCheck, reconnect]);
-
-  // Manual reconnect function
-  const reconnect = useCallback(() => {
-    console.log('[WS_HOOK] Manual reconnection triggered');
-    retryCountRef.current = 0;
-    isReconnectingRef.current = true;
-    connect();
-  }, [connect]);
 
   return {
     isConnected: connectionStatus === 'connected',
