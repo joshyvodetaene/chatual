@@ -3,6 +3,8 @@
  * Validates cities in Germany, Switzerland, and Austria
  */
 
+import { searchCities } from './city-data-service';
+
 export interface CityValidationResult {
   isValid: boolean;
   formattedAddress?: string;
@@ -74,32 +76,31 @@ export async function validateCityWithGoogleMaps(cityName: string): Promise<City
 }
 
 /**
- * Get city suggestions for autocomplete
- * This is a simple implementation that could be enhanced with a proper autocomplete service
+ * Get city suggestions for autocomplete using comprehensive city data
+ * Searches through cities in Germany, Austria, and Switzerland
  */
 export async function getCitySuggestions(query: string): Promise<string[]> {
   if (!query || query.trim().length < 2) {
     return [];
   }
 
-  // For now, return common cities that start with the query
-  // In a real implementation, you might use Google Places Autocomplete API
-  const commonCities = [
-    // Germany
-    'Berlin', 'Munich', 'Hamburg', 'Cologne', 'Frankfurt', 'Stuttgart', 'Düsseldorf', 'Leipzig', 'Dortmund', 'Essen',
-    'Bremen', 'Dresden', 'Hanover', 'Nuremberg', 'Duisburg', 'Bochum', 'Wuppertal', 'Bielefeld', 'Bonn', 'Münster',
+  try {
+    // Use the local city data service to search for cities
+    const citySuggestions = await searchCities(query.trim(), 10);
     
-    // Switzerland  
-    'Zurich', 'Geneva', 'Basel', 'Lausanne', 'Bern', 'Winterthur', 'Lucerne', 'St. Gallen', 'Lugano', 'Biel',
-    'Thun', 'Köniz', 'La Chaux-de-Fonds', 'Schaffhausen', 'Fribourg', 'Vernier', 'Chur', 'Neuchâtel', 'Uster',
+    // Return just the city names for the autocomplete
+    return citySuggestions.map(city => city.name);
+  } catch (error) {
+    console.error('Error getting city suggestions:', error);
     
-    // Austria
-    'Vienna', 'Graz', 'Linz', 'Salzburg', 'Innsbruck', 'Klagenfurt', 'Villach', 'Wels', 'Sankt Pölten', 'Dornbirn',
-    'Steyr', 'Wiener Neustadt', 'Feldkirch', 'Bregenz', 'Leonding', 'Klosterneuburg', 'Baden', 'Wolfsberg', 'Leoben'
-  ];
-
-  const normalizedQuery = query.toLowerCase().trim();
-  return commonCities
-    .filter(city => city.toLowerCase().startsWith(normalizedQuery))
-    .slice(0, 10); // Limit to 10 suggestions
+    // Fallback to a small set of popular cities if the service fails
+    const fallbackCities = [
+      'Berlin', 'Munich', 'Hamburg', 'Vienna', 'Zurich', 'Geneva', 'Basel', 'Salzburg', 'Graz', 'Innsbruck'
+    ];
+    
+    const normalizedQuery = query.toLowerCase().trim();
+    return fallbackCities
+      .filter(city => city.toLowerCase().includes(normalizedQuery))
+      .slice(0, 5);
+  }
 }
