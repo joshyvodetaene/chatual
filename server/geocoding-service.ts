@@ -11,6 +11,10 @@ export class GeocodingService {
   // Using OpenCage Geocoding API (free tier: 2500 requests/day)
   private static readonly API_KEY = process.env.OPENCAGE_API_KEY || 'demo-key';
   private static readonly BASE_URL = 'https://api.opencagedata.com/geocode/v1/json';
+  
+  // Google Maps API for distance calculations
+  private static readonly GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || '';
+  private static readonly DISTANCE_MATRIX_URL = 'https://maps.googleapis.com/maps/api/distancematrix/json';
 
   static async geocodeLocation(location: string): Promise<GeocodingResult> {
     try {
@@ -1195,14 +1199,211 @@ export class GeocodingService {
     return deg * (Math.PI / 180);
   }
 
-  // Format distance for display
-  static formatDistance(distanceKm: number): string {
-    if (distanceKm < 1) {
-      return 'Less than 1 km';
-    } else if (distanceKm < 1000) {
-      return `${distanceKm} km away`;
-    } else {
-      return `${Math.round(distanceKm / 1000)} thousand km away`;
+  // Get real distance using Google Maps Distance Matrix API
+  static async getRealDistance(
+    originLat: number, 
+    originLng: number, 
+    destLat: number, 
+    destLng: number
+  ): Promise<{ distance: number; duration: number; mode: string } | null> {
+    try {
+      if (!this.GOOGLE_MAPS_API_KEY || this.GOOGLE_MAPS_API_KEY === '') {
+        console.warn('[GEOCODING] Google Maps API key not configured, falling back to Haversine calculation');
+        return {
+          distance: this.calculateDistance(originLat, originLng, destLat, destLng),
+          duration: 0,
+          mode: 'straight_line'
+        };
+      }
+
+      const origins = `${originLat},${originLng}`;
+      const destinations = `${destLat},${destLng}`;
+      
+      const url = new URL(this.DISTANCE_MATRIX_URL);
+      url.searchParams.set('origins', origins);
+      url.searchParams.set('destinations', destinations);
+      url.searchParams.set('units', 'metric');
+      url.searchParams.set('mode', 'driving'); // Can be 'driving', 'walking', 'bicycling', 'transit'
+      url.searchParams.set('avoid', 'tolls'); // Avoid tolls for more practical routes
+      url.searchParams.set('key', this.GOOGLE_MAPS_API_KEY);
+
+      console.log(`[GEOCODING] Requesting distance from Google Maps API: ${origins} -> ${destinations}`);
+      
+      const response = await fetch(url.toString());
+      const data = await response.json();
+
+      if (data.status !== 'OK') {
+        console.error(`[GEOCODING] Google Maps API error: ${data.status} - ${data.error_message || 'Unknown error'}`);
+        return {
+          distance: this.calculateDistance(originLat, originLng, destLat, destLng),
+          duration: 0,
+          mode: 'straight_line'
+        };
+      }
+
+      const element = data.rows[0]?.elements[0];
+      if (!element || element.status !== 'OK') {
+        console.warn(`[GEOCODING] Distance calculation failed: ${element?.status || 'No data'}`);
+        return {
+          distance: this.calculateDistance(originLat, originLng, destLat, destLng),
+          duration: 0,
+          mode: 'straight_line'
+        };
+      }
+
+      const distanceKm = Math.round(element.distance.value / 1000); // Convert meters to km
+      const durationMinutes = Math.round(element.duration.value / 60); // Convert seconds to minutes
+
+      console.log(`[GEOCODING] Real distance calculated: ${distanceKm}km, ${durationMinutes} minutes driving`);
+
+      return {
+        distance: distanceKm,
+        duration: durationMinutes,
+        mode: 'driving'
+      };
+
+    } catch (error) {
+      console.error('[GEOCODING] Error getting real distance:', error);
+      return {
+        distance: this.calculateDistance(originLat, originLng, destLat, destLng),
+        duration: 0,
+        mode: 'straight_line'
+      };
     }
+  }
+
+  // Batch distance calculation for multiple destinations
+  static async getBatchDistances(
+    originLat: number,
+    originLng: number,
+    destinations: Array<{ lat: number; lng: number; userId: string }>
+  ): Promise<Map<string, { distance: number; duration: number; mode: string }>> {
+    const results = new Map();
+
+    try {
+      if (!this.GOOGLE_MAPS_API_KEY || this.GOOGLE_MAPS_API_KEY === '' || destinations.length === 0) {
+        // Fallback to Haversine calculation for all destinations
+        for (const dest of destinations) {
+          results.set(dest.userId, {
+            distance: this.calculateDistance(originLat, originLng, dest.lat, dest.lng),
+            duration: 0,
+            mode: 'straight_line'
+          });
+        }
+        return results;
+      }
+
+      // Google Maps allows up to 25 destinations per request
+      const chunks = [];
+      for (let i = 0; i < destinations.length; i += 25) {
+        chunks.push(destinations.slice(i, i + 25));
+      }
+
+      const origins = `${originLat},${originLng}`;
+
+      for (const chunk of chunks) {
+        const destinationCoords = chunk.map(d => `${d.lat},${d.lng}`).join('|');
+        
+        const url = new URL(this.DISTANCE_MATRIX_URL);
+        url.searchParams.set('origins', origins);
+        url.searchParams.set('destinations', destinationCoords);
+        url.searchParams.set('units', 'metric');
+        url.searchParams.set('mode', 'driving');
+        url.searchParams.set('avoid', 'tolls');
+        url.searchParams.set('key', this.GOOGLE_MAPS_API_KEY);
+
+        console.log(`[GEOCODING] Batch distance request for ${chunk.length} destinations`);
+
+        const response = await fetch(url.toString());
+        const data = await response.json();
+
+        if (data.status !== 'OK') {
+          console.error(`[GEOCODING] Batch distance API error: ${data.status}`);
+          // Fallback to Haversine for this chunk
+          for (const dest of chunk) {
+            results.set(dest.userId, {
+              distance: this.calculateDistance(originLat, originLng, dest.lat, dest.lng),
+              duration: 0,
+              mode: 'straight_line'
+            });
+          }
+          continue;
+        }
+
+        // Process results
+        const elements = data.rows[0]?.elements || [];
+        for (let i = 0; i < chunk.length; i++) {
+          const element = elements[i];
+          const dest = chunk[i];
+
+          if (element && element.status === 'OK') {
+            const distanceKm = Math.round(element.distance.value / 1000);
+            const durationMinutes = Math.round(element.duration.value / 60);
+            
+            results.set(dest.userId, {
+              distance: distanceKm,
+              duration: durationMinutes,
+              mode: 'driving'
+            });
+          } else {
+            // Fallback to Haversine for this specific destination
+            results.set(dest.userId, {
+              distance: this.calculateDistance(originLat, originLng, dest.lat, dest.lng),
+              duration: 0,
+              mode: 'straight_line'
+            });
+          }
+        }
+
+        // Add small delay between requests to respect rate limits
+        if (chunks.length > 1) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
+    } catch (error) {
+      console.error('[GEOCODING] Error in batch distance calculation:', error);
+      // Fallback to Haversine for all destinations
+      for (const dest of destinations) {
+        if (!results.has(dest.userId)) {
+          results.set(dest.userId, {
+            distance: this.calculateDistance(originLat, originLng, dest.lat, dest.lng),
+            duration: 0,
+            mode: 'straight_line'
+          });
+        }
+      }
+    }
+
+    return results;
+  }
+
+  // Format distance for display
+  static formatDistance(distanceKm: number, duration?: number, mode?: string): string {
+    let distanceText = '';
+    
+    if (distanceKm < 1) {
+      distanceText = 'Less than 1 km';
+    } else if (distanceKm < 1000) {
+      distanceText = `${distanceKm} km`;
+    } else {
+      distanceText = `${Math.round(distanceKm / 1000)} thousand km`;
+    }
+
+    if (duration && duration > 0 && mode === 'driving') {
+      const hours = Math.floor(duration / 60);
+      const minutes = duration % 60;
+      
+      let timeText = '';
+      if (hours > 0) {
+        timeText = `${hours}h ${minutes}m`;
+      } else {
+        timeText = `${minutes}m`;
+      }
+      
+      return `${distanceText} (${timeText} drive)`;
+    }
+
+    return `${distanceText} away`;
   }
 }

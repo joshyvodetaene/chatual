@@ -365,8 +365,8 @@ export class DatabaseStorage implements IStorage {
 
       console.log(`[API] Current user coordinates: lat=${currentLat}, lng=${currentLng}, location="${currentUser.location}"`);
 
-      // Get all users with their photos and calculate distances
-      const allUsersQuery = db
+      // Get all users with their photos
+      const allUsers = await db
         .select({
           id: users.id,
           username: users.username,
@@ -396,30 +396,67 @@ export class DatabaseStorage implements IStorage {
           eq(users.isBlocked, false)
         ));
 
-      const allUsers = await allUsersQuery;
       console.log(`[API] Found ${allUsers.length} users to process`);
 
-      // Calculate distances and transform to UserWithDistance
+      // Prepare destinations for batch distance calculation
+      const destinations = allUsers
+        .map(user => {
+          const userLat = parseFloat(user.latitude || '0');
+          const userLng = parseFloat(user.longitude || '0');
+          
+          // Only include users with valid coordinates
+          if (
+            userLat !== 0 && userLng !== 0 &&
+            !isNaN(userLat) && !isNaN(userLng) &&
+            Math.abs(userLat) <= 90 && Math.abs(userLng) <= 180
+          ) {
+            return {
+              lat: userLat,
+              lng: userLng,
+              userId: user.id
+            };
+          }
+          return null;
+        })
+        .filter((dest): dest is { lat: number; lng: number; userId: string } => dest !== null);
+
+      console.log(`[API] Calculating distances for ${destinations.length} users with valid coordinates`);
+
+      // Get distances using Google Maps API (batch calculation)
+      let distanceResults = new Map();
+      if (
+        currentLat !== 0 && currentLng !== 0 &&
+        !isNaN(currentLat) && !isNaN(currentLng) &&
+        Math.abs(currentLat) <= 90 && Math.abs(currentLng) <= 180 &&
+        destinations.length > 0
+      ) {
+        try {
+          const { GeocodingService } = await import('./geocoding-service');
+          distanceResults = await GeocodingService.getBatchDistances(
+            currentLat,
+            currentLng,
+            destinations
+          );
+          console.log(`[API] Got distance results for ${distanceResults.size} users`);
+        } catch (error) {
+          console.error('[API] Error calculating batch distances:', error);
+          // Fallback to Haversine calculation
+          for (const dest of destinations) {
+            distanceResults.set(dest.userId, {
+              distance: this.calculateDistance(currentLat, currentLng, dest.lat, dest.lng),
+              duration: 0,
+              mode: 'straight_line'
+            });
+          }
+        }
+      }
+
+      // Transform to UserWithDistance
       const usersWithDistance: UserWithDistance[] = allUsers.map(user => {
-        const userLat = parseFloat(user.latitude || '0');
-        const userLng = parseFloat(user.longitude || '0');
-
-        let distance: number | undefined;
-
-        // Only calculate distance if both users have valid coordinates (not 0,0)
-        if (
-          currentLat !== 0 && currentLng !== 0 && 
-          userLat !== 0 && userLng !== 0 &&
-          !isNaN(currentLat) && !isNaN(currentLng) &&
-          !isNaN(userLat) && !isNaN(userLng) &&
-          // Additional validation for reasonable coordinate ranges
-          Math.abs(currentLat) <= 90 && Math.abs(currentLng) <= 180 &&
-          Math.abs(userLat) <= 90 && Math.abs(userLng) <= 180
-        ) {
-          distance = this.calculateDistance(currentLat, currentLng, userLat, userLng);
-          console.log(`[API] Distance calculated for ${user.username}: ${distance}km (from ${currentUser.location} to ${user.location})`);
-        } else {
-          console.log(`[API] No distance calculated for ${user.username}: invalid coordinates (current: ${currentLat},${currentLng}, user: ${userLat},${userLng})`);
+        const distanceData = distanceResults.get(user.id);
+        
+        if (distanceData) {
+          console.log(`[API] Distance for ${user.username}: ${distanceData.distance}km, ${distanceData.duration}min, mode: ${distanceData.mode}`);
         }
 
         return {
@@ -443,7 +480,9 @@ export class DatabaseStorage implements IStorage {
             isPrimary: user.photoIsPrimary || false,
             uploadedAt: new Date(),
           } : null,
-          distance,
+          distance: distanceData?.distance,
+          duration: distanceData?.duration,
+          distanceMode: distanceData?.mode,
         };
       });
 

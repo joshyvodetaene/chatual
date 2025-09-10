@@ -11,6 +11,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { useResponsive } from '@/hooks/use-responsive';
+import UserDistance from "@/components/chat/user-distance";
 
 export default function UserProfilePage() {
   const [, params] = useRoute('/profile/:userId');
@@ -63,7 +64,7 @@ export default function UserProfilePage() {
         user2Id: profileData.user.id,
       });
       await response.json(); // Parse the response
-      
+
       // Navigate back to chat
       window.location.href = '/';
     } catch (error) {
@@ -119,6 +120,7 @@ export default function UserProfilePage() {
   const photos = profileData.photos || [];
   const primaryPhoto = profileData.primaryPhoto;
   const isOwnProfile = user.id === currentUserData?.user.id;
+  const currentUser = currentUserData?.user;
 
   const getInitials = (name: string) => {
     return name
@@ -137,7 +139,7 @@ export default function UserProfilePage() {
     if (gender === 'male') {
       return 'bg-gradient-to-br from-blue-400 to-blue-600';
     }
-    
+
     // Fallback to name-based colors for users without gender info
     const colors = [
       'bg-gradient-to-br from-green-400 to-green-600',
@@ -156,11 +158,11 @@ export default function UserProfilePage() {
     const birthDate = new Date(dateOfBirth);
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
-    
+
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
-    
+
     return age;
   };
 
@@ -240,21 +242,27 @@ export default function UserProfilePage() {
                   "text-gray-300 mb-1",
                   isMobile ? "text-sm" : ""
                 )}>@{user.username}</p>
-                
+
                 <div className={cn(
                   "flex items-center text-gray-400",
                   isMobile ? "flex-col space-y-2 text-xs" : "space-x-4 text-sm",
                   isMobile && "items-center"
                 )}>
                   {user.location && (
-                    <div className="flex items-center space-x-1">
-                      <MapPin className={cn(
-                        isMobile ? "w-3 h-3" : "w-4 h-4"
-                      )} />
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <MapPin className="w-4 h-4" />
                       <span>{user.location}</span>
                     </div>
                   )}
-                  
+
+                  {currentUser && currentUser.id !== user.id && (
+                    <UserDistance 
+                      currentUserId={currentUser.id} 
+                      targetUserId={user.id}
+                      className="text-muted-foreground font-medium"
+                    />
+                  )}
+
                   {user.age && (
                     <div className="flex items-center space-x-1">
                       <Calendar className={cn(
@@ -263,7 +271,7 @@ export default function UserProfilePage() {
                       <span>{user.age} years old</span>
                     </div>
                   )}
-                  
+
                   <div className={cn(
                     "px-2 py-1 rounded-full",
                     isMobile ? "text-xs" : "text-xs",
@@ -292,7 +300,7 @@ export default function UserProfilePage() {
                     <MessageCircle className="w-4 h-4 mr-2" />
                     Send Message
                   </Button>
-                  
+
                   <Button 
                     variant="outline" 
                     onClick={handleBlockUser}
@@ -356,7 +364,7 @@ export default function UserProfilePage() {
                 )} />
                 Photos ({photos.length})
               </h2>
-              
+
               <div className={cn(
                 "grid gap-4",
                 isMobile ? "grid-cols-2" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4"

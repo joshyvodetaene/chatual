@@ -371,9 +371,11 @@ export type MessageWithUser = Message & {
   isTemporary?: boolean;
 };
 
-export type UserWithDistance = User & {
+export interface UserWithDistance extends User {
   distance?: number;
-};
+  duration?: number; // Travel time in minutes
+  distanceMode?: string; // 'driving', 'walking', 'straight_line', etc.
+}
 
 export type UserWithPhotos = User & {
   photos: UserPhoto[];

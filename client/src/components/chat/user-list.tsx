@@ -37,7 +37,7 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
     if (gender === 'male') {
       return 'bg-gradient-to-br from-blue-400 to-blue-600';
     }
-    
+
     // Fallback to name-based colors for users without gender info
     const colors = [
       'bg-gradient-to-br from-green-400 to-green-600',
@@ -58,18 +58,18 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
     }
     return acc;
   }, [] as User[]);
-  
+
   const filteredMembers = uniqueMembers;
   const onlineMembers = filteredMembers.filter((member: User) => onlineUsers.has(member.id));
   const offlineMembers = filteredMembers.filter((member: User) => !onlineUsers.has(member.id));
-  
+
   // Filter online members based on search term
   const filteredOnlineMembers = onlineMembers.filter((member: User) =>
     searchTerm === '' ||
     member.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     member.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  
+
 
   return (
     <div className="bg-black border-l border-gray-800 flex flex-col h-full w-full sm:w-52 md:w-56 lg:w-64" data-testid="user-list">
@@ -79,7 +79,7 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
           {onlineMembers.length} online • {filteredMembers.length} visible
         </p>
       </div>
-      
+
       <div className="flex-1 overflow-y-auto overflow-x-visible min-h-0 hide-scrollbar">
         {/* Online Members */}
         {onlineMembers.length > 0 && (
@@ -100,7 +100,7 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                 </div>
               )}
             </div>
-            
+
             <div className="space-y-1 sm:space-y-2 md:space-y-3">
               {filteredOnlineMembers.map((member) => (
                 <div
@@ -191,7 +191,7 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
             <h4 className="text-xs sm:text-sm md:text-base font-medium text-gray-300 uppercase tracking-wider mb-2 sm:mb-3 md:mb-4">
               Offline — {offlineMembers.length}
             </h4>
-            
+
             <div className="space-y-1 sm:space-y-2 md:space-y-3">
               {offlineMembers.map((member) => (
                 <div
