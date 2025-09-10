@@ -36,11 +36,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     perMessageDeflate: false,
     maxPayload: 16 * 1024,
   });
-  const clients = new Map<string, WebSocketClient>();
+  const clients = new Map<string, Set<WebSocketClient>>();
   const roomUsers = new Map<string, Set<string>>(); // Track online users per room
 
-  // Initialize notification service
-  const notificationService = new NotificationService(clients);
+  // Initialize notification service - will be updated to handle multiple connections
+  const notificationService = new NotificationService(new Map<string, any>());
 
   console.log('WebSocket server initialized on path /ws');
 
@@ -84,31 +84,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     let cleanedRoomEntries = 0;
 
     // Clean up stale clients
-    for (const [userId, client] of clients.entries()) {
-      if (!isConnectionAlive(client)) {
-        console.log(`[WS_CLEANUP] Removing stale connection for user ${userId}`);
+    for (const [userId, clientSet] of clients.entries()) {
+      const activeClients = new Set<WebSocketClient>();
+      
+      for (const client of clientSet) {
+        if (!isConnectionAlive(client)) {
+          console.log(`[WS_CLEANUP] Removing stale connection for user ${userId}`);
 
-        // Remove from room if they were in one
-        if (client.roomId && client.userId) {
-          removeUserFromRoom(client.roomId, client.userId);
-          cleanedRoomEntries++;
+          // Remove from room if they were in one
+          if (client.roomId && client.userId) {
+            removeUserFromRoom(client.roomId, client.userId);
+            cleanedRoomEntries++;
+          }
+
+          cleanedConnections++;
+
+          try {
+            client.close(1001, 'Connection cleanup');
+          } catch (error) {
+            // Connection might already be closed
+          }
+        } else {
+          activeClients.add(client);
         }
+      }
 
-        // Update database status and remove client
-        if (client.userId) {
-          storage.updateUserOnlineStatus(client.userId, false).catch(error => {
-            console.error(`[WS_CLEANUP] Failed to update user status for ${client.userId}:`, error);
-          });
-        }
-
+      if (activeClients.size === 0) {
+        // No active connections for this user
         clients.delete(userId);
-        cleanedConnections++;
-
-        try {
-          client.close(1001, 'Connection cleanup');
-        } catch (error) {
-          // Connection might already be closed
-        }
+        
+        // Update database status only when user has no active connections
+        storage.updateUserOnlineStatus(userId, false).catch(error => {
+          console.error(`[WS_CLEANUP] Failed to update user status for ${userId}:`, error);
+        });
+      } else {
+        // Update the set with only active connections
+        clients.set(userId, activeClients);
       }
     }
 
@@ -117,9 +128,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validUsers = new Set<string>();
 
       for (const userId of userSet) {
-        const client = clients.get(userId);
-        if (client && isConnectionAlive(client) && client.roomId === roomId) {
-          validUsers.add(userId);
+        const clientSet = clients.get(userId);
+        if (clientSet) {
+          // Check if user has at least one active connection in this room
+          const hasActiveConnection = Array.from(clientSet).some(client => 
+            isConnectionAlive(client) && client.roomId === roomId
+          );
+          
+          if (hasActiveConnection) {
+            validUsers.add(userId);
+          } else {
+            cleanedRoomEntries++;
+          }
         } else {
           cleanedRoomEntries++;
         }
@@ -150,32 +170,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     let activeConnections = 0;
     let staleConnections = 0;
 
-    for (const [userId, client] of clients.entries()) {
-      if (client.readyState === WebSocket.OPEN) {
-        // Only mark as potentially stale if it already failed a previous ping
-        // Don't immediately mark as false - give time for pong response
-        if (client.isAlive === false) {
-          // This client already failed a previous heartbeat, mark for cleanup
-          staleConnections++;
-          continue;
-        }
+    for (const [userId, clientSet] of clients.entries()) {
+      for (const client of clientSet) {
+        if (client.readyState === WebSocket.OPEN) {
+          // Only mark as potentially stale if it already failed a previous ping
+          // Don't immediately mark as false - give time for pong response
+          if (client.isAlive === false) {
+            // This client already failed a previous heartbeat, mark for cleanup
+            staleConnections++;
+            continue;
+          }
 
-        // For healthy connections, send ping but don't immediately mark as dead
-        try {
-          client.ping((error: Error | null) => {
-            if (error) {
-              console.log(`[WS_HEARTBEAT] Ping failed for user ${userId}: ${error.message}`);
-              client.isAlive = false; // Only mark as false if ping actually failed
-            }
-          });
-          activeConnections++;
-        } catch (error) {
-          console.log(`[WS_HEARTBEAT] Failed to ping user ${userId}: ${error}`);
-          client.isAlive = false; // Only mark as false if ping failed
+          // For healthy connections, send ping but don't immediately mark as dead
+          try {
+            client.ping((error: Error | null) => {
+              if (error) {
+                console.log(`[WS_HEARTBEAT] Ping failed for user ${userId}: ${error.message}`);
+                client.isAlive = false; // Only mark as false if ping actually failed
+              }
+            });
+            activeConnections++;
+          } catch (error) {
+            console.log(`[WS_HEARTBEAT] Failed to ping user ${userId}: ${error}`);
+            client.isAlive = false; // Only mark as false if ping failed
+            staleConnections++;
+          }
+        } else {
           staleConnections++;
         }
-      } else {
-        staleConnections++;
       }
     }
 
@@ -193,11 +215,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     clearInterval(cleanupInterval);
 
     // Close all active connections
-    for (const [userId, client] of clients.entries()) {
-      try {
-        client.close(1001, 'Server shutdown');
-      } catch (error) {
-        console.error(`[WS_SHUTDOWN] Error closing connection for user ${userId}:`, error);
+    for (const [userId, clientSet] of clients.entries()) {
+      for (const client of clientSet) {
+        try {
+          client.close(1001, 'Server shutdown');
+        } catch (error) {
+          console.error(`[WS_SHUTDOWN] Error closing connection for user ${userId}:`, error);
+        }
       }
     }
     clients.clear();
@@ -212,18 +236,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Helper function to broadcast to room
   function broadcastToRoom(roomId: string, message: any, excludeUserId?: string) {
     let sentCount = 0;
-    Array.from(clients.values()).forEach(client => {
-      if (client.roomId === roomId && client.readyState === WebSocket.OPEN && client.userId !== excludeUserId) {
-        try {
-          client.send(JSON.stringify(message));
-          sentCount++;
-        } catch (error) {
-          console.error(`Failed to send message to user ${client.userId}:`, error);
-          // Mark client as potentially problematic for cleanup
-          client.isAlive = false;
+    // Iterate through all users and their connections
+    for (const [userId, clientSet] of clients.entries()) {
+      if (userId === excludeUserId) continue;
+      
+      for (const client of clientSet) {
+        if (client.roomId === roomId && client.readyState === WebSocket.OPEN) {
+          try {
+            client.send(JSON.stringify(message));
+            sentCount++;
+          } catch (error) {
+            console.error(`Failed to send message to user ${client.userId}:`, error);
+            // Mark client as potentially problematic for cleanup
+            client.isAlive = false;
+          }
         }
       }
-    });
+    }
 
     // Log only for important messages when no clients were reached
     if (message.type === 'new_message' && sentCount === 0) {
@@ -233,20 +262,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Helper function to broadcast to specific user
   function broadcastToUser(userId: string, message: any) {
-    const client = clients.get(userId);
-    if (client && client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(message));
-      return true;
-    } else {
-      return false;
+    const clientSet = clients.get(userId);
+    if (!clientSet) return false;
+    
+    let sentToAny = false;
+    for (const client of clientSet) {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(JSON.stringify(message));
+          sentToAny = true;
+        } catch (error) {
+          console.error(`Failed to send message to user ${userId}:`, error);
+          client.isAlive = false;
+        }
+      }
     }
+    return sentToAny;
   }
 
   // Helper functions for room user management
   function addUserToRoom(roomId: string, userId: string) {
     // Validate that the user actually has an active connection
-    const client = clients.get(userId);
-    if (!client || !isConnectionAlive(client)) {
+    const clientSet = clients.get(userId);
+    if (!clientSet || !Array.from(clientSet).some(client => isConnectionAlive(client))) {
       console.log(`[WS_ROOM] Cannot add user ${userId} to room ${roomId}: no active connection`);
       return;
     }
@@ -294,9 +332,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     let removedUsers = 0;
 
     for (const userId of roomUserSet) {
-      const client = clients.get(userId);
-      if (client && isConnectionAlive(client) && client.roomId === roomId) {
-        validUsers.add(userId);
+      const clientSet = clients.get(userId);
+      if (clientSet) {
+        // Check if user has at least one active connection in this room
+        const hasActiveConnection = Array.from(clientSet).some(client => 
+          isConnectionAlive(client) && client.roomId === roomId
+        );
+        
+        if (hasActiveConnection) {
+          validUsers.add(userId);
+        } else {
+          removedUsers++;
+        }
       } else {
         removedUsers++;
       }
@@ -364,21 +411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             }
 
-            // Check if user already has a connection and clean up
-            const existingConnection = clients.get(message.userId);
-            if (existingConnection && existingConnection !== ws) {
-              console.log(`[WS_JOIN] Closing existing connection for user ${message.userId}`);
-              if (existingConnection.roomId && existingConnection.userId) {
-                removeUserFromRoom(existingConnection.roomId, existingConnection.userId);
-                broadcastToRoom(existingConnection.roomId, {
-                  type: 'user_left',
-                  userId: existingConnection.userId,
-                });
-              }
-              existingConnection.close();
-              clients.delete(message.userId);
-            }
-
+            // Add this connection to the user's connection set
             ws.userId = message.userId;
             ws.roomId = message.roomId;
 
@@ -386,7 +419,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ws.isAlive = true;
             ws.lastActivity = Date.now();
 
-            clients.set(message.userId, ws);
+            // Add connection to user's set (supporting multiple devices)
+            const existingConnections = clients.get(message.userId) || new Set();
+            existingConnections.add(ws);
+            clients.set(message.userId, existingConnections);
 
             console.log(`[WS_JOIN] User ${message.userId} joining room ${message.roomId}`);
 
@@ -531,37 +567,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     ws.on('close', async (code, reason) => {
       console.log(`[WS_CLOSE] Connection closed for user ${ws.userId}, code: ${code}, reason: ${reason}`);
 
-      if (ws.userId && ws.roomId) {
-        console.log(`[WS_CLOSE] Cleaning up user ${ws.userId} from room ${ws.roomId}`);
-
-        // Remove user from room and update online status
-        removeUserFromRoom(ws.roomId, ws.userId);
-
-        try {
-          await storage.updateUserOnlineStatus(ws.userId, false);
-        } catch (error) {
-          console.error(`[WS_CLOSE] Failed to update offline status for user ${ws.userId}:`, error);
+      if (ws.userId) {
+        // Remove this specific connection from the user's connection set
+        const userConnections = clients.get(ws.userId);
+        if (userConnections) {
+          userConnections.delete(ws);
+          
+          if (userConnections.size === 0) {
+            // No more connections for this user
+            clients.delete(ws.userId);
+            
+            // Update user's online status to false
+            try {
+              await storage.updateUserOnlineStatus(ws.userId, false);
+              console.log(`[WS_CLOSE] User ${ws.userId} marked offline - no active connections`);
+            } catch (error) {
+              console.error(`[WS_CLOSE] Failed to update offline status for user ${ws.userId}:`, error);
+            }
+          } else {
+            console.log(`[WS_CLOSE] User ${ws.userId} still has ${userConnections.size} active connections`);
+          }
         }
 
-        // Broadcast user left
-        broadcastToRoom(ws.roomId, {
-          type: 'user_left',
-          userId: ws.userId,
-        });
+        if (ws.roomId) {
+          console.log(`[WS_CLOSE] Cleaning up user ${ws.userId} from room ${ws.roomId}`);
 
-        clients.delete(ws.userId);
+          // Check if user still has active connections in this room
+          const stillInRoom = userConnections && Array.from(userConnections).some(client => 
+            client.roomId === ws.roomId && isConnectionAlive(client)
+          );
 
-        // Synchronize room users to ensure accuracy after disconnect
-        synchronizeRoomUsers(ws.roomId);
-      } else if (ws.userId) {
-        // User connected but not in a room, still need to clean up
-        console.log(`[WS_CLOSE] Cleaning up user ${ws.userId} (not in room)`);
-        clients.delete(ws.userId);
+          if (!stillInRoom) {
+            // Remove user from room only if they have no active connections in this room
+            removeUserFromRoom(ws.roomId, ws.userId);
 
-        try {
-          await storage.updateUserOnlineStatus(ws.userId, false);
-        } catch (error) {
-          console.error(`[WS_CLOSE] Failed to update offline status for user ${ws.userId}:`, error);
+            // Broadcast user left
+            broadcastToRoom(ws.roomId, {
+              type: 'user_left',
+              userId: ws.userId,
+            });
+          }
+
+          // Synchronize room users to ensure accuracy after disconnect
+          synchronizeRoomUsers(ws.roomId);
         }
       }
     });
@@ -1407,9 +1455,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Disconnect user from WebSocket if they're connected
       if (clients.has(userId)) {
-        const client = clients.get(userId);
-        if (client && client.roomId) {
-          removeUserFromRoom(client.roomId, userId);
+        const clientSet = clients.get(userId);
+        if (clientSet) {
+          // Remove user from all rooms they're in and close all connections
+          for (const client of clientSet) {
+            if (client.roomId) {
+              removeUserFromRoom(client.roomId, userId);
+            }
+            try {
+              client.close(1000, 'Account deleted');
+            } catch (error) {
+              console.error(`Failed to close connection for deleted user ${userId}:`, error);
+            }
+          }
         }
         clients.delete(userId);
       }
