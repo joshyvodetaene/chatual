@@ -37,8 +37,7 @@ export function WebSocketProvider({ children, user }: WebSocketProviderProps) {
     return saved ? JSON.parse(saved).id : null;
   });
 
-  // Pass user and username to ensure proper user switching
-  const websocketData = useWebSocket(user?.id, user?.username);
+  const websocketData = useWebSocket(user?.id);
 
   // Track the current room for the context
   const joinRoom = (roomId: string, clearMessages: boolean = true) => {

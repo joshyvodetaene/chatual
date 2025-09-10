@@ -364,8 +364,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // WebSocket connection handling
-  wss.on('connection', (ws: WebSocketClient) => {
-    console.log('[WS_CONNECTION] New WebSocket connection established');
+  wss.on('connection', (ws: WebSocketClient, req) => {
+    // Parse userId from URL for immediate identification
+    const url = new URL(req.url || '', `http://${req.headers.host}`);
+    const userId = url.searchParams.get('userId');
+    
+    console.log(`[WS_CONNECTION] New WebSocket connection established for user: ${userId || 'undefined'}`);
+
+    // Set userId immediately if available from URL
+    if (userId) {
+      ws.userId = userId;
+      console.log(`[WS_CONNECTION] User ${userId} identified via URL`);
+      
+      // Add connection to user's set immediately
+      const existingConnections = clients.get(userId) || new Set();
+      existingConnections.add(ws);
+      clients.set(userId, existingConnections);
+    }
 
     // Initialize connection tracking
     ws.isAlive = true;
@@ -440,6 +455,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
               type: 'user_joined',
               userId: message.userId,
             }, message.userId);
+            break;
+
+          case 'identify':
+            // Handle user identification without joining a specific room
+            console.log(`[WS_IDENTIFY] User identification request from userId=${message.userId}`);
+            
+            // Set user ID on the WebSocket connection
+            ws.userId = message.userId;
+            
+            // Initialize connection tracking for this user
+            ws.isAlive = true;
+            ws.lastActivity = Date.now();
+            
+            // Add connection to user's set (supporting multiple devices)
+            const existingUserConnections = clients.get(message.userId) || new Set();
+            existingUserConnections.add(ws);
+            clients.set(message.userId, existingUserConnections);
+            
+            console.log(`[WS_IDENTIFY] User ${message.userId} identified successfully`);
+            
+            // Update user online status
+            await storage.updateUserOnlineStatus(message.userId, true);
+            
+            // Send confirmation back to client
+            ws.send(JSON.stringify({
+              type: 'identified',
+              userId: message.userId,
+              timestamp: Date.now()
+            }));
             break;
 
           case 'leave':
