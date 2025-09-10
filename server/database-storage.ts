@@ -379,7 +379,10 @@ export class DatabaseStorage implements IStorage {
           isOnline: users.isOnline,
           isBanned: users.isBanned,
           isBlocked: users.isBlocked,
-          primaryPhoto: userPhotos.photoUrl,
+          photoId: userPhotos.id,
+          photoUrl: userPhotos.photoUrl,
+          photoFileName: userPhotos.fileName,
+          photoIsPrimary: userPhotos.isPrimary,
         })
         .from(users)
         .leftJoin(userPhotos, and(
@@ -430,12 +433,12 @@ export class DatabaseStorage implements IStorage {
           isOnline: user.isOnline,
           isBanned: user.isBanned,
           isBlocked: user.isBlocked,
-          primaryPhoto: user.primaryPhoto ? {
-            id: '',
+          primaryPhoto: user.photoUrl ? {
+            id: user.photoId || '',
             userId: user.id,
-            photoUrl: user.primaryPhoto,
-            fileName: '',
-            isPrimary: true,
+            photoUrl: user.photoUrl,
+            fileName: user.photoFileName || '',
+            isPrimary: user.photoIsPrimary || false,
             uploadedAt: new Date(),
           } : null,
           distance,
