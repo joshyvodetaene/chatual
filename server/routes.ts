@@ -7,11 +7,21 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { NotificationService } from "./notification-service";
 import { validateCityWithGoogle } from "./lib/geocoding";
 
+interface DeviceInfo {
+  userAgent?: string;
+  platform?: string;
+  timestamp: number;
+}
+
 interface WebSocketClient extends WebSocket {
   userId?: string;
   roomId?: string;
+  deviceId?: string;
+  connectionId: string;
+  deviceInfo?: DeviceInfo;
   isAlive?: boolean;
   lastActivity?: number;
+  connectedAt: number;
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -32,17 +42,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // WebSocket server with proper configuration
   const wss = new WebSocketServer({ 
     server: httpServer, 
-    path: '/ws',
+    path: '/socket',
     perMessageDeflate: false,
     maxPayload: 16 * 1024,
   });
-  const clients = new Map<string, Set<WebSocketClient>>();
-  const roomUsers = new Map<string, Set<string>>(); // Track online users per room
+  // Enhanced connection tracking for multi-device support
+  const clients = new Map<string, Set<WebSocketClient>>(); // userId -> Set of connections
+  const connectionsByDevice = new Map<string, WebSocketClient>(); // deviceId -> connection
+  const connectionsById = new Map<string, WebSocketClient>(); // connectionId -> connection
+  const roomUsers = new Map<string, Set<string>>(); // roomId -> Set of userIds
+  const privateChats = new Map<string, Set<string>>(); // chatId -> Set of userIds
 
   // Initialize notification service - will be updated to handle multiple connections
   const notificationService = new NotificationService(new Map<string, any>());
 
-  console.log('WebSocket server initialized on path /ws');
+  console.log('WebSocket server initialized on path /socket');
 
   // Connection health tracking constants - more lenient settings
   const HEARTBEAT_INTERVAL = 30000; // 30 seconds
@@ -233,52 +247,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   process.on('SIGINT', cleanup);
   process.on('SIGUSR2', cleanup); // For nodemon restarts
 
-  // Helper function to broadcast to room
-  function broadcastToRoom(roomId: string, message: any, excludeUserId?: string) {
-    let sentCount = 0;
-    // Iterate through all users and their connections
-    for (const [userId, clientSet] of clients.entries()) {
-      if (userId === excludeUserId) continue;
-
-      for (const client of clientSet) {
-        if (client.roomId === roomId && client.readyState === WebSocket.OPEN) {
-          try {
-            client.send(JSON.stringify(message));
-            sentCount++;
-          } catch (error) {
-            console.error(`Failed to send message to user ${client.userId}:`, error);
-            // Mark client as potentially problematic for cleanup
-            client.isAlive = false;
-          }
-        }
-      }
-    }
-
-    // Log only for important messages when no clients were reached
-    if (message.type === 'new_message' && sentCount === 0) {
-      console.log(`[BROADCAST] Warning: No clients received message in room ${roomId}`);
-    }
-  }
-
-  // Helper function to broadcast to specific user
-  function broadcastToUser(userId: string, message: any) {
-    const clientSet = clients.get(userId);
-    if (!clientSet) return false;
-
-    let sentToAny = false;
-    for (const client of clientSet) {
-      if (client.readyState === WebSocket.OPEN) {
-        try {
-          client.send(JSON.stringify(message));
-          sentToAny = true;
-        } catch (error) {
-          console.error(`Failed to send message to user ${userId}:`, error);
-          client.isAlive = false;
-        }
-      }
-    }
-    return sentToAny;
-  }
 
   // Helper functions for room user management
   function addUserToRoom(roomId: string, userId: string) {
@@ -363,28 +331,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
+  // Generate unique IDs for connections and devices
+  function generateConnectionId(): string {
+    return `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  function generateDeviceId(): string {
+    return `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  // Broadcast message to all connections for a specific user (cross-device sync)
+  function broadcastToUser(userId: string, message: any, excludeConnection?: WebSocketClient) {
+    const userConnections = clients.get(userId);
+    if (!userConnections) return;
+
+    const messageStr = JSON.stringify(message);
+    let sentCount = 0;
+
+    for (const connection of userConnections) {
+      if (connection !== excludeConnection && connection.readyState === WebSocket.OPEN) {
+        try {
+          connection.send(messageStr);
+          sentCount++;
+        } catch (error) {
+          console.error(`[WS_BROADCAST] Failed to send to device ${connection.deviceId}:`, error);
+        }
+      }
+    }
+
+    console.log(`[WS_BROADCAST] Sent message to ${sentCount} devices for user ${userId}`);
+  }
+
+  // Enhanced room broadcasting with cross-device support
+  function broadcastToRoom(roomId: string, message: any, excludeUserId?: string) {
+    const usersInRoom = roomUsers.get(roomId);
+    if (!usersInRoom) return;
+
+    const messageStr = JSON.stringify(message);
+    let totalSent = 0;
+
+    for (const userId of usersInRoom) {
+      if (userId === excludeUserId) continue;
+
+      const userConnections = clients.get(userId);
+      if (userConnections) {
+        for (const connection of userConnections) {
+          if (connection.roomId === roomId && connection.readyState === WebSocket.OPEN) {
+            try {
+              connection.send(messageStr);
+              totalSent++;
+            } catch (error) {
+              console.error(`[WS_ROOM_BROADCAST] Failed to send to user ${userId}, device ${connection.deviceId}:`, error);
+            }
+          }
+        }
+      }
+    }
+
+    console.log(`[WS_ROOM_BROADCAST] Sent to ${totalSent} connections in room ${roomId}`);
+  }
+
   // WebSocket connection handling
   wss.on('connection', (ws: WebSocketClient, req) => {
-    // Parse userId from URL for immediate identification
+    // Parse connection parameters from URL
     const url = new URL(req.url || '', `http://${req.headers.host}`);
     const userId = url.searchParams.get('userId');
+    const deviceId = url.searchParams.get('deviceId') || generateDeviceId();
     
-    console.log(`[WS_CONNECTION] New WebSocket connection established for user: ${userId || 'undefined'}`);
+    // Generate unique connection ID and set connection metadata
+    ws.connectionId = generateConnectionId();
+    ws.deviceId = deviceId;
+    ws.connectedAt = Date.now();
+    ws.isAlive = true;
+    ws.lastActivity = Date.now();
+    
+    // Extract device info from headers
+    ws.deviceInfo = {
+      userAgent: req.headers['user-agent'],
+      platform: typeof req.headers['sec-ch-ua-platform'] === 'string' 
+        ? req.headers['sec-ch-ua-platform'].replace(/"/g, '') 
+        : 'unknown',
+      timestamp: Date.now()
+    };
+    
+    console.log(`[WS_CONNECTION] New WebSocket connection: connectionId=${ws.connectionId}, deviceId=${ws.deviceId}, user=${userId || 'pending'}`);
 
-    // Set userId immediately if available from URL
+    // Add to connection tracking maps
+    connectionsById.set(ws.connectionId, ws);
+    connectionsByDevice.set(ws.deviceId, ws);
+
+    // Set userId and add to user's connections if provided via URL
     if (userId) {
       ws.userId = userId;
-      console.log(`[WS_CONNECTION] User ${userId} identified via URL`);
+      console.log(`[WS_CONNECTION] User ${userId} identified via URL for device ${ws.deviceId}`);
       
-      // Add connection to user's set immediately
+      // Add connection to user's set
       const existingConnections = clients.get(userId) || new Set();
       existingConnections.add(ws);
       clients.set(userId, existingConnections);
-    }
 
-    // Initialize connection tracking
-    ws.isAlive = true;
-    ws.lastActivity = Date.now();
+      // Update user online status in database
+      storage.updateUserOnlineStatus(userId, true).catch(error => {
+        console.error(`[WS_CONNECTION] Failed to update user status for ${userId}:`, error);
+      });
+
+      // Notify other devices about new connection
+      broadcastToUser(userId, {
+        type: 'device_connected',
+        deviceId: ws.deviceId,
+        deviceInfo: ws.deviceInfo,
+        timestamp: Date.now()
+      }, ws);
+    }
 
     // Handle pong responses (heartbeat confirmation)
     ws.on('pong', () => {

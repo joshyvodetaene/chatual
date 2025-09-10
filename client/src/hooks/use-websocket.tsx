@@ -87,7 +87,7 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     }
 
     // Include userId in URL for immediate identification
-    const wsUrl = `${protocol}//${host}/ws?userId=${encodeURIComponent(userId)}`;
+    const wsUrl = `${protocol}//${host}/socket?userId=${encodeURIComponent(userId)}`;
     console.log(`[WS_HOOK] WebSocket URL constructed: ${wsUrl}`);
 
     // Validate the WebSocket URL
