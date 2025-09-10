@@ -555,21 +555,26 @@
   overflow-x: hidden !important;
   contain: layout style !important;
   isolation: isolate !important;
+  z-index: 1 !important;
 }
 
 /* Ensure proper message container layout */
 .message-container {
-  display: flex;
-  width: 100%;
-  margin-bottom: 0.5rem;
-  position: relative;
+  display: flex !important;
+  width: 100% !important;
+  margin-bottom: 0.5rem !important;
+  position: relative !important;
+  z-index: 1 !important;
+  contain: layout !important;
 }
 
 /* Ensure message containers stay within chat bounds */
 .chat-messages-container {
-  overflow-y: auto;
-  overflow-x: hidden;
-  height: 100%;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  contain: strict !important;
 }
 
 /* Prevent any portal content from rendering in wrong place */
