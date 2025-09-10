@@ -45,6 +45,7 @@ export default function LocationSettings({ user }: LocationSettingsProps) {
       form.setValue('latitude', result.latitude);
       form.setValue('longitude', result.longitude);
     }
+    // Don't prevent form submission if validation fails - let user save anyway
   };
 
   const updateProfileMutation = useMutation({

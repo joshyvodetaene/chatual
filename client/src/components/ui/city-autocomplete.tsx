@@ -64,22 +64,25 @@ export function CityAutocomplete({
     return () => clearTimeout(timeoutId);
   }, [inputValue]);
 
-  // Validate city when input stops changing
+  // Validate city when input stops changing (but don't block form submission)
   useEffect(() => {
     const validateCity = async () => {
       if (inputValue.length >= 2) {
         setIsValidating(true);
         const result = await validateCityWithGoogleMaps(inputValue);
         setValidationResult(result);
-        onValidationChange?.(result);
+        // Only call onValidationChange if validation succeeds, don't block on failures
+        if (result.isValid) {
+          onValidationChange?.(result);
+        }
         setIsValidating(false);
       } else {
         setValidationResult(null);
-        onValidationChange?.({ isValid: false });
+        // Don't block form when input is empty
       }
     };
 
-    const timeoutId = setTimeout(validateCity, 1000); // Wait 1 second after user stops typing
+    const timeoutId = setTimeout(validateCity, 1500); // Wait 1.5 seconds after user stops typing
     return () => clearTimeout(timeoutId);
   }, [inputValue, onValidationChange]);
 
@@ -111,7 +114,7 @@ export function CityAutocomplete({
     setInputValue('');
     onValueChange('');
     setValidationResult(null);
-    onValidationChange?.({ isValid: false });
+    // Don't call onValidationChange when clearing - let form handle empty values
     setOpen(false);
   };
 
