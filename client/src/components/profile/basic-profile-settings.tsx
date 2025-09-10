@@ -13,10 +13,9 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { updateUserProfileSchema } from '@shared/schema';
 import type { User, UpdateUserProfile } from '@shared/schema';
-import { Loader2, User as UserIcon, Edit3, Heart, Calendar, MapPin, RefreshCw, CheckCircle } from 'lucide-react';
+import { Loader2, User as UserIcon, Edit3, Heart, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
-import { useGeolocation } from '@/hooks/use-geolocation';
 
 interface BasicProfileSettingsProps {
   user: User;
@@ -27,9 +26,6 @@ export default function BasicProfileSettings({ user, isMobile = false }: BasicPr
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [cityValidationResult, setCityValidationResult] = useState<CityValidationResult | null>(null);
-  
-  // Initialize geolocation hook
-  const geolocation = useGeolocation();
 
   const form = useForm<UpdateUserProfile>({
     resolver: zodResolver(updateUserProfileSchema),
@@ -191,70 +187,15 @@ export default function BasicProfileSettings({ user, isMobile = false }: BasicPr
                   name="location"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4" />
-                        City
-                      </FormLabel>
+                      <FormLabel>City</FormLabel>
                       <FormControl>
-                        <div className="space-y-3">
-                          <CityAutocomplete
-                            value={field.value || ''}
-                            onValueChange={field.onChange}
-                            onValidationChange={setCityValidationResult}
-                            placeholder="Enter your city (Germany, Switzerland, Austria)"
-                            data-testid="input-location"
-                          />
-                          
-                          {/* Location detection section */}
-                          <div className="flex flex-col space-y-2">
-                            <div className="flex items-center gap-2">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={geolocation.getCurrentPosition}
-                                disabled={geolocation.isLoading || !geolocation.isSupported}
-                                data-testid="button-get-location"
-                                className="flex items-center gap-2"
-                              >
-                                {geolocation.isLoading ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <RefreshCw className="w-4 h-4" />
-                                )}
-                                {geolocation.isLoading ? 'Getting Location...' : 'Detect My Location'}
-                              </Button>
-                              
-                              {geolocation.coordinates && (
-                                <span className="text-sm text-green-600 flex items-center gap-1">
-                                  <CheckCircle className="w-4 h-4" />
-                                  Location detected
-                                </span>
-                              )}
-                            </div>
-                            
-                            {/* Error display */}
-                            {geolocation.error && (
-                              <div className="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 p-2 rounded">
-                                {geolocation.error}
-                              </div>
-                            )}
-                            
-                            {/* Coordinates display */}
-                            {geolocation.coordinates && (
-                              <div className="text-xs text-gray-500 bg-gray-50 dark:bg-gray-800 p-2 rounded">
-                                Coordinates: {geolocation.coordinates.latitude.toFixed(6)}, {geolocation.coordinates.longitude.toFixed(6)}
-                              </div>
-                            )}
-                            
-                            {/* Browser not supported message */}
-                            {!geolocation.isSupported && (
-                              <div className="text-sm text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded">
-                                Location detection is not supported by your browser. Please enter your location manually.
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                        <CityAutocomplete
+                          value={field.value || ''}
+                          onValueChange={field.onChange}
+                          onValidationChange={setCityValidationResult}
+                          placeholder="Enter your city (Germany, Switzerland, Austria)"
+                          data-testid="input-location"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
