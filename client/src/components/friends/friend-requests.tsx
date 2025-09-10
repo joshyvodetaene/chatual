@@ -22,15 +22,19 @@ export default function FriendRequests({ user, isMobile = false }: FriendRequest
   // Fetch friend requests
   const { data: requestsData, isLoading } = useQuery({
     queryKey: [`/api/users/${user.id}/friend-requests`],
-    queryFn: () => apiRequest('GET', `/api/users/${user.id}/friend-requests`),
+    queryFn: async () => {
+      const response = await apiRequest('GET', `/api/users/${user.id}/friend-requests`);
+      return await response.json();
+    },
   });
 
-  const friendRequests = (requestsData as any)?.friendRequests || [];
+  const friendRequests = requestsData?.friendRequests || [];
 
   // Respond to friend request mutation
   const respondToRequestMutation = useMutation({
     mutationFn: async ({ requestId, action }: { requestId: string; action: 'accept' | 'decline' }) => {
-      return await apiRequest('PUT', `/api/friend-requests/${requestId}`, { action });
+      const response = await apiRequest('PUT', `/api/friend-requests/${requestId}`, { action });
+      return await response.json();
     },
     onSuccess: (_, { action }) => {
       toast({

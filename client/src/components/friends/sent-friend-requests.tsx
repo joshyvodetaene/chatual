@@ -22,15 +22,19 @@ export default function SentFriendRequests({ user, isMobile = false }: SentFrien
   // Fetch sent friend requests
   const { data: requestsData, isLoading } = useQuery({
     queryKey: [`/api/users/${user.id}/sent-friend-requests`],
-    queryFn: () => apiRequest('GET', `/api/users/${user.id}/sent-friend-requests`),
+    queryFn: async () => {
+      const response = await apiRequest('GET', `/api/users/${user.id}/sent-friend-requests`);
+      return await response.json();
+    },
   });
 
-  const sentFriendRequests = (requestsData as any)?.sentFriendRequests || [];
+  const sentFriendRequests = requestsData?.sentFriendRequests || [];
 
   // Cancel friend request mutation
   const cancelRequestMutation = useMutation({
     mutationFn: async (requestId: string) => {
-      return await apiRequest('DELETE', `/api/friend-requests/${requestId}/cancel/${user.id}`);
+      const response = await apiRequest('DELETE', `/api/friend-requests/${requestId}/cancel/${user.id}`);
+      return await response.json();
     },
     onSuccess: () => {
       toast({
