@@ -53,8 +53,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   function isConnectionAlive(client: WebSocketClient): boolean {
     // Only consider a connection stale if:
     // 1. WebSocket is not in OPEN state, OR
-    // 2. Client explicitly marked as not alive (failed ping), OR  
-    // 3. No activity for more than 3 minutes AND no recent pong response
+    // 2. Client explicitly marked as not alive (failed ping twice in a row)
     if (client.readyState !== WebSocket.OPEN) {
       return false;
     }
@@ -64,11 +63,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return true;
     }
 
-    // Only mark as stale if both conditions: no recent activity AND failed ping
+    // Be more lenient - only mark as dead if explicitly set to false AND no recent activity
     const now = Date.now();
     const hasRecentActivity = !client.lastActivity || (now - client.lastActivity) < CONNECTION_TIMEOUT;
 
-    return hasRecentActivity || client.isAlive !== false;
+    // If client has recent activity, consider it alive even if ping failed once
+    if (hasRecentActivity) {
+      return true;
+    }
+
+    // Only mark as dead if explicitly marked false AND no recent activity
+    return client.isAlive !== false;
   }
 
   // Clean up stale connections and room users
@@ -147,19 +152,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     for (const [userId, client] of clients.entries()) {
       if (client.readyState === WebSocket.OPEN) {
-        // Mark as potentially stale
-        client.isAlive = false;
+        // Only mark as potentially stale if it already failed a previous ping
+        // Don't immediately mark as false - give time for pong response
+        if (client.isAlive === false) {
+          // This client already failed a previous heartbeat, mark for cleanup
+          staleConnections++;
+          continue;
+        }
 
+        // For healthy connections, send ping but don't immediately mark as dead
         try {
           client.ping((error: Error | null) => {
             if (error) {
               console.log(`[WS_HEARTBEAT] Ping failed for user ${userId}: ${error.message}`);
-              staleConnections++;
+              client.isAlive = false; // Only mark as false if ping actually failed
             }
           });
           activeConnections++;
         } catch (error) {
           console.log(`[WS_HEARTBEAT] Failed to ping user ${userId}: ${error}`);
+          client.isAlive = false; // Only mark as false if ping failed
           staleConnections++;
         }
       } else {
