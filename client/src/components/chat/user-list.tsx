@@ -1,9 +1,10 @@
+
 import { RoomWithMembers, User } from '@shared/schema';
 import { cn } from '@/lib/utils';
 import UserDistance from './user-distance';
 import { UserProfileMenu } from './user-profile-menu';
 import FriendButton from '@/components/friends/friend-button';
-import { MoreVertical, Search } from 'lucide-react';
+import { MoreVertical, Search, Users, Wifi } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
@@ -30,22 +31,22 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
   };
 
   const getAvatarColor = (name: string, gender?: string) => {
-    // Use gender-based colors if gender is provided
+    // Professional color palette
     if (gender === 'female') {
-      return 'bg-gradient-to-br from-red-400 to-red-600';
+      return 'bg-gradient-to-br from-violet-500 to-purple-600';
     }
     if (gender === 'male') {
-      return 'bg-gradient-to-br from-blue-400 to-blue-600';
+      return 'bg-gradient-to-br from-blue-500 to-indigo-600';
     }
     
-    // Fallback to name-based colors for users without gender info
+    // Sophisticated fallback colors
     const colors = [
-      'bg-gradient-to-br from-green-400 to-green-600',
-      'bg-gradient-to-br from-purple-400 to-purple-600',
-      'bg-gradient-to-br from-orange-400 to-orange-600',
-      'bg-gradient-to-br from-pink-400 to-pink-600',
-      'bg-gradient-to-br from-indigo-400 to-indigo-600',
-      'bg-gradient-to-br from-teal-400 to-teal-600',
+      'bg-gradient-to-br from-slate-500 to-slate-600',
+      'bg-gradient-to-br from-emerald-500 to-teal-600',
+      'bg-gradient-to-br from-amber-500 to-orange-600',
+      'bg-gradient-to-br from-rose-500 to-pink-600',
+      'bg-gradient-to-br from-cyan-500 to-blue-600',
+      'bg-gradient-to-br from-purple-500 to-violet-600',
     ];
     const hash = name.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
     return colors[hash % colors.length];
@@ -72,96 +73,117 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
   
 
   return (
-    <div className="w-full sm:w-60 md:w-64 lg:w-72 h-full bg-card/90 backdrop-blur-sm border-l border-primary/20 flex flex-col" data-testid="user-list">
-      <div className="p-2 sm:p-3 md:p-4 lg:p-6 border-b border-primary/20 bg-primary text-white red-glow">
-        <h3 className="text-base sm:text-lg md:text-xl lg:text-2xl font-semibold text-white">Online in Room</h3>
-        <p className="text-white text-opacity-70 mt-1 text-xs sm:text-sm md:text-base" data-testid="online-count">
-          {onlineMembers.length} online • {filteredMembers.length} visible
-        </p>
+    <div className="w-full sm:w-60 md:w-64 lg:w-72 h-full bg-white border-l border-slate-200 flex flex-col shadow-sm" data-testid="user-list">
+      {/* Professional Header */}
+      <div className="px-4 py-5 border-b border-slate-200 bg-slate-50">
+        <div className="flex items-center space-x-3 mb-3">
+          <div className="w-8 h-8 bg-slate-600 rounded-lg flex items-center justify-center">
+            <Users className="w-4 h-4 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-semibold text-slate-900 truncate">Room Members</h3>
+            <p className="text-sm text-slate-600 mt-0.5" data-testid="online-count">
+              {onlineMembers.length} online • {filteredMembers.length} total
+            </p>
+          </div>
+        </div>
+        
+        {/* Search Input */}
+        {onlineMembers.length > 3 && (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+            <Input
+              placeholder="Search members..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 h-9 text-sm bg-white border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+            />
+          </div>
+        )}
       </div>
       
-      <div className="flex-1 overflow-y-auto overflow-x-visible min-h-0 hide-scrollbar">
-        {/* Online Members */}
+      <div className="flex-1 overflow-y-auto overflow-x-visible min-h-0">
+        {/* Online Members Section */}
         {onlineMembers.length > 0 && (
-          <div className="p-3 sm:p-4 md:p-6">
-            <div className="flex flex-col gap-2 sm:gap-3 md:gap-4 mb-2 sm:mb-3 md:mb-4">
-              <h4 className="text-xs sm:text-sm md:text-base font-semibold text-gray-300 uppercase tracking-wider">
-                Online — {onlineMembers.length}
+          <div className="p-4">
+            <div className="flex items-center space-x-2 mb-4">
+              <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+              <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                Online ({onlineMembers.length})
               </h4>
-              {onlineMembers.length > 3 && (
-                <div className="relative">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 sm:w-4 sm:h-4" />
-                  <Input
-                    placeholder="Search online users..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-7 sm:pl-8 h-6 sm:h-8 text-xs sm:text-sm bg-gray-900 border-gray-700 focus:border-gray-600"
-                  />
-                </div>
-              )}
             </div>
             
-            <div className="space-y-1 sm:space-y-2 md:space-y-3">
+            <div className="space-y-2">
               {filteredOnlineMembers.map((member) => (
                 <div
                   key={`online-${member.id}`}
-                  className="group flex items-center space-x-2 sm:space-x-3 md:space-x-4 p-2 sm:p-3 md:p-4 rounded-lg hover:bg-white hover:bg-opacity-10 hover:text-white text-gray-300 transition-colors"
+                  className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-50 transition-colors duration-150 border border-transparent hover:border-slate-200"
                   data-testid={`online-user-${member.id}`}
                 >
-                  <div className="relative">
+                  <div className="relative flex-shrink-0">
                     {member.primaryPhoto?.photoUrl ? (
                       <img 
                         src={member.primaryPhoto.photoUrl}
                         alt={`${member.displayName} profile`}
-                        className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full object-cover border-2 border-white"
+                        className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"
                       />
                     ) : (
                       <div className={cn(
-                        "w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white text-xs sm:text-sm md:text-base font-medium",
+                        "w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium shadow-sm",
                         getAvatarColor(member.displayName, member.gender)
                       )}>
                         {getInitials(member.displayName)}
                       </div>
                     )}
-                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-accent border-2 border-white rounded-full"></div>
+                    {/* Online indicator */}
+                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full shadow-sm"></div>
                   </div>
+                  
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2">
-                      <p className="text-xs sm:text-sm md:text-base font-medium text-white truncate">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <p className="text-sm font-medium text-slate-900 truncate">
                         {member.displayName}
                       </p>
                       {member.age && (
-                        <span className="text-xs sm:text-sm md:text-base text-gray-300 font-normal">
+                        <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
                           {member.age}
                         </span>
                       )}
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <p className="text-xs sm:text-sm md:text-base text-gray-300 truncate">@{member.username}</p>
+                    
+                    <div className="space-y-1">
+                      <p className="text-xs text-slate-600 truncate">@{member.username}</p>
+                      
                       {member.location && (
-                        <p className="text-xs text-gray-400 truncate">
-                          📍 {member.location}
+                        <p className="text-xs text-slate-500 truncate flex items-center">
+                          <span className="mr-1">📍</span>
+                          {member.location}
                         </p>
                       )}
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-green-400">Online</span>
+                      
+                      <div className="flex items-center space-x-3 text-xs">
+                        <div className="flex items-center space-x-1 text-emerald-600">
+                          <Wifi className="w-3 h-3" />
+                          <span className="font-medium">Online</span>
+                        </div>
                         {currentUser && (
                           <UserDistance 
                             currentUserId={currentUser.id} 
                             targetUserId={member.id}
-                            className="text-xs text-gray-500"
+                            className="text-slate-500"
                           />
                         )}
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-1">
+                  
+                  <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                     {currentUser && member.id !== currentUser.id && (
                       <FriendButton
                         currentUser={currentUser}
                         targetUser={member}
                         size="sm"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="h-7 px-2"
                       />
                     )}
                     <UserProfileMenu
@@ -172,10 +194,10 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 sm:p-1 md:p-2 h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8"
+                        className="h-7 w-7 p-0 hover:bg-slate-200"
                         data-testid={`online-user-menu-${member.id}`}
                       >
-                        <MoreVertical className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5" />
+                        <MoreVertical className="h-3 w-3" />
                       </Button>
                     </UserProfileMenu>
                   </div>
@@ -185,79 +207,89 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
           </div>
         )}
 
-        {/* Offline Members */}
+        {/* Offline Members Section */}
         {offlineMembers.length > 0 && (
-          <div className={cn("p-3 sm:p-4 md:p-6", onlineMembers.length > 0 && "border-t border-primary/20")}>
-            <h4 className="text-xs sm:text-sm md:text-base font-semibold text-gray-300 uppercase tracking-wider mb-2 sm:mb-3 md:mb-4">
-              Offline — {offlineMembers.length}
-            </h4>
+          <div className={cn("p-4", onlineMembers.length > 0 && "border-t border-slate-100")}>
+            <div className="flex items-center space-x-2 mb-4">
+              <div className="w-2 h-2 bg-slate-400 rounded-full"></div>
+              <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                Offline ({offlineMembers.length})
+              </h4>
+            </div>
             
-            <div className="space-y-1 sm:space-y-2 md:space-y-3">
+            <div className="space-y-2">
               {offlineMembers.map((member) => (
                 <div
                   key={`offline-${member.id}`}
-                  className="group flex items-center space-x-2 sm:space-x-3 md:space-x-4 p-2 sm:p-3 md:p-4 rounded-lg hover:bg-white hover:bg-opacity-10 hover:text-white text-gray-300 transition-colors opacity-60"
+                  className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-50 transition-colors duration-150 opacity-60"
                   data-testid={`offline-user-${member.id}`}
                 >
-                  <div className="relative">
+                  <div className="relative flex-shrink-0">
                     {member.primaryPhoto?.photoUrl ? (
                       <img 
                         src={member.primaryPhoto.photoUrl}
                         alt={`${member.displayName} profile`}
-                        className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full object-cover border-2 border-white opacity-60"
+                        className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm grayscale"
                       />
                     ) : (
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center text-white text-xs sm:text-sm md:text-base font-medium">
+                      <div className="w-10 h-10 bg-gradient-to-br from-slate-400 to-slate-500 rounded-full flex items-center justify-center text-white text-sm font-medium shadow-sm">
                         {getInitials(member.displayName)}
                       </div>
                     )}
-                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-gray-400 border-2 border-white rounded-full"></div>
+                    {/* Offline indicator */}
+                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-slate-400 border-2 border-white rounded-full shadow-sm"></div>
                   </div>
+                  
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2">
-                      <p className="text-xs sm:text-sm md:text-base font-medium text-gray-300 truncate">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <p className="text-sm font-medium text-slate-700 truncate">
                         {member.displayName}
                       </p>
                       {member.age && (
-                        <span className="text-xs sm:text-sm md:text-base text-gray-500 font-normal">
+                        <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
                           {member.age}
                         </span>
                       )}
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <p className="text-xs sm:text-sm md:text-base text-gray-500 truncate">@{member.username}</p>
-                      <div className="flex items-center gap-2">
+                    
+                    <div className="space-y-1">
+                      <p className="text-xs text-slate-500 truncate">@{member.username}</p>
+                      
+                      <div className="flex items-center space-x-3 text-xs">
+                        <span className="text-slate-400 font-medium">Offline</span>
                         {currentUser && (
                           <UserDistance 
                             currentUserId={currentUser.id} 
                             targetUserId={member.id}
-                            className="text-xs opacity-60"
+                            className="text-slate-400"
                           />
                         )}
                       </div>
                     </div>
                   </div>
-                  <UserProfileMenu
-                    user={member}
-                    currentUser={currentUser!}
-                    onStartPrivateChat={onStartPrivateChat}
-                  >
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 sm:p-1 md:p-2 h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8"
-                      data-testid={`offline-user-menu-${member.id}`}
+                  
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                    <UserProfileMenu
+                      user={member}
+                      currentUser={currentUser!}
+                      onStartPrivateChat={onStartPrivateChat}
                     >
-                      <MoreVertical className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5" />
-                    </Button>
-                  </UserProfileMenu>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 hover:bg-slate-200"
+                        data-testid={`offline-user-menu-${member.id}`}
+                      >
+                        <MoreVertical className="h-3 w-3" />
+                      </Button>
+                    </UserProfileMenu>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         )}
       </div>
-
     </div>
   );
 }
