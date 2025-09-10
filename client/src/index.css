@@ -568,13 +568,15 @@
   contain: layout !important;
 }
 
-/* Ensure message containers stay within chat bounds */
-.chat-messages-container {
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  height: 100% !important;
-  max-height: 100% !important;
-  contain: strict !important;
+/* Mobile-specific message container fixes */
+@media (max-width: 768px) {
+  .chat-messages-container {
+    position: relative !important;
+    top: 0 !important;
+    left: 0 !important;
+    transform: none !important;
+    contain: layout style !important; /* Remove strict containment on mobile */
+  }
 }
 
 /* Prevent any portal content from rendering in wrong place */
