@@ -8,6 +8,7 @@ import { apiRequest } from '@/lib/queryClient';
 import type { User } from '@shared/schema';
 
 import FriendRequests from './friend-requests';
+import SentFriendRequests from './sent-friend-requests';
 import FriendsList from './friends-list';
 import SendFriendRequest from './send-friend-request';
 
@@ -26,6 +27,13 @@ export default function FriendsManagement({ user, isMobile = false }: FriendsMan
     refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
   });
 
+  // Fetch sent friend requests count for badge
+  const { data: sentRequestsData } = useQuery({
+    queryKey: [`/api/users/${user.id}/sent-friend-requests`],
+    queryFn: () => apiRequest('GET', `/api/users/${user.id}/sent-friend-requests`),
+    refetchInterval: 30000,
+  });
+
   // Fetch friends count for badge
   const { data: friendsData } = useQuery({
     queryKey: [`/api/users/${user.id}/friends`],
@@ -33,6 +41,8 @@ export default function FriendsManagement({ user, isMobile = false }: FriendsMan
   });
 
   const pendingRequestsCount = requestsData?.friendRequests?.length || 0;
+  const sentRequestsCount = sentRequestsData?.sentFriendRequests?.length || 0;
+  const totalRequestsCount = pendingRequestsCount + sentRequestsCount;
   const friendsCount = friendsData?.friends?.length || 0;
 
   return (
@@ -69,9 +79,9 @@ export default function FriendsManagement({ user, isMobile = false }: FriendsMan
           >
             <UserPlus className={cn(isMobile ? "w-4 h-4" : "w-5 h-5")} />
             <span>Requests</span>
-            {pendingRequestsCount > 0 && (
+            {totalRequestsCount > 0 && (
               <Badge variant="secondary" className="ml-1 bg-red-600 text-white text-xs">
-                {pendingRequestsCount}
+                {totalRequestsCount}
               </Badge>
             )}
           </TabsTrigger>
@@ -94,7 +104,10 @@ export default function FriendsManagement({ user, isMobile = false }: FriendsMan
         </TabsContent>
 
         <TabsContent value="requests" className="mt-0">
-          <FriendRequests user={user} isMobile={isMobile} />
+          <div className="space-y-6">
+            <FriendRequests user={user} isMobile={isMobile} />
+            <SentFriendRequests user={user} isMobile={isMobile} />
+          </div>
         </TabsContent>
 
         <TabsContent value="find" className="mt-0">

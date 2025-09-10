@@ -132,6 +132,8 @@ export interface IStorage {
   // Friend methods
   sendFriendRequest(senderId: string, receiverId: string): Promise<FriendRequest>;
   getFriendRequests(userId: string): Promise<FriendRequestWithUser[]>;
+  getSentFriendRequests(userId: string): Promise<FriendRequestWithUser[]>;
+  cancelFriendRequest(requestId: string, userId: string): Promise<boolean>;
   respondToFriendRequest(requestId: string, action: 'accept' | 'decline'): Promise<boolean>;
   getFriends(userId: string): Promise<FriendshipWithUser[]>;
   removeFriend(userId: string, friendId: string): Promise<boolean>;

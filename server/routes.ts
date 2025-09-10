@@ -1458,6 +1458,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/users/:userId/sent-friend-requests', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const sentFriendRequests = await storage.getSentFriendRequests(userId);
+      res.json({ sentFriendRequests });
+    } catch (error) {
+      console.error('Get sent friend requests error:', error);
+      res.status(500).json({ error: 'Failed to fetch sent friend requests' });
+    }
+  });
+
   app.put('/api/friend-requests/:requestId', async (req, res) => {
     try {
       const { requestId } = req.params;
@@ -1468,6 +1479,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('Respond to friend request error:', error);
       res.status(400).json({ error: error.message || 'Failed to respond to friend request' });
+    }
+  });
+
+  app.delete('/api/friend-requests/:requestId/cancel/:userId', async (req, res) => {
+    try {
+      const { requestId, userId } = req.params;
+      
+      const success = await storage.cancelFriendRequest(requestId, userId);
+      res.json({ success });
+    } catch (error: any) {
+      console.error('Cancel friend request error:', error);
+      res.status(400).json({ error: error.message || 'Failed to cancel friend request' });
     }
   });
 

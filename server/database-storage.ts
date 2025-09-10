@@ -1678,6 +1678,64 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  async getSentFriendRequests(userId: string): Promise<FriendRequestWithUser[]> {
+    return await this.retryDatabaseOperation(async () => {
+      const requests = await db
+        .select({
+          id: friendRequests.id,
+          senderId: friendRequests.senderId,
+          receiverId: friendRequests.receiverId,
+          status: friendRequests.status,
+          createdAt: friendRequests.createdAt,
+          respondedAt: friendRequests.respondedAt,
+        })
+        .from(friendRequests)
+        .where(and(
+          eq(friendRequests.senderId, userId),
+          eq(friendRequests.status, 'pending')
+        ))
+        .orderBy(desc(friendRequests.createdAt));
+
+      // Fetch sender and receiver details separately
+      const requestsWithUsers = await Promise.all(
+        requests.map(async (request) => {
+          const [sender] = await db.select().from(users).where(eq(users.id, request.senderId));
+          const [receiver] = await db.select().from(users).where(eq(users.id, request.receiverId));
+          
+          return {
+            ...request,
+            sender: sender,
+            receiver: receiver
+          };
+        })
+      );
+
+      return requestsWithUsers as any;
+    });
+  }
+
+  async cancelFriendRequest(requestId: string, userId: string): Promise<boolean> {
+    return await this.retryDatabaseOperation(async () => {
+      // First verify the user owns this friend request
+      const [request] = await db.select().from(friendRequests)
+        .where(and(
+          eq(friendRequests.id, requestId),
+          eq(friendRequests.senderId, userId),
+          eq(friendRequests.status, 'pending')
+        ));
+
+      if (!request) {
+        throw new Error('Friend request not found or cannot be cancelled');
+      }
+
+      // Delete the friend request
+      await db.delete(friendRequests)
+        .where(eq(friendRequests.id, requestId));
+
+      return true;
+    });
+  }
+
   async respondToFriendRequest(requestId: string, action: 'accept' | 'decline'): Promise<boolean> {
     const [request] = await this.retryDatabaseOperation(async () => {
       return await db.select().from(friendRequests)
