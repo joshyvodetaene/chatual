@@ -7,21 +7,11 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { NotificationService } from "./notification-service";
 import { validateCityWithGoogle } from "./lib/geocoding";
 
-interface DeviceInfo {
-  userAgent?: string;
-  platform?: string;
-  timestamp: number;
-}
-
 interface WebSocketClient extends WebSocket {
   userId?: string;
   roomId?: string;
-  deviceId?: string;
-  connectionId: string;
-  deviceInfo?: DeviceInfo;
   isAlive?: boolean;
   lastActivity?: number;
-  connectedAt: number;
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -42,21 +32,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // WebSocket server with proper configuration
   const wss = new WebSocketServer({ 
     server: httpServer, 
-    path: '/socket',
+    path: '/ws',
     perMessageDeflate: false,
     maxPayload: 16 * 1024,
   });
-  // Enhanced connection tracking for multi-device support
-  const clients = new Map<string, Set<WebSocketClient>>(); // userId -> Set of connections
-  const connectionsByDevice = new Map<string, WebSocketClient>(); // deviceId -> connection
-  const connectionsById = new Map<string, WebSocketClient>(); // connectionId -> connection
-  const roomUsers = new Map<string, Set<string>>(); // roomId -> Set of userIds
-  const privateChats = new Map<string, Set<string>>(); // chatId -> Set of userIds
+  const clients = new Map<string, WebSocketClient>();
+  const roomUsers = new Map<string, Set<string>>(); // Track online users per room
 
-  // Initialize notification service - will be updated to handle multiple connections
-  const notificationService = new NotificationService(new Map<string, any>());
+  // Initialize notification service
+  const notificationService = new NotificationService(clients);
 
-  console.log('WebSocket server initialized on path /socket');
+  console.log('WebSocket server initialized on path /ws');
 
   // Connection health tracking constants - more lenient settings
   const HEARTBEAT_INTERVAL = 30000; // 30 seconds
@@ -98,42 +84,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     let cleanedRoomEntries = 0;
 
     // Clean up stale clients
-    for (const [userId, clientSet] of clients.entries()) {
-      const activeClients = new Set<WebSocketClient>();
+    for (const [userId, client] of clients.entries()) {
+      if (!isConnectionAlive(client)) {
+        console.log(`[WS_CLEANUP] Removing stale connection for user ${userId}`);
 
-      for (const client of clientSet) {
-        if (!isConnectionAlive(client)) {
-          console.log(`[WS_CLEANUP] Removing stale connection for user ${userId}`);
-
-          // Remove from room if they were in one
-          if (client.roomId && client.userId) {
-            removeUserFromRoom(client.roomId, client.userId);
-            cleanedRoomEntries++;
-          }
-
-          cleanedConnections++;
-
-          try {
-            client.close(1001, 'Connection cleanup');
-          } catch (error) {
-            // Connection might already be closed
-          }
-        } else {
-          activeClients.add(client);
+        // Remove from room if they were in one
+        if (client.roomId && client.userId) {
+          removeUserFromRoom(client.roomId, client.userId);
+          cleanedRoomEntries++;
         }
-      }
 
-      if (activeClients.size === 0) {
-        // No active connections for this user
+        // Update database status and remove client
+        if (client.userId) {
+          storage.updateUserOnlineStatus(client.userId, false).catch(error => {
+            console.error(`[WS_CLEANUP] Failed to update user status for ${client.userId}:`, error);
+          });
+        }
+
         clients.delete(userId);
+        cleanedConnections++;
 
-        // Update database status only when user has no active connections
-        storage.updateUserOnlineStatus(userId, false).catch(error => {
-          console.error(`[WS_CLEANUP] Failed to update user status for ${userId}:`, error);
-        });
-      } else {
-        // Update the set with only active connections
-        clients.set(userId, activeClients);
+        try {
+          client.close(1001, 'Connection cleanup');
+        } catch (error) {
+          // Connection might already be closed
+        }
       }
     }
 
@@ -142,18 +117,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validUsers = new Set<string>();
 
       for (const userId of userSet) {
-        const clientSet = clients.get(userId);
-        if (clientSet) {
-          // Check if user has at least one active connection in this room
-          const hasActiveConnection = Array.from(clientSet).some(client => 
-            isConnectionAlive(client) && client.roomId === roomId
-          );
-
-          if (hasActiveConnection) {
-            validUsers.add(userId);
-          } else {
-            cleanedRoomEntries++;
-          }
+        const client = clients.get(userId);
+        if (client && isConnectionAlive(client) && client.roomId === roomId) {
+          validUsers.add(userId);
         } else {
           cleanedRoomEntries++;
         }
@@ -184,34 +150,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     let activeConnections = 0;
     let staleConnections = 0;
 
-    for (const [userId, clientSet] of clients.entries()) {
-      for (const client of clientSet) {
-        if (client.readyState === WebSocket.OPEN) {
-          // Only mark as potentially stale if it already failed a previous ping
-          // Don't immediately mark as false - give time for pong response
-          if (client.isAlive === false) {
-            // This client already failed a previous heartbeat, mark for cleanup
-            staleConnections++;
-            continue;
-          }
+    for (const [userId, client] of clients.entries()) {
+      if (client.readyState === WebSocket.OPEN) {
+        // Only mark as potentially stale if it already failed a previous ping
+        // Don't immediately mark as false - give time for pong response
+        if (client.isAlive === false) {
+          // This client already failed a previous heartbeat, mark for cleanup
+          staleConnections++;
+          continue;
+        }
 
-          // For healthy connections, send ping but don't immediately mark as dead
-          try {
-            client.ping((error: Error | null) => {
-              if (error) {
-                console.log(`[WS_HEARTBEAT] Ping failed for user ${userId}: ${error.message}`);
-                client.isAlive = false; // Only mark as false if ping actually failed
-              }
-            });
-            activeConnections++;
-          } catch (error) {
-            console.log(`[WS_HEARTBEAT] Failed to ping user ${userId}: ${error}`);
-            client.isAlive = false; // Only mark as false if ping failed
-            staleConnections++;
-          }
-        } else {
+        // For healthy connections, send ping but don't immediately mark as dead
+        try {
+          client.ping((error: Error | null) => {
+            if (error) {
+              console.log(`[WS_HEARTBEAT] Ping failed for user ${userId}: ${error.message}`);
+              client.isAlive = false; // Only mark as false if ping actually failed
+            }
+          });
+          activeConnections++;
+        } catch (error) {
+          console.log(`[WS_HEARTBEAT] Failed to ping user ${userId}: ${error}`);
+          client.isAlive = false; // Only mark as false if ping failed
           staleConnections++;
         }
+      } else {
+        staleConnections++;
       }
     }
 
@@ -229,13 +193,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     clearInterval(cleanupInterval);
 
     // Close all active connections
-    for (const [userId, clientSet] of clients.entries()) {
-      for (const client of clientSet) {
-        try {
-          client.close(1001, 'Server shutdown');
-        } catch (error) {
-          console.error(`[WS_SHUTDOWN] Error closing connection for user ${userId}:`, error);
-        }
+    for (const [userId, client] of clients.entries()) {
+      try {
+        client.close(1001, 'Server shutdown');
+      } catch (error) {
+        console.error(`[WS_SHUTDOWN] Error closing connection for user ${userId}:`, error);
       }
     }
     clients.clear();
@@ -247,12 +209,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
   process.on('SIGINT', cleanup);
   process.on('SIGUSR2', cleanup); // For nodemon restarts
 
+  // Helper function to broadcast to room
+  function broadcastToRoom(roomId: string, message: any, excludeUserId?: string) {
+    let sentCount = 0;
+    Array.from(clients.values()).forEach(client => {
+      if (client.roomId === roomId && client.readyState === WebSocket.OPEN && client.userId !== excludeUserId) {
+        try {
+          client.send(JSON.stringify(message));
+          sentCount++;
+        } catch (error) {
+          console.error(`Failed to send message to user ${client.userId}:`, error);
+          // Mark client as potentially problematic for cleanup
+          client.isAlive = false;
+        }
+      }
+    });
+
+    // Log only for important messages when no clients were reached
+    if (message.type === 'new_message' && sentCount === 0) {
+      console.log(`[BROADCAST] Warning: No clients received message in room ${roomId}`);
+    }
+  }
+
+  // Helper function to broadcast to specific user
+  function broadcastToUser(userId: string, message: any) {
+    const client = clients.get(userId);
+    if (client && client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(message));
+      return true;
+    } else {
+      return false;
+    }
+  }
 
   // Helper functions for room user management
   function addUserToRoom(roomId: string, userId: string) {
     // Validate that the user actually has an active connection
-    const clientSet = clients.get(userId);
-    if (!clientSet || !Array.from(clientSet).some(client => isConnectionAlive(client))) {
+    const client = clients.get(userId);
+    if (!client || !isConnectionAlive(client)) {
       console.log(`[WS_ROOM] Cannot add user ${userId} to room ${roomId}: no active connection`);
       return;
     }
@@ -300,18 +294,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     let removedUsers = 0;
 
     for (const userId of roomUserSet) {
-      const clientSet = clients.get(userId);
-      if (clientSet) {
-        // Check if user has at least one active connection in this room
-        const hasActiveConnection = Array.from(clientSet).some(client => 
-          isConnectionAlive(client) && client.roomId === roomId
-        );
-
-        if (hasActiveConnection) {
-          validUsers.add(userId);
-        } else {
-          removedUsers++;
-        }
+      const client = clients.get(userId);
+      if (client && isConnectionAlive(client) && client.roomId === roomId) {
+        validUsers.add(userId);
       } else {
         removedUsers++;
       }
@@ -331,118 +316,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
-  // Generate unique IDs for connections and devices
-  function generateConnectionId(): string {
-    return `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  function generateDeviceId(): string {
-    return `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  // Broadcast message to all connections for a specific user (cross-device sync)
-  function broadcastToUser(userId: string, message: any, excludeConnection?: WebSocketClient) {
-    const userConnections = clients.get(userId);
-    if (!userConnections) return;
-
-    const messageStr = JSON.stringify(message);
-    let sentCount = 0;
-
-    for (const connection of userConnections) {
-      if (connection !== excludeConnection && connection.readyState === WebSocket.OPEN) {
-        try {
-          connection.send(messageStr);
-          sentCount++;
-        } catch (error) {
-          console.error(`[WS_BROADCAST] Failed to send to device ${connection.deviceId}:`, error);
-        }
-      }
-    }
-
-    console.log(`[WS_BROADCAST] Sent message to ${sentCount} devices for user ${userId}`);
-  }
-
-  // Enhanced room broadcasting with cross-device support
-  function broadcastToRoom(roomId: string, message: any, excludeUserId?: string) {
-    const usersInRoom = roomUsers.get(roomId);
-    if (!usersInRoom) return;
-
-    const messageStr = JSON.stringify(message);
-    let totalSent = 0;
-
-    for (const userId of usersInRoom) {
-      if (userId === excludeUserId) continue;
-
-      const userConnections = clients.get(userId);
-      if (userConnections) {
-        for (const connection of userConnections) {
-          if (connection.roomId === roomId && connection.readyState === WebSocket.OPEN) {
-            try {
-              connection.send(messageStr);
-              totalSent++;
-            } catch (error) {
-              console.error(`[WS_ROOM_BROADCAST] Failed to send to user ${userId}, device ${connection.deviceId}:`, error);
-            }
-          }
-        }
-      }
-    }
-
-    console.log(`[WS_ROOM_BROADCAST] Sent to ${totalSent} connections in room ${roomId}`);
-  }
-
   // WebSocket connection handling
-  wss.on('connection', (ws: WebSocketClient, req) => {
-    // Parse connection parameters from URL
-    const url = new URL(req.url || '', `http://${req.headers.host}`);
-    const userId = url.searchParams.get('userId');
-    const deviceId = url.searchParams.get('deviceId') || generateDeviceId();
-    
-    // Generate unique connection ID and set connection metadata
-    ws.connectionId = generateConnectionId();
-    ws.deviceId = deviceId;
-    ws.connectedAt = Date.now();
+  wss.on('connection', (ws: WebSocketClient) => {
+    console.log('[WS_CONNECTION] New WebSocket connection established');
+
+    // Initialize connection tracking
     ws.isAlive = true;
     ws.lastActivity = Date.now();
-    
-    // Extract device info from headers
-    ws.deviceInfo = {
-      userAgent: req.headers['user-agent'],
-      platform: typeof req.headers['sec-ch-ua-platform'] === 'string' 
-        ? req.headers['sec-ch-ua-platform'].replace(/"/g, '') 
-        : 'unknown',
-      timestamp: Date.now()
-    };
-    
-    console.log(`[WS_CONNECTION] New WebSocket connection: connectionId=${ws.connectionId}, deviceId=${ws.deviceId}, user=${userId || 'pending'}`);
-
-    // Add to connection tracking maps
-    connectionsById.set(ws.connectionId, ws);
-    connectionsByDevice.set(ws.deviceId, ws);
-
-    // Set userId and add to user's connections if provided via URL
-    if (userId) {
-      ws.userId = userId;
-      console.log(`[WS_CONNECTION] User ${userId} identified via URL for device ${ws.deviceId}`);
-      
-      // Add connection to user's set
-      const existingConnections = clients.get(userId) || new Set();
-      existingConnections.add(ws);
-      clients.set(userId, existingConnections);
-
-      // Update user online status in database
-      storage.updateUserOnlineStatus(userId, true).catch(error => {
-        console.error(`[WS_CONNECTION] Failed to update user status for ${userId}:`, error);
-      });
-
-      // Notify other devices about new connection
-      broadcastToUser(userId, {
-        type: 'device_connected',
-        deviceId: ws.deviceId,
-        deviceInfo: ws.deviceInfo,
-        timestamp: Date.now()
-      }, ws);
-    }
 
     // Handle pong responses (heartbeat confirmation)
     ws.on('pong', () => {
@@ -484,7 +364,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             }
 
-            // Add this connection to the user's connection set
+            // Check if user already has a connection and clean up
+            const existingConnection = clients.get(message.userId);
+            if (existingConnection && existingConnection !== ws) {
+              console.log(`[WS_JOIN] Closing existing connection for user ${message.userId}`);
+              if (existingConnection.roomId && existingConnection.userId) {
+                removeUserFromRoom(existingConnection.roomId, existingConnection.userId);
+                broadcastToRoom(existingConnection.roomId, {
+                  type: 'user_left',
+                  userId: existingConnection.userId,
+                });
+              }
+              existingConnection.close();
+              clients.delete(message.userId);
+            }
+
             ws.userId = message.userId;
             ws.roomId = message.roomId;
 
@@ -492,10 +386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ws.isAlive = true;
             ws.lastActivity = Date.now();
 
-            // Add connection to user's set (supporting multiple devices)
-            const existingConnections = clients.get(message.userId) || new Set();
-            existingConnections.add(ws);
-            clients.set(message.userId, existingConnections);
+            clients.set(message.userId, ws);
 
             console.log(`[WS_JOIN] User ${message.userId} joining room ${message.roomId}`);
 
@@ -515,35 +406,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }, message.userId);
             break;
 
-          case 'identify':
-            // Handle user identification without joining a specific room
-            console.log(`[WS_IDENTIFY] User identification request from userId=${message.userId}`);
-            
-            // Set user ID on the WebSocket connection
-            ws.userId = message.userId;
-            
-            // Initialize connection tracking for this user
-            ws.isAlive = true;
-            ws.lastActivity = Date.now();
-            
-            // Add connection to user's set (supporting multiple devices)
-            const existingUserConnections = clients.get(message.userId) || new Set();
-            existingUserConnections.add(ws);
-            clients.set(message.userId, existingUserConnections);
-            
-            console.log(`[WS_IDENTIFY] User ${message.userId} identified successfully`);
-            
-            // Update user online status
-            await storage.updateUserOnlineStatus(message.userId, true);
-            
-            // Send confirmation back to client
-            ws.send(JSON.stringify({
-              type: 'identified',
-              userId: message.userId,
-              timestamp: Date.now()
-            }));
-            break;
-
           case 'leave':
             console.log(`[WS_LEAVE] Leave request from userId=${message.userId || ws.userId}, roomId=${message.roomId || ws.roomId}`);
             const leaveUserId = message.userId || ws.userId;
@@ -560,49 +422,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
             break;
 
           case 'message':
-            try {
-              console.log(`[WS_MESSAGE] Message from user ${message.userId} in room ${message.roomId}: ${message.content?.substring(0, 50)}`);
+            console.log(`[WEBSOCKET] Processing message from userId=${ws.userId}, roomId=${ws.roomId}`);
+            if (ws.userId && ws.roomId) {
+              console.log(`[WEBSOCKET] Message content length: ${message.content?.length || 0}, messageType: ${message.messageType}`);
 
-              // Get user data to include in the message - use the userId from the WebSocket connection
-              const actualUserId = ws.userId || message.userId;
-              const userData = await storage.getUser(actualUserId);
-              if (!userData) {
-                console.error(`[WS_MESSAGE] User not found: ${actualUserId}`);
-                ws.send(JSON.stringify({
-                  type: 'error',
-                  message: 'User not found'
-                }));
-                return;
+              // Normalize photo URL if this is a photo message
+              let normalizedPhotoUrl = message.photoUrl;
+              if (message.photoUrl && message.messageType === 'photo') {
+                console.log(`[WEBSOCKET] Normalizing photo URL: ${message.photoUrl}`);
+                const objectStorageService = new ObjectStorageService();
+                normalizedPhotoUrl = objectStorageService.normalizePhotoPath(message.photoUrl);
+                console.log(`[WEBSOCKET] Normalized photo URL: ${normalizedPhotoUrl}`);
               }
 
-              console.log(`[WS_MESSAGE] Creating message for user: ${userData.username} (${userData.id})`);
-
-              // Create and store the message with the correct user ID from WebSocket connection
-              const messageData = await storage.createMessage({
+              console.log(`[WEBSOCKET] Creating message in storage...`);
+              const newMessage = await storage.createMessage({
                 content: message.content,
-                photoUrl: message.photoUrl,
+                userId: ws.userId,
+                roomId: ws.roomId,
+                photoUrl: normalizedPhotoUrl,
                 photoFileName: message.photoFileName,
                 messageType: message.messageType || 'text',
                 mentionedUserIds: message.mentionedUserIds || [],
-                userId: actualUserId, // Use the user ID from the WebSocket connection
-                roomId: message.roomId,
-                username: userData.username // Use actual username from database
               });
 
-              console.log(`[WS_MESSAGE] Message stored with ID: ${messageData.id} for user: ${userData.username}`);
+              console.log('[WEBSOCKET] Created message:', {
+                id: newMessage.id,
+                messageType: newMessage.messageType,
+                photoUrl: newMessage.photoUrl,
+                photoFileName: newMessage.photoFileName
+              });
 
-              // Broadcast to all users in the room
-              broadcastToRoom(message.roomId, {
+              console.log(`[WEBSOCKET] Getting user data for ${ws.userId}`);
+              const user = await storage.getUser(ws.userId);
+              const messageWithUser = { ...newMessage, user };
+
+              console.log('[WEBSOCKET] Broadcasting message:', {
+                id: messageWithUser.id,
+                messageType: messageWithUser.messageType,
+                photoUrl: messageWithUser.photoUrl
+              });
+
+              // Send notifications for mentions
+              if (newMessage.mentionedUserIds && newMessage.mentionedUserIds.length > 0) {
+                console.log(`[WEBSOCKET] Processing mentions: ${newMessage.mentionedUserIds}`);
+                for (const mentionedUserId of newMessage.mentionedUserIds) {
+                  if (mentionedUserId !== ws.userId) { // Don't notify the sender
+                    await notificationService.notifyMention(
+                      mentionedUserId,
+                      ws.userId,
+                      ws.roomId,
+                      newMessage.content || '[Photo]'
+                    );
+                  }
+                }
+              }
+
+              // Send notifications to room members who are not currently online in this room
+              try {
+                const roomMembers = await storage.getRoomMembers(ws.roomId);
+                const onlineUsersInRoom = Array.from(roomUsers.get(ws.roomId) || []);
+
+                for (const member of roomMembers) {
+                  // Don't notify the sender and those who are currently online in the room
+                  if (member.id !== ws.userId && !onlineUsersInRoom.includes(member.id)) {
+                    const isDirectMessage = roomMembers.length === 2; // Simple check for direct messages
+                    await notificationService.notifyNewMessage(
+                      member.id,
+                      ws.userId,
+                      ws.roomId,
+                      newMessage.content || '[Photo]',
+                      isDirectMessage
+                    );
+                  }
+                }
+              } catch (error) {
+                console.error('Error sending message notifications:', error);
+              }
+
+              // Broadcast message to room
+              broadcastToRoom(ws.roomId, {
                 type: 'new_message',
-                message: messageData
+                message: messageWithUser,
               });
-
-            } catch (error) {
-              console.error('[WS_MESSAGE] Error handling message:', error);
-              ws.send(JSON.stringify({
-                type: 'error',
-                message: 'Failed to send message'
-              }));
+            } else {
+              console.log(`[WEBSOCKET] Cannot process message: missing userId=${ws.userId} or roomId=${ws.roomId}`);
             }
             break;
 
@@ -627,49 +531,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     ws.on('close', async (code, reason) => {
       console.log(`[WS_CLOSE] Connection closed for user ${ws.userId}, code: ${code}, reason: ${reason}`);
 
-      if (ws.userId) {
-        // Remove this specific connection from the user's connection set
-        const userConnections = clients.get(ws.userId);
-        if (userConnections) {
-          userConnections.delete(ws);
+      if (ws.userId && ws.roomId) {
+        console.log(`[WS_CLOSE] Cleaning up user ${ws.userId} from room ${ws.roomId}`);
 
-          if (userConnections.size === 0) {
-            // No more connections for this user
-            clients.delete(ws.userId);
+        // Remove user from room and update online status
+        removeUserFromRoom(ws.roomId, ws.userId);
 
-            // Update user's online status to false
-            try {
-              await storage.updateUserOnlineStatus(ws.userId, false);
-              console.log(`[WS_CLOSE] User ${ws.userId} marked offline - no active connections`);
-            } catch (error) {
-              console.error(`[WS_CLOSE] Failed to update offline status for user ${ws.userId}:`, error);
-            }
-          } else {
-            console.log(`[WS_CLOSE] User ${ws.userId} still has ${userConnections.size} active connections`);
-          }
+        try {
+          await storage.updateUserOnlineStatus(ws.userId, false);
+        } catch (error) {
+          console.error(`[WS_CLOSE] Failed to update offline status for user ${ws.userId}:`, error);
         }
 
-        if (ws.roomId) {
-          console.log(`[WS_CLOSE] Cleaning up user ${ws.userId} from room ${ws.roomId}`);
+        // Broadcast user left
+        broadcastToRoom(ws.roomId, {
+          type: 'user_left',
+          userId: ws.userId,
+        });
 
-          // Check if user still has active connections in this room
-          const stillInRoom = userConnections && Array.from(userConnections).some(client => 
-            client.roomId === ws.roomId && isConnectionAlive(client)
-          );
+        clients.delete(ws.userId);
 
-          if (!stillInRoom) {
-            // Remove user from room only if they have no active connections in this room
-            removeUserFromRoom(ws.roomId, ws.userId);
+        // Synchronize room users to ensure accuracy after disconnect
+        synchronizeRoomUsers(ws.roomId);
+      } else if (ws.userId) {
+        // User connected but not in a room, still need to clean up
+        console.log(`[WS_CLOSE] Cleaning up user ${ws.userId} (not in room)`);
+        clients.delete(ws.userId);
 
-            // Broadcast user left
-            broadcastToRoom(ws.roomId, {
-              type: 'user_left',
-              userId: ws.userId,
-            });
-          }
-
-          // Synchronize room users to ensure accuracy after disconnect
-          synchronizeRoomUsers(ws.roomId);
+        try {
+          await storage.updateUserOnlineStatus(ws.userId, false);
+        } catch (error) {
+          console.error(`[WS_CLOSE] Failed to update offline status for user ${ws.userId}:`, error);
         }
       }
     });
@@ -952,7 +844,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/geocode/validate', async (req, res) => {
     try {
       const { city } = req.query;
-
+      
       if (!city || typeof city !== 'string') {
         return res.status(400).json({ 
           isValid: false, 
@@ -975,7 +867,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/cities/validate', async (req, res) => {
     try {
       const { cityName, allowedCountries } = req.body;
-
+      
       if (!cityName || typeof cityName !== 'string') {
         return res.status(400).json({ 
           isValid: false, 
@@ -1515,19 +1407,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Disconnect user from WebSocket if they're connected
       if (clients.has(userId)) {
-        const clientSet = clients.get(userId);
-        if (clientSet) {
-          // Remove user from all rooms they're in and close all connections
-          for (const client of clientSet) {
-            if (client.roomId) {
-              removeUserFromRoom(client.roomId, userId);
-            }
-            try {
-              client.close(1000, 'Account deleted');
-            } catch (error) {
-              console.error(`Failed to close connection for deleted user ${userId}:`, error);
-            }
-          }
+        const client = clients.get(userId);
+        if (client && client.roomId) {
+          removeUserFromRoom(client.roomId, userId);
         }
         clients.delete(userId);
       }

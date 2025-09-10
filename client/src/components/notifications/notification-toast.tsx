@@ -97,7 +97,7 @@ export function NotificationToast({
   return (
     <div
       className={cn(
-        'relative w-80 max-w-sm z-50 transition-all duration-200',
+        'fixed top-4 right-4 w-80 max-w-sm z-50 transition-all duration-200',
         isExiting ? 'translate-x-full opacity-0' : 'translate-x-0 opacity-100',
         'animate-in slide-in-from-right-full'
       )}

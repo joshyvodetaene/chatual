@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { useWebSocket } from '@/hooks/use-websocket';
 import type { User, MessageWithUser } from '@shared/schema';
 
@@ -19,7 +19,6 @@ interface WebSocketContextType {
   setMessages: React.Dispatch<React.SetStateAction<MessageWithUser[]>>;
   reconnect: () => void;
   clearFailedMessages: () => void;
-  disconnect: () => void;
   currentRoom: string | null;
 }
 

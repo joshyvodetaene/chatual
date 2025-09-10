@@ -71,34 +71,8 @@ export default function ChatPage() {
     sendTyping,
     setMessages,
     reconnect,
-    clearFailedMessages,
-    disconnect
+    clearFailedMessages
   } = useWebSocketContext();
-
-  // Effect to handle user changes and reset WebSocket connection
-  useEffect(() => {
-    if (currentUser) {
-      console.log(`[CHAT_PAGE] User changed to: ${currentUser.username} (${currentUser.id})`);
-      // Disconnect and reconnect WebSocket to ensure proper user ID
-      disconnect();
-      // Small delay to ensure clean disconnect before reconnect
-      setTimeout(() => {
-        reconnect();
-      }, 100);
-    }
-  }, [currentUser?.id, disconnect, reconnect]);
-
-  // Effect to log user changes (connection management handled by WebSocket provider)
-  useEffect(() => {
-    console.log('[CHAT_PAGE] User changed effect:', { 
-      currentUserId: currentUser?.id, 
-      currentUsername: currentUser?.username 
-    });
-
-    if (currentUser?.id) {
-      console.log('[CHAT_PAGE] User detected, WebSocket will handle connection for:', currentUser.username);
-    }
-  }, [currentUser?.id]);
 
   const { data: roomsData } = useQuery<{ rooms: Room[] }>({
     queryKey: ['/api/rooms'],
@@ -209,19 +183,11 @@ export default function ChatPage() {
   });
 
   const handleAuthSuccess = (user: User) => {
-    console.log('[CHAT_PAGE] Authentication success for user:', {
-      currentUserId: user.id,
-      currentUsername: user.username
-    });
-    
     setCurrentUser(user);
     localStorage.setItem('chatual_user', JSON.stringify(user));
-    
-    console.log('[CHAT_PAGE] User set, WebSocket provider will handle connection for:', user.username);
   };
 
   const handleLogout = () => {
-    console.log('[CHAT_PAGE] Initiating logout');
     logoutMutation.mutate();
   };
 
@@ -364,9 +330,8 @@ export default function ChatPage() {
     }
   }, [currentUser, activeRoom?.id]);
 
-  // Optimize room join with immediate WebSocket connection
+  // Optimize room join with async handling
   const handleRoomJoin = useCallback(async (roomId: string, userId: string) => {
-    console.log(`[CHAT_PAGE] Joining room immediately: ${roomId}`);
     currentJoinedRoom.current = roomId;
 
     // For private chats, preserve message history - only clear messages for public rooms
@@ -378,29 +343,25 @@ export default function ChatPage() {
       setMessages([]);
     }
 
-    // Join room via WebSocket IMMEDIATELY - don't wait for server response
+    // Join room via WebSocket
     joinRoom(roomId);
 
-    // Join room on server asynchronously (non-blocking)
-    apiRequest('POST', `/api/rooms/${roomId}/join`, { userId }).catch((error) => {
-      console.error('Room join error (non-blocking):', error);
-      // Don't block WebSocket functionality for server errors
-    });
+    // Join room on server asynchronously
+    try {
+      const response = await apiRequest('POST', `/api/rooms/${roomId}/join`, { userId });
+    } catch (error) {
+      console.error('Room join error:', error);
+    }
   }, [joinRoom, setMessages, activeRoomData?.room, activeRoom]);
 
-  // Immediate room joining when room changes
   useEffect(() => {
-    if (activeRoom?.id && currentUser?.id) {
-      // Join immediately if not already joined or if room changed
-      if (currentJoinedRoom.current !== activeRoom.id) {
-        console.log(`[CHAT_PAGE] Room changed from ${currentJoinedRoom.current} to ${activeRoom.id} - joining immediately`);
-        handleRoomJoin(activeRoom.id, currentUser.id);
-      }
+    if (activeRoom?.id && currentUser?.id && currentJoinedRoom.current !== activeRoom.id) {
+      handleRoomJoin(activeRoom.id, currentUser.id);
     }
   }, [activeRoom?.id, currentUser?.id, handleRoomJoin]);
 
 
-  // Set initial active room immediately from localStorage, then update when API data loads
+  // Set initial active room
   useEffect(() => {
     console.log(`[CHAT_PAGE] Initial room selection effect:`, {
       hasRooms: !!roomsData?.rooms,
@@ -408,51 +369,27 @@ export default function ChatPage() {
       hasActiveRoom: !!activeRoom,
       hasCurrentUser: !!currentUser
     });
-
-    // Immediate room restoration from localStorage when user is available (don't wait for API)
-    if (currentUser && !activeRoom) {
+    if (roomsData?.rooms && roomsData.rooms.length > 0 && !activeRoom && currentUser) {
+      // Try to restore from localStorage first
       const savedRoom = localStorage.getItem('chatual_active_room');
       console.log(`[CHAT_PAGE] Saved room from localStorage:`, savedRoom);
-      
+      let roomToSet = roomsData.rooms[0]; // default
+
       if (savedRoom) {
         try {
           const parsedRoom = JSON.parse(savedRoom);
-          // Create a minimal room object for immediate WebSocket connection
-          const restoredRoom: Room = {
-            id: parsedRoom.id,
-            name: parsedRoom.name || 'Unknown Room',
-            description: '',
-            isPrivate: false,
-            createdAt: new Date().toISOString(),
-            createdById: '',
-            memberCount: 0
-          };
-          
-          console.log(`[CHAT_PAGE] Restored room from localStorage: ${restoredRoom.name}`);
-          setActiveRoom(restoredRoom);
-          activeRoomRef.current = restoredRoom;
-        } catch (error) {
-          console.error('[CHAT_PAGE] Error parsing saved room:', error);
-        }
-      }
-    }
-
-    // Update room with full data when API loads
-    if (roomsData?.rooms && roomsData.rooms.length > 0 && currentUser) {
-      let roomToSet = roomsData.rooms[0]; // default
-
-      // If we have a room from localStorage, find the full version
-      if (activeRoom) {
-        const foundRoom = roomsData.rooms.find(r => r.id === activeRoom.id);
-        if (foundRoom) {
-          roomToSet = foundRoom;
-          console.log(`[CHAT_PAGE] Updated room with full data: ${foundRoom.name}`);
-        } else {
-          console.log(`[CHAT_PAGE] Previously saved room not found in API, switching to default`);
+          const foundRoom = roomsData.rooms.find(r => r.id === parsedRoom.id);
+          if (foundRoom) {
+            console.log(`[CHAT_PAGE] Restored room from localStorage: ${foundRoom.name}`);
+            roomToSet = foundRoom;
+          } else {
+            console.log(`[CHAT_PAGE] Saved room not found, using default: ${roomsData.rooms[0].name}`);
+          }
+        } catch (e) {
+          console.log(`[CHAT_PAGE] Error parsing saved room, using default:`, e);
         }
       } else {
-        // No room selected, use default
-        console.log(`[CHAT_PAGE] No room selected, using default: ${roomsData.rooms[0].name}`);
+        console.log(`[CHAT_PAGE] No saved room, using default: ${roomsData.rooms[0].name}`);
       }
 
       console.log(`[CHAT_PAGE] Setting initial active room: ${roomToSet.name} (${roomToSet.id})`);
@@ -461,7 +398,7 @@ export default function ChatPage() {
       localStorage.setItem('chatual_active_room', JSON.stringify({ id: roomToSet.id, name: roomToSet.name }));
       console.log(`[CHAT_PAGE] Active room saved to localStorage`);
     }
-  }, [roomsData?.rooms, currentUser]);
+  }, [roomsData?.rooms, activeRoom, currentUser]);
 
   // Auto-show user list on desktop, hide on mobile/tablet
   useEffect(() => {
@@ -1137,12 +1074,7 @@ export default function ChatPage() {
       />
 
       {/* Notification Toasts */}
-      <div className={cn(
-        "fixed z-50 flex flex-col gap-2",
-        isMobile
-          ? "top-4 left-4 right-4" // Mobile: full width at top to avoid chat input conflicts
-          : "bottom-4 right-4"     // Desktop: bottom-right as before
-      )}>
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
         {toasts.map((toast) => (
           <NotificationToast
             key={toast.id}
