@@ -104,7 +104,9 @@ export function NotificationCenter() {
     }
     
     // Handle navigation based on notification type
-    if (notification.data?.roomId) {
+    if (notification.type === 'friend_request') {
+      window.location.href = '/friends';
+    } else if (notification.data?.roomId) {
       window.location.href = `/chat/${notification.data.roomId}`;
     }
     

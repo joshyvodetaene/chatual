@@ -25,7 +25,7 @@ export default function FriendRequests({ user, isMobile = false }: FriendRequest
     queryFn: () => apiRequest('GET', `/api/users/${user.id}/friend-requests`),
   });
 
-  const friendRequests = requestsData?.friendRequests || [];
+  const friendRequests = (requestsData as any)?.friendRequests || [];
 
   // Respond to friend request mutation
   const respondToRequestMutation = useMutation({
@@ -129,7 +129,7 @@ export default function FriendRequests({ user, isMobile = false }: FriendRequest
                 <div className="flex items-center space-x-3">
                   <Avatar className="w-12 h-12">
                     <AvatarImage 
-                      src={request.sender.primaryPhoto || ''} 
+                      src={typeof request.sender.primaryPhoto === 'string' ? request.sender.primaryPhoto : request.sender.primaryPhoto?.photoUrl || ''} 
                       alt={request.sender.username}
                     />
                     <AvatarFallback className="bg-primary/20 text-primary">
@@ -140,7 +140,7 @@ export default function FriendRequests({ user, isMobile = false }: FriendRequest
                     <p className="font-medium text-white">{request.sender.username}</p>
                     <div className="flex items-center space-x-2 text-sm text-gray-400">
                       <Clock className="w-3 h-3" />
-                      <span>{new Date(request.createdAt).toLocaleDateString()}</span>
+                      <span>{new Date(request.createdAt || new Date()).toLocaleDateString()}</span>
                     </div>
                   </div>
                 </div>

@@ -25,7 +25,7 @@ export default function SentFriendRequests({ user, isMobile = false }: SentFrien
     queryFn: () => apiRequest('GET', `/api/users/${user.id}/sent-friend-requests`),
   });
 
-  const sentFriendRequests = requestsData?.sentFriendRequests || [];
+  const sentFriendRequests = (requestsData as any)?.sentFriendRequests || [];
 
   // Cancel friend request mutation
   const cancelRequestMutation = useMutation({
@@ -122,7 +122,7 @@ export default function SentFriendRequests({ user, isMobile = false }: SentFrien
                 <div className="flex items-center space-x-3">
                   <Avatar className="w-12 h-12">
                     <AvatarImage 
-                      src={request.receiver.primaryPhoto || ''} 
+                      src={typeof request.receiver.primaryPhoto === 'string' ? request.receiver.primaryPhoto : request.receiver.primaryPhoto?.photoUrl || ''} 
                       alt={request.receiver.username}
                     />
                     <AvatarFallback className="bg-primary/20 text-primary">
@@ -133,7 +133,7 @@ export default function SentFriendRequests({ user, isMobile = false }: SentFrien
                     <p className="font-medium text-white">{request.receiver.username}</p>
                     <div className="flex items-center space-x-2 text-sm text-gray-400">
                       <Clock className="w-3 h-3" />
-                      <span>Sent {new Date(request.createdAt).toLocaleDateString()}</span>
+                      <span>Sent {new Date(request.createdAt || new Date()).toLocaleDateString()}</span>
                     </div>
                   </div>
                 </div>

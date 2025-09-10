@@ -1627,15 +1627,21 @@ export class DatabaseStorage implements IStorage {
         .returning();
     });
 
+    // Get sender details for notification
+    const [sender] = await this.retryDatabaseOperation(async () => {
+      return await db.select().from(users).where(eq(users.id, senderId));
+    });
+
     // Create notification for receiver
     await this.createNotification({
       userId: receiverId,
       type: 'friend_request',
       title: 'New Friend Request',
-      body: 'Someone sent you a friend request',
+      body: `${sender?.username || 'Someone'} sent you a friend request`,
       data: {
         senderId,
-        requestId: request.id
+        requestId: request.id,
+        senderUsername: sender?.username
       }
     });
 

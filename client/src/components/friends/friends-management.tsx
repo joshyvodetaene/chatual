@@ -40,10 +40,10 @@ export default function FriendsManagement({ user, isMobile = false }: FriendsMan
     queryFn: () => apiRequest('GET', `/api/users/${user.id}/friends`),
   });
 
-  const pendingRequestsCount = requestsData?.friendRequests?.length || 0;
-  const sentRequestsCount = sentRequestsData?.sentFriendRequests?.length || 0;
+  const pendingRequestsCount = (requestsData as any)?.friendRequests?.length || 0;
+  const sentRequestsCount = (sentRequestsData as any)?.sentFriendRequests?.length || 0;
   const totalRequestsCount = pendingRequestsCount + sentRequestsCount;
-  const friendsCount = friendsData?.friends?.length || 0;
+  const friendsCount = (friendsData as any)?.friends?.length || 0;
 
   return (
     <div className="w-full max-w-4xl mx-auto">
