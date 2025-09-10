@@ -22,12 +22,18 @@ export default function UserDistance({ currentUserId, targetUserId, className }:
   }
 
   const formatDistance = (distanceKm: number): string => {
-    if (distanceKm < 1) {
-      return 'Less than 1 km';
+    if (distanceKm < 0.1) {
+      return 'Very close';
+    } else if (distanceKm < 1) {
+      return `${(distanceKm * 1000).toFixed(0)}m away`;
+    } else if (distanceKm < 10) {
+      return `${distanceKm.toFixed(1)} km away`;
+    } else if (distanceKm < 100) {
+      return `${Math.round(distanceKm)} km away`;
     } else if (distanceKm < 1000) {
-      return `${distanceKm} km away`;
+      return `${Math.round(distanceKm)} km away`;
     } else {
-      return `${Math.round(distanceKm / 1000)}k km away`;
+      return `${(distanceKm / 1000).toFixed(1)}k km away`;
     }
   };
 

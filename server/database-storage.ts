@@ -346,35 +346,108 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUsersWithDistance(currentUserId: string): Promise<UserWithDistance[]> {
-    // Get current user to access their preferences
-    const currentUser = await this.getUser(currentUserId);
-    if (!currentUser) {
-      return [];
+    try {
+      console.log(`[API] Getting users with distance calculation for: ${currentUserId}`);
+
+      // Get current user's coordinates
+      const [currentUser] = await this.db
+        .select()
+        .from(users)
+        .where(eq(users.id, currentUserId));
+
+      if (!currentUser) {
+        throw new Error('User not found');
+      }
+
+      const currentLat = parseFloat(currentUser.latitude || '0');
+      const currentLng = parseFloat(currentUser.longitude || '0');
+
+      console.log(`[API] Current user coordinates: lat=${currentLat}, lng=${currentLng}, location="${currentUser.location}"`);
+
+      // Get all users with their photos and calculate distances
+      const allUsersQuery = this.db
+        .select({
+          id: users.id,
+          username: users.username,
+          displayName: users.displayName,
+          age: users.age,
+          gender: users.gender,
+          location: users.location,
+          latitude: users.latitude,
+          longitude: users.longitude,
+          lastSeen: users.lastSeen,
+          isOnline: users.isOnline,
+          isBanned: users.isBanned,
+          isBlocked: users.isBlocked,
+          primaryPhoto: userPhotos.photoUrl,
+        })
+        .from(users)
+        .leftJoin(userPhotos, and(
+          eq(userPhotos.userId, users.id),
+          eq(userPhotos.isPrimary, true)
+        ))
+        .where(and(
+          ne(users.id, currentUserId),
+          eq(users.isBanned, false),
+          eq(users.isBlocked, false)
+        ));
+
+      const allUsers = await allUsersQuery;
+
+      // Calculate distances and transform to UserWithDistance
+      const usersWithDistance: UserWithDistance[] = allUsers.map(user => {
+        const userLat = parseFloat(user.latitude || '0');
+        const userLng = parseFloat(user.longitude || '0');
+
+        let distance: number | undefined;
+
+        // Only calculate distance if both users have valid coordinates (not 0,0)
+        if (
+          currentLat !== 0 && currentLng !== 0 && 
+          userLat !== 0 && userLng !== 0 &&
+          !isNaN(currentLat) && !isNaN(currentLng) &&
+          !isNaN(userLat) && !isNaN(userLng) &&
+          // Additional validation for reasonable coordinate ranges
+          Math.abs(currentLat) <= 90 && Math.abs(currentLng) <= 180 &&
+          Math.abs(userLat) <= 90 && Math.abs(userLng) <= 180
+        ) {
+          distance = this.calculateDistance(currentLat, currentLng, userLat, userLng);
+          console.log(`[API] Distance calculated for ${user.username}: ${distance}km (from ${currentUser.location} to ${user.location})`);
+        } else {
+          console.log(`[API] No distance calculated for ${user.username}: invalid coordinates (current: ${currentLat},${currentLng}, user: ${userLat},${userLng})`);
+        }
+
+        return {
+          id: user.id,
+          username: user.username,
+          displayName: user.displayName,
+          age: user.age,
+          gender: user.gender,
+          location: user.location,
+          latitude: user.latitude,
+          longitude: user.longitude,
+          lastSeen: user.lastSeen ? new Date(user.lastSeen) : null,
+          isOnline: user.isOnline,
+          isBanned: user.isBanned,
+          isBlocked: user.isBlocked,
+          primaryPhoto: user.primaryPhoto ? {
+            id: '',
+            userId: user.id,
+            photoUrl: user.primaryPhoto,
+            fileName: '',
+            isPrimary: true,
+            uploadedAt: new Date(),
+          } : null,
+          distance,
+        };
+      });
+
+      console.log(`[API] Found ${usersWithDistance.length} users with distance data`);
+      return usersWithDistance;
+    } catch (error) {
+      console.error('Error in getUsersWithDistance:', error);
+      throw error;
     }
-
-    // Get all users except the current user
-    const allUsers = await db.select().from(users).where(ne(users.id, currentUserId));
-
-    // Filter users based on current user's preferences
-    const filteredUsers = allUsers.filter(user => {
-      // Check gender preference
-      if (currentUser.genderPreference !== 'all' && user.gender !== currentUser.genderPreference) {
-        return false;
-      }
-
-      // Check age range preference
-      if (user.age < (currentUser.ageMin || 18) || user.age > (currentUser.ageMax || 99)) {
-        return false;
-      }
-
-      return true;
-    });
-
-    // For now, return filtered users with mock distance - real implementation would calculate distance
-    return filteredUsers.map(user => ({
-      ...user,
-      distance: Math.floor(Math.random() * 50) + 1 // Mock distance 1-50 miles
-    }));
   }
 
   // Room methods
@@ -673,11 +746,10 @@ export class DatabaseStorage implements IStorage {
 
   async getRoomsAndPrivateRooms(userId: string): Promise<PrivateChatData> {
     const allRooms = await this.getRooms();
-    const publicRooms = allRooms.filter(room => !room.isPrivate);
     const privateRooms = await this.getPrivateRooms(userId);
 
     return {
-      rooms: publicRooms,
+      rooms: allRooms,
       privateRooms
     };
   }
@@ -2408,5 +2480,29 @@ export class DatabaseStorage implements IStorage {
       console.error(`[DB] Error during account deletion for user ${userId}:`, error);
       throw error;
     }
+  }
+
+  // Helper method to calculate distance using Haversine formula
+  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    // Haversine formula for calculating great-circle distance between two points
+    const R = 6371; // Radius of Earth in kilometers
+
+    // Convert degrees to radians
+    const toRadians = (degrees: number): number => degrees * (Math.PI / 180);
+
+    const lat1Rad = toRadians(lat1);
+    const lat2Rad = toRadians(lat2);
+    const deltaLatRad = toRadians(lat2 - lat1);
+    const deltaLonRad = toRadians(lon2 - lon1);
+
+    const a = Math.sin(deltaLatRad / 2) * Math.sin(deltaLatRad / 2) +
+              Math.cos(lat1Rad) * Math.cos(lat2Rad) *
+              Math.sin(deltaLonRad / 2) * Math.sin(deltaLonRad / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+
+    // Return rounded distance in kilometers
+    return Math.round(distance * 10) / 10; // Round to 1 decimal place for better accuracy
   }
 }
