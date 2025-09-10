@@ -350,7 +350,7 @@ export class DatabaseStorage implements IStorage {
       console.log(`[API] Getting users with distance calculation for: ${currentUserId}`);
 
       // Get current user's coordinates
-      const [currentUser] = await this.db
+      const [currentUser] = await db
         .select()
         .from(users)
         .where(eq(users.id, currentUserId));
@@ -365,7 +365,7 @@ export class DatabaseStorage implements IStorage {
       console.log(`[API] Current user coordinates: lat=${currentLat}, lng=${currentLng}, location="${currentUser.location}"`);
 
       // Get all users with their photos and calculate distances
-      const allUsersQuery = this.db
+      const allUsersQuery = db
         .select({
           id: users.id,
           username: users.username,
@@ -1648,6 +1648,24 @@ export class DatabaseStorage implements IStorage {
       recentWarnings: recentWarnings.count || 0,
       activeUsers: activeUsers.count || 0,
     };
+  }
+
+  // Calculate distance between two points using Haversine formula
+  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371; // Radius of the Earth in kilometers
+    const dLat = this.deg2rad(lat2 - lat1);
+    const dLon = this.deg2rad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c; // Distance in kilometers
+    return Math.round(distance);
+  }
+
+  private deg2rad(deg: number): number {
+    return deg * (Math.PI / 180);
   }
 
   private async retryDatabaseOperation<T>(operation: () => Promise<T>, maxRetries: number = 3): Promise<T> {
