@@ -55,8 +55,11 @@ export default function MessageInputEnhanced({
   const availableUsers = roomData?.room.members.filter(user => user.id !== currentUser?.id) || [];
 
   const handleSendMessage = useCallback(() => {
+    console.log('[MESSAGE_INPUT] Send attempt:', { message: message.trim(), disabled, hasMessage: !!message.trim() });
+    
     if (message.trim() && !disabled) {
       const mentionedUserIds = mentionedUsers.map(user => user.id);
+      console.log('[MESSAGE_INPUT] Calling onSendMessage:', { content: message.trim(), mentionedUserIds });
       onSendMessage(message.trim(), undefined, undefined, mentionedUserIds);
       setMessage('');
       setMentionedUsers([]);

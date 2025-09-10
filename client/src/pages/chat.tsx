@@ -456,7 +456,12 @@ export default function ChatPage() {
   }, [currentUser, privateRooms, activeRoom, roomsData, toast]);
 
   const handleSendMessage = (content: string, photoUrl?: string, photoFileName?: string, mentionedUserIds?: string[]) => {
-    if (!currentUser?.id) return;
+    console.log('[HANDLE_SEND] Message send attempt:', { content, hasUser: !!currentUser?.id, activeRoom: activeRoom?.id });
+    
+    if (!currentUser?.id) {
+      console.log('[HANDLE_SEND] BLOCKED: No current user');
+      return;
+    }
 
     // Use multiple fallback strategies to find a room
     let roomToUse: Room | null = null;
@@ -498,6 +503,7 @@ export default function ChatPage() {
     }
 
     if (!roomToUse) {
+      console.log('[HANDLE_SEND] BLOCKED: No valid room found');
       console.error('No valid room found for sending message');
       toast({
         title: "Error",
@@ -506,6 +512,8 @@ export default function ChatPage() {
       });
       return;
     }
+    
+    console.log('[HANDLE_SEND] Room found:', roomToUse.id, roomToUse.name);
 
     // Check if this is a private chat that might have been closed
     if (roomToUse.isPrivate) {
@@ -561,7 +569,9 @@ export default function ChatPage() {
       });
     }
 
+    console.log('[HANDLE_SEND] Calling sendMessage:', { content, roomId: roomToUse.id });
     sendMessage(content, photoUrl, photoFileName, mentionedUserIds);
+    console.log('[HANDLE_SEND] sendMessage called successfully');
   };
 
   const handleStartPrivateChat = async (userId: string) => {
