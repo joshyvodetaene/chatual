@@ -62,11 +62,12 @@ export default function MentionDropdown({
   return (
     <div 
       ref={dropdownRef}
-      className="fixed bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto"
+      className="absolute bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto"
       style={{ 
         top: position.top, 
         left: position.left,
-        minWidth: '200px'
+        minWidth: '200px',
+        position: 'absolute'
       }}
     >
       {users.map((user, index) => (

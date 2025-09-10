@@ -65,7 +65,7 @@ export default function MessageInputEnhanced({
       // Reset textarea height and refocus on mobile to keep keyboard open
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
-        
+
         // Keep focus on mobile to prevent keyboard from closing after sending message
         if (isMobile) {
           setTimeout(() => {
@@ -109,7 +109,7 @@ export default function MessageInputEnhanced({
 
     try {
       setUploadingPhoto(true);
-      
+
       // Get upload URL using the same endpoint as photo management
       const response = await apiRequest('POST', '/api/photos/upload-url', { 
         fileName: file.name 
@@ -132,7 +132,7 @@ export default function MessageInputEnhanced({
       // Send the photo as a message
       const mentionedUserIds = mentionedUsers.map(user => user.id);
       onSendMessage(message.trim() || '', data.uploadURL, file.name, mentionedUserIds);
-      
+
       setMessage('');
       setMentionedUsers([]);
       handleStopTyping();
@@ -283,17 +283,17 @@ export default function MessageInputEnhanced({
     const cursorPos = textarea.selectionStart;
     const textBefore = message.substring(0, cursorPos);
     const textAfter = message.substring(cursorPos);
-    
+
     // Find the @ symbol that triggered this mention
     const lastAtIndex = textBefore.lastIndexOf('@');
     const beforeAt = textBefore.substring(0, lastAtIndex);
     const newMessage = `${beforeAt}@${user.username} ${textAfter}`;
-    
+
     setMessage(newMessage);
     setShowMentions(false);
     setMentionQuery('');
     setSelectedMentionIndex(0);
-    
+
     // Add user to mentioned users if not already there
     setMentionedUsers(prev => {
       if (!prev.find(u => u.id === user.id)) {
@@ -301,7 +301,7 @@ export default function MessageInputEnhanced({
       }
       return prev;
     });
-    
+
     // Focus back to textarea
     setTimeout(() => {
       if (textareaRef.current) {
@@ -332,17 +332,17 @@ export default function MessageInputEnhanced({
     const cursorPos = textarea.selectionStart;
     const textBefore = value.substring(0, cursorPos);
     const lastAtIndex = textBefore.lastIndexOf('@');
-    
+
     if (lastAtIndex !== -1) {
       const textAfterAt = textBefore.substring(lastAtIndex + 1);
       const hasSpaceAfterAt = textAfterAt.includes(' ');
-      
+
       if (!hasSpaceAfterAt && textAfterAt.length <= 20) {
         // Show mentions dropdown
         setMentionQuery(textAfterAt);
         setShowMentions(true);
         setSelectedMentionIndex(0);
-        
+
         // Calculate position for dropdown
         const rect = textarea.getBoundingClientRect();
         setMentionPosition({
@@ -382,12 +382,14 @@ export default function MessageInputEnhanced({
     )}>
       {/* Mention suggestions */}
       {showMentions && (
-        <MentionDropdown
-          users={getFilteredUsers()}
-          selectedIndex={selectedMentionIndex}
-          onSelectUser={selectMention}
-          position={mentionPosition}
-        />
+        <div className="relative z-40">
+          <MentionDropdown
+            users={getFilteredUsers()}
+            selectedIndex={selectedMentionIndex}
+            onSelectUser={selectMention}
+            position={mentionPosition}
+          />
+        </div>
       )}
 
       <div className="flex space-x-1.5 sm:space-x-2 md:space-x-3 lg:space-x-4 items-end">
