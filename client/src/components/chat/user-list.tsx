@@ -72,10 +72,10 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
   
 
   return (
-    <div className="bg-black border-l border-gray-800 flex flex-col h-full w-full sm:w-52 md:w-56 lg:w-64" data-testid="user-list">
-      <div className="border-b border-gray-800 p-3 sm:p-4 md:p-6">
-        <h3 className="font-semibold text-white text-sm sm:text-base md:text-lg">Online in Room</h3>
-        <p className="text-gray-300 mt-1 text-xs sm:text-sm md:text-base" data-testid="online-count">
+    <div className="w-full sm:w-60 md:w-64 lg:w-72 h-full bg-card/90 backdrop-blur-sm border-l border-primary/20 flex flex-col" data-testid="user-list">
+      <div className="p-2 sm:p-3 md:p-4 lg:p-6 border-b border-primary/20 bg-primary text-white red-glow">
+        <h3 className="text-base sm:text-lg md:text-xl lg:text-2xl font-semibold text-white">Online in Room</h3>
+        <p className="text-white text-opacity-70 mt-1 text-xs sm:text-sm md:text-base" data-testid="online-count">
           {onlineMembers.length} online • {filteredMembers.length} visible
         </p>
       </div>
@@ -83,9 +83,9 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
       <div className="flex-1 overflow-y-auto overflow-x-visible min-h-0 hide-scrollbar">
         {/* Online Members */}
         {onlineMembers.length > 0 && (
-          <div className="p-2 sm:p-3 md:p-4">
+          <div className="p-3 sm:p-4 md:p-6">
             <div className="flex flex-col gap-2 sm:gap-3 md:gap-4 mb-2 sm:mb-3 md:mb-4">
-              <h4 className="text-xs sm:text-sm md:text-base font-medium text-gray-400 uppercase tracking-wider">
+              <h4 className="text-xs sm:text-sm md:text-base font-semibold text-gray-300 uppercase tracking-wider">
                 Online — {onlineMembers.length}
               </h4>
               {onlineMembers.length > 3 && (
@@ -105,7 +105,7 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
               {filteredOnlineMembers.map((member) => (
                 <div
                   key={`online-${member.id}`}
-                  className="group flex items-center space-x-2 sm:space-x-3 md:space-x-4 p-1 sm:p-2 md:p-3 rounded-lg hover:bg-gray-800 transition-colors"
+                  className="group flex items-center space-x-2 sm:space-x-3 md:space-x-4 p-2 sm:p-3 md:p-4 rounded-lg hover:bg-white hover:bg-opacity-10 hover:text-white text-gray-300 transition-colors"
                   data-testid={`online-user-${member.id}`}
                 >
                   <div className="relative">
@@ -113,31 +113,31 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                       <img 
                         src={member.primaryPhoto.photoUrl}
                         alt={`${member.displayName} profile`}
-                        className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full object-cover border-2 border-black"
+                        className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full object-cover border-2 border-white"
                       />
                     ) : (
                       <div className={cn(
-                        "w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-white text-xs sm:text-sm md:text-base font-medium",
+                        "w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white text-xs sm:text-sm md:text-base font-medium",
                         getAvatarColor(member.displayName, member.gender)
                       )}>
                         {getInitials(member.displayName)}
                       </div>
                     )}
-                    <div className="absolute -bottom-0.5 sm:-bottom-1 -right-0.5 sm:-right-1 w-2 h-2 sm:w-3 sm:h-3 md:w-4 md:h-4 bg-accent border-2 border-black rounded-full"></div>
+                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-accent border-2 border-white rounded-full"></div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-2">
-                      <h4 className="text-sm font-semibold text-white truncate">
+                      <p className="text-xs sm:text-sm md:text-base font-medium text-white truncate">
                         {member.displayName}
-                      </h4>
+                      </p>
                       {member.age && (
-                        <span className="text-sm text-gray-300 font-medium">
+                        <span className="text-xs sm:text-sm md:text-base text-gray-300 font-normal">
                           {member.age}
                         </span>
                       )}
                     </div>
-                    <div className="flex flex-col gap-1 mt-1">
-                      <p className="text-xs text-gray-400">@{member.username}</p>
+                    <div className="flex flex-col gap-1">
+                      <p className="text-xs sm:text-sm md:text-base text-gray-300 truncate">@{member.username}</p>
                       {member.location && (
                         <p className="text-xs text-gray-400 truncate">
                           📍 {member.location}
@@ -187,8 +187,8 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
 
         {/* Offline Members */}
         {offlineMembers.length > 0 && (
-          <div className={cn("p-4", onlineMembers.length > 0 && "border-t border-gray-800")}>
-            <h4 className="text-xs sm:text-sm md:text-base font-medium text-gray-400 uppercase tracking-wider mb-2 sm:mb-3 md:mb-4">
+          <div className={cn("p-3 sm:p-4 md:p-6", onlineMembers.length > 0 && "border-t border-primary/20")}>
+            <h4 className="text-xs sm:text-sm md:text-base font-semibold text-gray-300 uppercase tracking-wider mb-2 sm:mb-3 md:mb-4">
               Offline — {offlineMembers.length}
             </h4>
             
@@ -196,7 +196,7 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
               {offlineMembers.map((member) => (
                 <div
                   key={`offline-${member.id}`}
-                  className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-800 transition-colors opacity-60"
+                  className="group flex items-center space-x-2 sm:space-x-3 md:space-x-4 p-2 sm:p-3 md:p-4 rounded-lg hover:bg-white hover:bg-opacity-10 hover:text-white text-gray-300 transition-colors opacity-60"
                   data-testid={`offline-user-${member.id}`}
                 >
                   <div className="relative">
@@ -204,28 +204,28 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                       <img 
                         src={member.primaryPhoto.photoUrl}
                         alt={`${member.displayName} profile`}
-                        className="w-8 h-8 rounded-full object-cover border-2 border-black opacity-60"
+                        className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full object-cover border-2 border-white opacity-60"
                       />
                     ) : (
-                      <div className="w-8 h-8 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center text-white text-xs font-medium">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center text-white text-xs sm:text-sm md:text-base font-medium">
                         {getInitials(member.displayName)}
                       </div>
                     )}
-                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-gray-400 border-2 border-black rounded-full"></div>
+                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-gray-400 border-2 border-white rounded-full"></div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-2">
-                      <p className="text-sm font-medium text-gray-300 truncate">
+                      <p className="text-xs sm:text-sm md:text-base font-medium text-gray-300 truncate">
                         {member.displayName}
                       </p>
                       {member.age && (
-                        <span className="text-xs text-gray-500 font-normal">
+                        <span className="text-xs sm:text-sm md:text-base text-gray-500 font-normal">
                           {member.age}
                         </span>
                       )}
                     </div>
                     <div className="flex flex-col gap-1">
-                      <p className="text-xs text-gray-500">@{member.username}</p>
+                      <p className="text-xs sm:text-sm md:text-base text-gray-500 truncate">@{member.username}</p>
                       <div className="flex items-center gap-2">
                         {currentUser && (
                           <UserDistance 
