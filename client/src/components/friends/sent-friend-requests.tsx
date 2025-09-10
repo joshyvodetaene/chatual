@@ -29,7 +29,8 @@ export default function SentFriendRequests({ user, isMobile = false }: SentFrien
       }
       return await response.json();
     },
-    refetchInterval: 10000, // Refetch every 10 seconds
+    refetchInterval: 5000, // Refetch every 5 seconds
+    staleTime: 2000, // Consider data stale after 2 seconds
   });
 
   const sentFriendRequests = requestsData?.sentFriendRequests || [];

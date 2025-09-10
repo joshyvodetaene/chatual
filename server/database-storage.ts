@@ -1760,18 +1760,8 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Friend request not found or already responded to');
     }
 
-    // Update request status
-    await this.retryDatabaseOperation(async () => {
-      return await db.update(friendRequests)
-        .set({
-          status: action === 'accept' ? 'accepted' : 'declined',
-          respondedAt: new Date()
-        })
-        .where(eq(friendRequests.id, requestId));
-    });
-
     if (action === 'accept') {
-      // Create friendship
+      // Create friendship first
       await this.retryDatabaseOperation(async () => {
         return await db.insert(friendships)
           .values({
@@ -1779,6 +1769,8 @@ export class DatabaseStorage implements IStorage {
             user2Id: request.receiverId
           });
       });
+
+      console.log(`[DB] Created friendship between ${request.senderId} and ${request.receiverId}`);
 
       // Notify sender that request was accepted
       await this.createNotification({
@@ -1792,36 +1784,73 @@ export class DatabaseStorage implements IStorage {
       });
     }
 
+    // Delete the friend request (don't just update status)
+    await this.retryDatabaseOperation(async () => {
+      return await db.delete(friendRequests)
+        .where(eq(friendRequests.id, requestId));
+    });
+
+    console.log(`[DB] Friend request ${requestId} ${action === 'accept' ? 'accepted and deleted' : 'declined and deleted'}`);
+
     return true;
   }
 
   async getFriends(userId: string): Promise<FriendshipWithUser[]> {
     return await this.retryDatabaseOperation(async () => {
+      // Get friendships where user is user1
       const friendships1 = await db
         .select({
           id: friendships.id,
           user1Id: friendships.user1Id,
           user2Id: friendships.user2Id,
           createdAt: friendships.createdAt,
-          friend: users
+          friend: users,
+          photo: userPhotos
         })
         .from(friendships)
         .innerJoin(users, eq(users.id, friendships.user2Id))
+        .leftJoin(userPhotos, and(
+          eq(userPhotos.userId, users.id),
+          eq(userPhotos.isPrimary, true)
+        ))
         .where(eq(friendships.user1Id, userId));
 
+      // Get friendships where user is user2
       const friendships2 = await db
         .select({
           id: friendships.id,
           user1Id: friendships.user1Id,
           user2Id: friendships.user2Id,
           createdAt: friendships.createdAt,
-          friend: users
+          friend: users,
+          photo: userPhotos
         })
         .from(friendships)
         .innerJoin(users, eq(users.id, friendships.user1Id))
+        .leftJoin(userPhotos, and(
+          eq(userPhotos.userId, users.id),
+          eq(userPhotos.isPrimary, true)
+        ))
         .where(eq(friendships.user2Id, userId));
 
-      return [...friendships1, ...friendships2] as any;
+      // Combine and format results
+      const allFriendships = [...friendships1, ...friendships2];
+      
+      return allFriendships.map(f => ({
+        id: f.id,
+        user1Id: f.user1Id,
+        user2Id: f.user2Id,
+        createdAt: f.createdAt,
+        friend: {
+          ...f.friend,
+          primaryPhoto: f.photo ? {
+            id: f.photo.id,
+            photoUrl: f.photo.photoUrl,
+            fileName: f.photo.fileName,
+            isPrimary: f.photo.isPrimary || false
+          } : null
+        }
+      })) as FriendshipWithUser[];
     });
   }
 

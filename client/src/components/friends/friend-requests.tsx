@@ -49,9 +49,18 @@ export default function FriendRequests({ user, isMobile = false }: FriendRequest
         title: "Success",
         description: action === 'accept' ? "Friend request accepted!" : "Friend request declined",
       });
+      // Invalidate all friend-related queries to ensure fresh data
       queryClient.invalidateQueries({ queryKey: [`/api/users/${user.id}/friend-requests`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${user.id}/sent-friend-requests`] });
       queryClient.invalidateQueries({ queryKey: [`/api/users/${user.id}/friends`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${user.id}/friendship-status`] });
+      queryClient.invalidateQueries({ predicate: (query) => {
+        return query.queryKey[0] === `/api/users/${user.id}/friendship-status`;
+      }});
+      // Force immediate refetch
+      setTimeout(() => {
+        queryClient.refetchQueries({ queryKey: [`/api/users/${user.id}/friend-requests`] });
+        queryClient.refetchQueries({ queryKey: [`/api/users/${user.id}/friends`] });
+      }, 100);
     },
     onError: (error: any) => {
       console.error('Friend request response error:', error);

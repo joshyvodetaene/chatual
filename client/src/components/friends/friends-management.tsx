@@ -23,21 +23,43 @@ export default function FriendsManagement({ user, isMobile = false }: FriendsMan
   // Fetch friend requests count for badge
   const { data: requestsData } = useQuery({
     queryKey: [`/api/users/${user.id}/friend-requests`],
-    queryFn: () => apiRequest('GET', `/api/users/${user.id}/friend-requests`),
-    refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
+    queryFn: async () => {
+      const response = await apiRequest('GET', `/api/users/${user.id}/friend-requests`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch friend requests');
+      }
+      return await response.json();
+    },
+    refetchInterval: 5000, // Refetch every 5 seconds for real-time updates
+    staleTime: 2000, // Consider data stale after 2 seconds
   });
 
   // Fetch sent friend requests count for badge
   const { data: sentRequestsData } = useQuery({
     queryKey: [`/api/users/${user.id}/sent-friend-requests`],
-    queryFn: () => apiRequest('GET', `/api/users/${user.id}/sent-friend-requests`),
-    refetchInterval: 30000,
+    queryFn: async () => {
+      const response = await apiRequest('GET', `/api/users/${user.id}/sent-friend-requests`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch sent friend requests');
+      }
+      return await response.json();
+    },
+    refetchInterval: 5000,
+    staleTime: 2000,
   });
 
   // Fetch friends count for badge
   const { data: friendsData } = useQuery({
     queryKey: [`/api/users/${user.id}/friends`],
-    queryFn: () => apiRequest('GET', `/api/users/${user.id}/friends`),
+    queryFn: async () => {
+      const response = await apiRequest('GET', `/api/users/${user.id}/friends`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch friends');
+      }
+      return await response.json();
+    },
+    refetchInterval: 10000, // Refetch every 10 seconds
+    staleTime: 5000,
   });
 
   const pendingRequestsCount = (requestsData as any)?.friendRequests?.length || 0;
