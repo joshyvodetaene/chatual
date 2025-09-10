@@ -26,10 +26,11 @@ export default function SendFriendRequest({ user, isMobile = false }: SendFriend
   // Send friend request mutation
   const sendRequestMutation = useMutation({
     mutationFn: async (receiverId: string) => {
-      return await apiRequest('POST', '/api/friend-requests', {
+      const response = await apiRequest('POST', '/api/friend-requests', {
         senderId: user.id,
         receiverId
       });
+      return await response.json();
     },
     onSuccess: () => {
       toast({
@@ -37,6 +38,7 @@ export default function SendFriendRequest({ user, isMobile = false }: SendFriend
         description: "Friend request sent successfully!",
       });
       queryClient.invalidateQueries({ queryKey: [`/api/users/${user.id}/friend-requests`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${user.id}/sent-friend-requests`] });
       // Refresh search results to update status
       if (searchQuery) {
         performSearch();
@@ -60,17 +62,27 @@ export default function SendFriendRequest({ user, isMobile = false }: SendFriend
     setIsSearching(true);
     try {
       const response = await apiRequest('GET', `/api/search/users?q=${encodeURIComponent(searchQuery)}&currentUserId=${user.id}`);
+      const data = await response.json();
+      
+      // Ensure results array exists
+      const results = data?.results || [];
+      
+      if (results.length === 0) {
+        setSearchResults([]);
+        return;
+      }
       
       // Get friendship status for each user
       const usersWithStatus = await Promise.all(
-        response.results.map(async (foundUser: User) => {
+        results.map(async (foundUser: User) => {
           if (foundUser.id === user.id) return null; // Don't include self
           
           try {
             const statusResponse = await apiRequest('GET', `/api/users/${user.id}/friendship-status/${foundUser.id}`);
+            const statusData = await statusResponse.json();
             return {
               ...foundUser,
-              friendshipStatus: statusResponse.status
+              friendshipStatus: statusData.status
             } as UserWithFriendStatus;
           } catch (error) {
             return {
