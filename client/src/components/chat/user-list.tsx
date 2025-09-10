@@ -73,9 +73,9 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
 
   return (
     <div className="bg-black border-l border-gray-800 flex flex-col h-full w-full sm:w-52 md:w-56 lg:w-64" data-testid="user-list">
-      <div className="border-b border-gray-800 p-3 sm:p-4 md:p-6">
+      <div className="border-b border-gray-700 p-3 sm:p-4 md:p-6">
         <h3 className="font-semibold text-white text-sm sm:text-base md:text-lg">Online in Room</h3>
-        <p className="text-gray-300 mt-1 text-xs sm:text-sm md:text-base" data-testid="online-count">
+        <p className="text-gray-200 mt-1 text-xs sm:text-sm md:text-base font-medium" data-testid="online-count">
           {onlineMembers.length} online • {filteredMembers.length} visible
         </p>
       </div>
@@ -85,7 +85,7 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
         {onlineMembers.length > 0 && (
           <div className="p-2 sm:p-3 md:p-4">
             <div className="flex flex-col gap-2 sm:gap-3 md:gap-4 mb-2 sm:mb-3 md:mb-4">
-              <h4 className="text-xs sm:text-sm md:text-base font-medium text-gray-400 uppercase tracking-wider">
+              <h4 className="text-xs sm:text-sm md:text-base font-medium text-gray-300 uppercase tracking-wider">
                 Online — {onlineMembers.length}
               </h4>
               {onlineMembers.length > 3 && (
@@ -95,7 +95,7 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                     placeholder="Search online users..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-7 sm:pl-8 h-6 sm:h-8 text-xs sm:text-sm bg-gray-900 border-gray-700 focus:border-gray-600"
+                    className="pl-7 sm:pl-8 h-6 sm:h-8 text-xs sm:text-sm bg-gray-800 border-gray-600 focus:border-gray-500 text-white placeholder:text-gray-400"
                   />
                 </div>
               )}
@@ -131,25 +131,25 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                         {member.displayName}
                       </h4>
                       {member.age && (
-                        <span className="text-sm text-gray-300 font-medium">
+                        <span className="text-sm text-gray-200 font-medium">
                           {member.age}
                         </span>
                       )}
                     </div>
                     <div className="flex flex-col gap-1 mt-1">
-                      <p className="text-xs text-gray-400">@{member.username}</p>
+                      <p className="text-xs text-gray-300">@{member.username}</p>
                       {member.location && (
-                        <p className="text-xs text-gray-400 truncate">
+                        <p className="text-xs text-gray-300 truncate">
                           📍 {member.location}
                         </p>
                       )}
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-green-400">Online</span>
+                        <span className="text-xs text-green-300 font-medium">Online</span>
                         {currentUser && (
                           <UserDistance 
                             currentUserId={currentUser.id} 
                             targetUserId={member.id}
-                            className="text-xs text-gray-500"
+                            className="text-xs text-gray-400 font-medium"
                           />
                         )}
                       </div>
@@ -188,7 +188,7 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
         {/* Offline Members */}
         {offlineMembers.length > 0 && (
           <div className={cn("p-4", onlineMembers.length > 0 && "border-t border-gray-800")}>
-            <h4 className="text-xs sm:text-sm md:text-base font-medium text-gray-400 uppercase tracking-wider mb-2 sm:mb-3 md:mb-4">
+            <h4 className="text-xs sm:text-sm md:text-base font-medium text-gray-300 uppercase tracking-wider mb-2 sm:mb-3 md:mb-4">
               Offline — {offlineMembers.length}
             </h4>
             
@@ -215,23 +215,24 @@ export default function UserList({ room, onlineUsers, currentUser, onStartPrivat
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-2">
-                      <p className="text-sm font-medium text-gray-300 truncate">
+                      <p className="text-sm font-medium text-gray-200 truncate">
                         {member.displayName}
                       </p>
                       {member.age && (
-                        <span className="text-xs text-gray-500 font-normal">
+                        <span className="text-xs text-gray-400 font-normal">
                           {member.age}
                         </span>
                       )}
                     </div>
                     <div className="flex flex-col gap-1">
-                      <p className="text-xs text-gray-500">@{member.username}</p>
+                      <p className="text-xs text-gray-400">@{member.username}</p>
                       <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 font-medium">Offline</span>
                         {currentUser && (
                           <UserDistance 
                             currentUserId={currentUser.id} 
                             targetUserId={member.id}
-                            className="text-xs opacity-60"
+                            className="text-xs text-gray-500 font-medium opacity-80"
                           />
                         )}
                       </div>
