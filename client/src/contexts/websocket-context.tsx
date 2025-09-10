@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { useWebSocket } from '@/hooks/use-websocket';
 import type { User, MessageWithUser } from '@shared/schema';
 

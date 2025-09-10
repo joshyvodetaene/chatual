@@ -75,6 +75,19 @@ export default function ChatPage() {
     disconnect
   } = useWebSocketContext();
 
+  // Effect to handle user changes and reset WebSocket connection
+  useEffect(() => {
+    if (currentUser) {
+      console.log(`[CHAT_PAGE] User changed to: ${currentUser.username} (${currentUser.id})`);
+      // Disconnect and reconnect WebSocket to ensure proper user ID
+      disconnect();
+      // Small delay to ensure clean disconnect before reconnect
+      setTimeout(() => {
+        reconnect();
+      }, 100);
+    }
+  }, [currentUser?.id, disconnect, reconnect]);
+
   // Effect to log user changes (connection management handled by WebSocket provider)
   useEffect(() => {
     console.log('[CHAT_PAGE] User changed effect:', { 
