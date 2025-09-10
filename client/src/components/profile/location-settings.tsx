@@ -27,7 +27,7 @@ export default function LocationSettings({ user }: LocationSettingsProps) {
     resolver: zodResolver(updateUserProfileSchema),
     defaultValues: {
       displayName: user.displayName,
-      location: user.location,
+      location: user.location ?? '',
       latitude: user.latitude || undefined,
       longitude: user.longitude || undefined,
       age: user.age || 18,
@@ -42,8 +42,8 @@ export default function LocationSettings({ user }: LocationSettingsProps) {
     
     // Update form with validated coordinates when city is valid
     if (result.isValid && result.latitude && result.longitude) {
-      form.setValue('latitude', result.latitude);
-      form.setValue('longitude', result.longitude);
+      form.setValue('latitude', result.latitude.toString());
+      form.setValue('longitude', result.longitude.toString());
     }
     // Don't prevent form submission if validation fails - let user save anyway
   };
