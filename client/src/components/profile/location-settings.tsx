@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CityAutocomplete } from '@/components/ui/city-autocomplete';
 import { MapPin, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
@@ -11,6 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { apiRequest } from '@/lib/queryClient';
 import { updateUserProfileSchema, type UpdateUserProfile, type User } from '@shared/schema';
+import { type CityValidationResult } from '@/lib/geocoding-maps';
 
 interface LocationSettingsProps {
   user: User;
@@ -19,6 +21,7 @@ interface LocationSettingsProps {
 export default function LocationSettings({ user }: LocationSettingsProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [cityValidationResult, setCityValidationResult] = useState<CityValidationResult | null>(null);
 
   const form = useForm<UpdateUserProfile>({
     resolver: zodResolver(updateUserProfileSchema),
@@ -33,6 +36,16 @@ export default function LocationSettings({ user }: LocationSettingsProps) {
       ageMax: user.ageMax || 99,
     },
   });
+
+  const handleCityValidation = (result: CityValidationResult) => {
+    setCityValidationResult(result);
+    
+    // Update form with validated coordinates when city is valid
+    if (result.isValid && result.latitude && result.longitude) {
+      form.setValue('latitude', result.latitude);
+      form.setValue('longitude', result.longitude);
+    }
+  };
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: UpdateUserProfile) => {
@@ -111,15 +124,13 @@ export default function LocationSettings({ user }: LocationSettingsProps) {
                 <FormItem>
                   <FormLabel>Location</FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                      <Input 
-                        placeholder="City, State or Address" 
-                        className="pl-10"
-                        {...field}
-                        data-testid="input-location"
-                      />
-                    </div>
+                    <CityAutocomplete
+                      value={field.value || ''}
+                      onValueChange={field.onChange}
+                      onValidationChange={handleCityValidation}
+                      placeholder="Enter your city name"
+                      data-testid="input-location"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
