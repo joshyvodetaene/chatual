@@ -15,7 +15,7 @@ interface WebSocketClient extends WebSocket {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
-  
+
   // Add CORS middleware
   app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
@@ -27,7 +27,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       next();
     }
   });
-  
+
   // WebSocket server with proper configuration
   const wss = new WebSocketServer({ 
     server: httpServer, 
@@ -37,10 +37,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   const clients = new Map<string, WebSocketClient>();
   const roomUsers = new Map<string, Set<string>>(); // Track online users per room
-  
+
   // Initialize notification service
   const notificationService = new NotificationService(clients);
-  
+
   console.log('WebSocket server initialized on path /ws');
 
   // Connection health tracking constants - more lenient settings
@@ -57,16 +57,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (client.readyState !== WebSocket.OPEN) {
       return false;
     }
-    
+
     // If client responded to recent ping, it's definitely alive
     if (client.isAlive === true) {
       return true;
     }
-    
+
     // Only mark as stale if both conditions: no recent activity AND failed ping
     const now = Date.now();
     const hasRecentActivity = !client.lastActivity || (now - client.lastActivity) < CONNECTION_TIMEOUT;
-    
+
     return hasRecentActivity || client.isAlive !== false;
   }
 
@@ -81,23 +81,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     for (const [userId, client] of clients.entries()) {
       if (!isConnectionAlive(client)) {
         console.log(`[WS_CLEANUP] Removing stale connection for user ${userId}`);
-        
+
         // Remove from room if they were in one
         if (client.roomId && client.userId) {
           removeUserFromRoom(client.roomId, client.userId);
           cleanedRoomEntries++;
         }
-        
+
         // Update database status and remove client
         if (client.userId) {
           storage.updateUserOnlineStatus(client.userId, false).catch(error => {
             console.error(`[WS_CLEANUP] Failed to update user status for ${client.userId}:`, error);
           });
         }
-        
+
         clients.delete(userId);
         cleanedConnections++;
-        
+
         try {
           client.close(1001, 'Connection cleanup');
         } catch (error) {
@@ -109,7 +109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Validate room users against actual connections
     for (const [roomId, userSet] of roomUsers.entries()) {
       const validUsers = new Set<string>();
-      
+
       for (const userId of userSet) {
         const client = clients.get(userId);
         if (client && isConnectionAlive(client) && client.roomId === roomId) {
@@ -118,11 +118,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           cleanedRoomEntries++;
         }
       }
-      
+
       // Update room users if any were removed
       if (validUsers.size !== userSet.size) {
         roomUsers.set(roomId, validUsers);
-        
+
         // Broadcast updated online users for this room
         const onlineUsers = Array.from(validUsers);
         broadcastToRoom(roomId, {
@@ -148,7 +148,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (client.readyState === WebSocket.OPEN) {
         // Mark as potentially stale
         client.isAlive = false;
-        
+
         try {
           client.ping((error: Error | null) => {
             if (error) {
@@ -178,7 +178,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('[WS_SHUTDOWN] Cleaning up WebSocket intervals and connections');
     clearInterval(heartbeatInterval);
     clearInterval(cleanupInterval);
-    
+
     // Close all active connections
     for (const [userId, client] of clients.entries()) {
       try {
@@ -211,7 +211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
     });
-    
+
     // Log only for important messages when no clients were reached
     if (message.type === 'new_message' && sentCount === 0) {
       console.log(`[BROADCAST] Warning: No clients received message in room ${roomId}`);
@@ -242,9 +242,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       roomUsers.set(roomId, new Set());
     }
     roomUsers.get(roomId)!.add(userId);
-    
+
     console.log(`[WS_ROOM] User ${userId} added to room ${roomId}. Room now has ${roomUsers.get(roomId)!.size} users`);
-    
+
     // Broadcast updated online users for this room
     const onlineUsers = Array.from(roomUsers.get(roomId) || []);
     broadcastToRoom(roomId, {
@@ -257,11 +257,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   function removeUserFromRoom(roomId: string, userId: string) {
     if (roomUsers.has(roomId)) {
       const wasRemoved = roomUsers.get(roomId)!.delete(userId);
-      
+
       if (wasRemoved) {
         console.log(`[WS_ROOM] User ${userId} removed from room ${roomId}. Room now has ${roomUsers.get(roomId)!.size} users`);
       }
-      
+
       // Broadcast updated online users for this room
       const onlineUsers = Array.from(roomUsers.get(roomId) || []);
       broadcastToRoom(roomId, {
@@ -292,7 +292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (removedUsers > 0) {
       roomUsers.set(roomId, validUsers);
       console.log(`[WS_SYNC] Synchronized room ${roomId}: removed ${removedUsers} stale users`);
-      
+
       // Broadcast updated list
       const onlineUsers = Array.from(validUsers);
       broadcastToRoom(roomId, {
@@ -306,11 +306,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // WebSocket connection handling
   wss.on('connection', (ws: WebSocketClient) => {
     console.log('[WS_CONNECTION] New WebSocket connection established');
-    
+
     // Initialize connection tracking
     ws.isAlive = true;
     ws.lastActivity = Date.now();
-    
+
     // Handle pong responses (heartbeat confirmation)
     ws.on('pong', () => {
       ws.isAlive = true;
@@ -326,21 +326,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         // Update last activity timestamp for any message
         ws.lastActivity = Date.now();
-        
+
         const message = JSON.parse(data.toString());
-        
+
         switch (message.type) {
           case 'ping':
             // Handle client-initiated ping
             ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
             break;
-            
+
           case 'join':
             console.log(`[WS_JOIN] Join request from userId=${message.userId}, roomId=${message.roomId}`);
-            
+
             // Store previous room for cleanup
             const previousRoomId = ws.roomId;
-            
+
             // Remove user from previous room if any
             if (ws.roomId && ws.userId) {
               console.log(`[WS_JOIN] Removing user ${ws.userId} from previous room ${ws.roomId}`);
@@ -350,7 +350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 userId: ws.userId,
               });
             }
-            
+
             // Check if user already has a connection and clean up
             const existingConnection = clients.get(message.userId);
             if (existingConnection && existingConnection !== ws) {
@@ -365,27 +365,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
               existingConnection.close();
               clients.delete(message.userId);
             }
-            
+
             ws.userId = message.userId;
             ws.roomId = message.roomId;
-            
+
             // Initialize or reset connection tracking for this user
             ws.isAlive = true;
             ws.lastActivity = Date.now();
-            
+
             clients.set(message.userId, ws);
-            
+
             console.log(`[WS_JOIN] User ${message.userId} joining room ${message.roomId}`);
-            
+
             // Update user online status
             await storage.updateUserOnlineStatus(message.userId, true);
-            
+
             // Add user to new room (validates connection)
             addUserToRoom(message.roomId, message.userId);
-            
+
             // Synchronize room users to ensure accuracy
             synchronizeRoomUsers(message.roomId);
-            
+
             // Broadcast user joined
             broadcastToRoom(message.roomId, {
               type: 'user_joined',
@@ -397,7 +397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`[WS_LEAVE] Leave request from userId=${message.userId || ws.userId}, roomId=${message.roomId || ws.roomId}`);
             const leaveUserId = message.userId || ws.userId;
             const leaveRoomId = message.roomId || ws.roomId;
-            
+
             if (leaveUserId && leaveRoomId) {
               removeUserFromRoom(leaveRoomId, leaveUserId);
               broadcastToRoom(leaveRoomId, {
@@ -412,7 +412,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`[WEBSOCKET] Processing message from userId=${ws.userId}, roomId=${ws.roomId}`);
             if (ws.userId && ws.roomId) {
               console.log(`[WEBSOCKET] Message content length: ${message.content?.length || 0}, messageType: ${message.messageType}`);
-              
+
               // Normalize photo URL if this is a photo message
               let normalizedPhotoUrl = message.photoUrl;
               if (message.photoUrl && message.messageType === 'photo') {
@@ -421,7 +421,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 normalizedPhotoUrl = objectStorageService.normalizePhotoPath(message.photoUrl);
                 console.log(`[WEBSOCKET] Normalized photo URL: ${normalizedPhotoUrl}`);
               }
-              
+
               console.log(`[WEBSOCKET] Creating message in storage...`);
               const newMessage = await storage.createMessage({
                 content: message.content,
@@ -432,24 +432,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 messageType: message.messageType || 'text',
                 mentionedUserIds: message.mentionedUserIds || [],
               });
-              
+
               console.log('[WEBSOCKET] Created message:', {
                 id: newMessage.id,
                 messageType: newMessage.messageType,
                 photoUrl: newMessage.photoUrl,
                 photoFileName: newMessage.photoFileName
               });
-              
+
               console.log(`[WEBSOCKET] Getting user data for ${ws.userId}`);
               const user = await storage.getUser(ws.userId);
               const messageWithUser = { ...newMessage, user };
-              
+
               console.log('[WEBSOCKET] Broadcasting message:', {
                 id: messageWithUser.id,
                 messageType: messageWithUser.messageType,
                 photoUrl: messageWithUser.photoUrl
               });
-              
+
               // Send notifications for mentions
               if (newMessage.mentionedUserIds && newMessage.mentionedUserIds.length > 0) {
                 console.log(`[WEBSOCKET] Processing mentions: ${newMessage.mentionedUserIds}`);
@@ -469,7 +469,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               try {
                 const roomMembers = await storage.getRoomMembers(ws.roomId);
                 const onlineUsersInRoom = Array.from(roomUsers.get(ws.roomId) || []);
-                
+
                 for (const member of roomMembers) {
                   // Don't notify the sender and those who are currently online in the room
                   if (member.id !== ws.userId && !onlineUsersInRoom.includes(member.id)) {
@@ -486,7 +486,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               } catch (error) {
                 console.error('Error sending message notifications:', error);
               }
-              
+
               // Broadcast message to room
               broadcastToRoom(ws.roomId, {
                 type: 'new_message',
@@ -517,34 +517,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     ws.on('close', async (code, reason) => {
       console.log(`[WS_CLOSE] Connection closed for user ${ws.userId}, code: ${code}, reason: ${reason}`);
-      
+
       if (ws.userId && ws.roomId) {
         console.log(`[WS_CLOSE] Cleaning up user ${ws.userId} from room ${ws.roomId}`);
-        
+
         // Remove user from room and update online status
         removeUserFromRoom(ws.roomId, ws.userId);
-        
+
         try {
           await storage.updateUserOnlineStatus(ws.userId, false);
         } catch (error) {
           console.error(`[WS_CLOSE] Failed to update offline status for user ${ws.userId}:`, error);
         }
-        
+
         // Broadcast user left
         broadcastToRoom(ws.roomId, {
           type: 'user_left',
           userId: ws.userId,
         });
-        
+
         clients.delete(ws.userId);
-        
+
         // Synchronize room users to ensure accuracy after disconnect
         synchronizeRoomUsers(ws.roomId);
       } else if (ws.userId) {
         // User connected but not in a room, still need to clean up
         console.log(`[WS_CLOSE] Cleaning up user ${ws.userId} (not in room)`);
         clients.delete(ws.userId);
-        
+
         try {
           await storage.updateUserOnlineStatus(ws.userId, false);
         } catch (error) {
@@ -571,7 +571,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userData = registerUserSchema.parse(req.body);
       console.log(`[AUTH] Schema validation passed for username: ${userData.username}`);
-      
+
       // Check if username is available
       console.log(`[AUTH] Checking username availability: ${userData.username}`);
       const isAvailable = await storage.isUsernameAvailable(userData.username);
@@ -580,11 +580,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[AUTH] Registration failed - username taken: ${userData.username}`);
         return res.status(400).json({ error: 'Username is already taken' });
       }
-      
+
       console.log(`[AUTH] Creating user account for: ${userData.username}`);
       const user = await storage.registerUser(userData);
       console.log(`[AUTH] User account created successfully: ${user.id}`);
-      
+
       // Don't send password in response
       const { password, ...userWithoutPassword } = user;
       console.log(`[AUTH] Registration successful for user: ${user.username}`);
@@ -601,14 +601,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const credentials = loginSchema.parse(req.body);
       console.log(`[AUTH] Schema validation passed for login: ${credentials.username}`);
-      
+
       console.log(`[AUTH] Authenticating user: ${credentials.username}`);
       const user = await storage.authenticateUser(credentials);
       if (!user) {
         console.log(`[AUTH] Authentication failed for username: ${credentials.username}`);
         return res.status(401).json({ error: 'Invalid username or password' });
       }
-      
+
       // Check if user is banned
       if (user.isBanned) {
         console.log(`[AUTH] Banned user attempted login: ${user.username} (${user.id})`);
@@ -619,7 +619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isBanned: true 
         });
       }
-      
+
       console.log(`[AUTH] Authentication successful for user: ${user.id} (${user.username})`);
       // Don't send password in response
       const { password, ...userWithoutPassword } = user;
@@ -695,21 +695,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log(`[GDPR] Data export request for user: ${req.params.userId}`);
     try {
       const { userId } = req.params;
-      
+
       // Validate user exists
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
       }
-      
+
       // Export user data
       const exportData = await storage.exportUserData(userId);
-      
+
       // Set headers for file download
       const filename = `user-data-export-${userId}-${new Date().toISOString().split('T')[0]}.json`;
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.setHeader('Content-Type', 'application/json');
-      
+
       console.log(`[GDPR] Successfully exported data for user ${userId}`);
       res.json(exportData);
     } catch (error) {
@@ -722,29 +722,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/private-chat/create', async (req, res) => {
     try {
       const { user1Id, user2Id } = req.body;
-      
+
       if (!user1Id || !user2Id) {
         return res.status(400).json({ error: 'Both user IDs are required' });
       }
-      
+
       if (user1Id === user2Id) {
         return res.status(400).json({ error: 'Cannot create private chat with yourself' });
       }
-      
+
       // Check if room already exists
       const existingRoom = await storage.getPrivateRoom(user1Id, user2Id);
       let room = existingRoom;
       let isNewRoom = false;
-      
+
       if (!existingRoom) {
         room = await storage.createPrivateRoom(user1Id, user2Id);
         isNewRoom = true;
       }
-      
+
       // Get user data for the notification
       const user1 = await storage.getUser(user1Id);
       const user2 = await storage.getUser(user2Id);
-      
+
       // If it's a new room, notify the target user via WebSocket
       if (isNewRoom && user1 && user2 && room) {
         console.log(`[PRIVATE_CHAT] Notifying user ${user2Id} about new private chat from ${user1Id}`);
@@ -761,7 +761,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         console.log(`[PRIVATE_CHAT] Notification sent to ${user2Id}: ${notificationSent}`);
       }
-      
+
       res.json({ room, otherUser: user1Id === user1?.id ? user2 : user1 });
     } catch (error) {
       console.error('Private chat creation error:', error);
@@ -783,11 +783,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { roomId } = req.params;
       const { userId } = req.body;
-      
+
       if (!userId) {
         return res.status(400).json({ error: 'User ID is required' });
       }
-      
+
       const result = await storage.deletePrivateRoom(roomId, userId);
       if (result.success) {
         // Notify the other participant that the chat has been closed
@@ -803,10 +803,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             },
             message: `${currentUser?.username || 'Someone'} has closed this private chat`
           });
-          
+
           console.log(`[PRIVATE_CHAT] Chat closure notification sent to ${result.otherParticipant.id}: ${notificationSent}`);
         }
-        
+
         res.json({ success: true, message: 'Private chat deleted' });
       } else {
         res.status(403).json({ error: 'Not authorized to delete this chat' });
@@ -831,11 +831,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/photos/upload-url', async (req, res) => {
     try {
       const { fileName } = req.body;
-      
+
       if (!fileName) {
         return res.status(400).json({ error: 'File name is required' });
       }
-      
+
       const objectStorageService = new ObjectStorageService();
       const uploadURL = await objectStorageService.getPhotoUploadURL(fileName);
       res.json({ uploadURL });
@@ -864,12 +864,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('Serving photo:', photoPath);
       const photoFile = await objectStorageService.getPhotoFile(photoPath);
-      
+
       // Check for thumbnail request via query parameters
       const { size, width, height } = req.query;
       const thumbnailWidth = size === 'thumbnail' ? 192 : parseInt(width as string) || null;
       const thumbnailHeight = parseInt(height as string) || null;
-      
+
       if (thumbnailWidth || thumbnailHeight) {
         // Generate and serve thumbnail
         await objectStorageService.downloadThumbnail(photoFile, res, thumbnailWidth, thumbnailHeight);
@@ -891,21 +891,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId } = req.params;
       const { photoUrl, fileName, isPrimary } = req.body;
-      
+
       if (!photoUrl || !fileName) {
         return res.status(400).json({ error: 'Photo URL and filename are required' });
       }
-      
+
       const objectStorageService = new ObjectStorageService();
       const normalizedPath = objectStorageService.normalizePhotoPath(photoUrl);
-      
+
       const photoData = {
         userId,
         photoUrl: normalizedPath,
         fileName,
         isPrimary: isPrimary || false,
       };
-      
+
       const photo = await storage.addUserPhoto(photoData);
       res.json({ photo });
     } catch (error) {
@@ -948,60 +948,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/search/messages', async (req, res) => {
     try {
       const { q: query, roomId, userId, limit } = req.query;
-      
+
       if (!query || typeof query !== 'string') {
         return res.status(400).json({ error: 'Search query is required' });
       }
-      
+
       const results = await storage.searchMessages(
         query,
         roomId as string,
         userId as string,
         limit ? parseInt(limit as string) : 20
       );
-      
+
       res.json({ results });
     } catch (error) {
       console.error('Search messages error:', error);
       res.status(500).json({ error: 'Failed to search messages' });
     }
   });
-  
+
   app.get('/api/search/users', async (req, res) => {
     try {
       const { q: query, currentUserId, limit } = req.query;
-      
+
       if (!query || typeof query !== 'string') {
         return res.status(400).json({ error: 'Search query is required' });
       }
-      
+
       const results = await storage.searchUsers(
         query,
         currentUserId as string,
         limit ? parseInt(limit as string) : 20
       );
-      
+
       res.json({ results });
     } catch (error) {
       console.error('Search users error:', error);
       res.status(500).json({ error: 'Failed to search users' });
     }
   });
-  
+
   app.get('/api/search/rooms', async (req, res) => {
     try {
       const { q: query, userId, limit } = req.query;
-      
+
       if (!query || typeof query !== 'string') {
         return res.status(400).json({ error: 'Search query is required' });
       }
-      
+
       const results = await storage.searchRooms(
         query,
         userId as string,
         limit ? parseInt(limit as string) : 20
       );
-      
+
       res.json({ results });
     } catch (error) {
       console.error('Search rooms error:', error);
@@ -1045,28 +1045,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId } = req.body;
       const roomId = req.params.id;
-      
+
       if (!userId) {
         return res.status(400).json({ error: 'User ID is required' });
       }
-      
+
       // Check if user exists
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
       }
-      
+
       // Check if room exists
       const room = await storage.getRoom(roomId);
       if (!room) {
         return res.status(404).json({ error: 'Room not found' });
       }
-      
+
       const isAlreadyMember = await storage.isUserInRoom(roomId, userId);
       if (!isAlreadyMember) {
         await storage.addRoomMember({ roomId, userId });
       }
-      
+
       res.json({ success: true });
     } catch (error) {
       console.error('Room join error:', error);
@@ -1078,7 +1078,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId } = req.body;
       const roomId = req.params.id;
-      
+
       await storage.removeRoomMember(roomId, userId);
       res.json({ success: true });
     } catch (error) {
@@ -1096,7 +1096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         before: before as string,
         after: after as string,
       };
-      
+
       const result = await storage.getRoomMessages(req.params.id, pagination);
       res.json(result);
     } catch (error) {
@@ -1110,7 +1110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pagination = {
         limit: limit ? parseInt(limit as string) : 20, // Default to 20 messages
       };
-      
+
       const result = await storage.getRoomMessages(req.params.id, pagination);
       res.json(result);
     } catch (error) {
@@ -1122,16 +1122,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/rooms/:id/messages/since', async (req, res) => {
     try {
       const { timestamp, limit } = req.query;
-      
+
       if (!timestamp) {
         return res.status(400).json({ error: 'Timestamp parameter is required' });
       }
-      
+
       const pagination = {
         limit: limit ? parseInt(limit as string) : 100, // Higher limit for missed messages
         after: timestamp as string,
       };
-      
+
       const result = await storage.getRoomMessages(req.params.id, pagination);
       console.log(`[API] Fetched ${result.items.length} messages since ${timestamp} for room ${req.params.id}`);
       res.json(result);
@@ -1145,17 +1145,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/rooms', async (req, res) => {
     try {
       const { adminUserId } = req.query;
-      
+
       if (!adminUserId) {
         return res.status(401).json({ error: 'Admin authentication required' });
       }
-      
+
       // Verify admin privileges
       const adminUser = await storage.getUser(adminUserId as string);
       if (!adminUser || adminUser.role !== 'admin') {
         return res.status(403).json({ error: 'Admin privileges required' });
       }
-      
+
       const rooms = await storage.getRooms();
       res.json({ rooms });
     } catch (error) {
@@ -1168,17 +1168,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/rooms', async (req, res) => {
     try {
       const { adminUserId, name, description, isPrivate = false } = req.body;
-      
+
       if (!adminUserId) {
         return res.status(401).json({ error: 'Admin authentication required' });
       }
-      
+
       // Verify admin privileges
       const adminUser = await storage.getUser(adminUserId);
       if (!adminUser || adminUser.role !== 'admin') {
         return res.status(403).json({ error: 'Admin privileges required' });
       }
-      
+
       const roomData = {
         name,
         description: description || '',
@@ -1186,7 +1186,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         memberIds: [],
         createdBy: adminUserId
       };
-      
+
       const room = await storage.createRoom(roomData);
       res.json({ room, message: 'Room created successfully' });
     } catch (error) {
@@ -1200,13 +1200,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { adminUserId } = req.body;
       const roomId = req.params.id;
-      
+
       if (!adminUserId) {
         return res.status(401).json({ error: 'Admin authentication required' });
       }
-      
+
       const success = await storage.deleteRoom(roomId, adminUserId);
-      
+
       if (success) {
         res.json({ success: true, message: 'Room deleted successfully' });
       } else {
@@ -1226,19 +1226,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/admin/messages', async (req, res) => {
     try {
       const { adminUserId } = req.body;
-      
+
       if (!adminUserId) {
         return res.status(401).json({ error: 'Admin authentication required' });
       }
-      
+
       // Verify admin privileges
       const adminUser = await storage.getUser(adminUserId);
       if (!adminUser || adminUser.role !== 'admin') {
         return res.status(403).json({ error: 'Admin privileges required' });
       }
-      
+
       const success = await storage.clearAllMessages();
-      
+
       if (success) {
         res.json({ success: true, message: 'All messages cleared successfully' });
       } else {
@@ -1254,17 +1254,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/users', async (req, res) => {
     try {
       const { adminUserId } = req.query;
-      
+
       if (!adminUserId) {
         return res.status(401).json({ error: 'Admin authentication required' });
       }
-      
+
       // Verify admin privileges
       const adminUser = await storage.getUser(adminUserId as string);
       if (!adminUser || adminUser.role !== 'admin') {
         return res.status(403).json({ error: 'Admin privileges required' });
       }
-      
+
       // Get all users for admin view
       const allUsers = await storage.getAllUsers();
       res.json({ users: allUsers });
@@ -1290,7 +1290,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId } = req.params;
       const profileData = updateUserProfileSchema.parse(req.body);
-      
+
       const updatedUser = await storage.updateUserProfile(userId, profileData);
       res.json({ user: updatedUser });
     } catch (error) {
@@ -1304,15 +1304,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId } = req.params;
       const { confirmPassword } = req.body;
-      
+
       console.log(`[API] Account deletion requested for user: ${userId}`);
-      
+
       // Verify user exists
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
       }
-      
+
       // For security, require password confirmation (optional enhancement)
       if (confirmPassword) {
         const bcrypt = require('bcryptjs');
@@ -1321,18 +1321,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ error: 'Invalid password confirmation' });
         }
       }
-      
+
       // Get user photos for object storage cleanup
       const userPhotos = await storage.getUserPhotos(userId);
-      
+
       // Perform GDPR-compliant account deletion
       const deletionResult = await storage.deleteUserAccount(userId);
-      
+
       // Clean up photos from object storage
       if (userPhotos.length > 0) {
         console.log(`[API] Cleaning up ${userPhotos.length} photos from object storage`);
         const objectStorage = new ObjectStorageService();
-        
+
         for (const photo of userPhotos) {
           try {
             // TODO: Implement deleteFile method in ObjectStorageService
@@ -1344,7 +1344,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       }
-      
+
       // Disconnect user from WebSocket if they're connected
       if (clients.has(userId)) {
         const client = clients.get(userId);
@@ -1353,19 +1353,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         clients.delete(userId);
       }
-      
+
       console.log(`[API] Account deletion completed for user: ${user.username}`);
       console.log(`[API] Deletion summary:`, deletionResult.deletedData);
-      
+
       res.json({ 
         success: true, 
         message: 'Account successfully deleted according to GDPR requirements',
         deletedData: deletionResult.deletedData
       });
-      
+
     } catch (error) {
       console.error('Account deletion error:', error);
-      
+
       // Return appropriate error message
       if ((error as Error).message === 'User not found') {
         res.status(404).json({ error: 'User not found' });
@@ -1394,7 +1394,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId } = req.params;
       const settingsData = updateNotificationSettingsSchema.parse(req.body);
-      
+
       const updatedSettings = await storage.updateUserNotificationSettings(userId, settingsData);
       res.json(updatedSettings);
     } catch (error) {
@@ -1407,13 +1407,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/users/:userId/notifications', async (req, res) => {
     try {
       const { userId } = req.params;
-      const { limit = '20', offset = '0' } = req.query;
-      
-      const notifications = await storage.getUserNotifications(userId, parseInt(limit as string), parseInt(offset as string));
-      res.json({ notifications });
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+
+      const notifications = await storage.getUserNotifications(userId, limit, offset);
+
+      res.json({
+        notifications,
+        hasMore: notifications.length === limit
+      });
     } catch (error) {
-      console.error('Get notifications error:', error);
-      res.status(500).json({ error: 'Failed to get notifications' });
+      console.error('Error fetching user notifications:', error);
+      res.status(500).json({ error: 'Failed to fetch notifications' });
+    }
+  });
+
+  // Get unread notification count
+  app.get('/api/users/:userId/notifications/unread-count', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const notifications = await storage.getUserNotifications(userId, 1000, 0);
+      const unreadCount = notifications.filter(n => !n.read).length;
+
+      res.json({ count: unreadCount });
+    } catch (error) {
+      console.error('Error fetching unread notification count:', error);
+      res.status(500).json({ error: 'Failed to fetch unread count' });
     }
   });
 
@@ -1421,7 +1440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/notifications/:notificationId/read', async (req, res) => {
     try {
       const { notificationId } = req.params;
-      
+
       await storage.markNotificationAsRead(notificationId);
       res.json({ success: true });
     } catch (error) {
@@ -1434,7 +1453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/friend-requests', async (req, res) => {
     try {
       const requestData = insertFriendRequestSchema.parse(req.body);
-      
+
       if (requestData.senderId === requestData.receiverId) {
         return res.status(400).json({ error: 'Cannot send friend request to yourself' });
       }
@@ -1477,7 +1496,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { requestId } = req.params;
       const actionData = friendRequestActionSchema.parse(req.body);
-      
+
       const success = await storage.respondToFriendRequest(requestId, actionData.action);
       res.json({ success });
     } catch (error: any) {
@@ -1489,7 +1508,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/friend-requests/:requestId/cancel/:userId', async (req, res) => {
     try {
       const { requestId, userId } = req.params;
-      
+
       const success = await storage.cancelFriendRequest(requestId, userId);
       res.json({ success });
     } catch (error: any) {
@@ -1547,7 +1566,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId } = req.params;
       const settingsData = updatePrivacySettingsSchema.parse(req.body);
-      
+
       const updatedSettings = await storage.updateUserPrivacySettings(userId, settingsData);
       res.json(updatedSettings);
     } catch (error) {
@@ -1561,27 +1580,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId } = req.params;
       const { blockedId, reason } = req.body;
-      
+
       if (!blockedId) {
         return res.status(400).json({ error: 'Blocked user ID is required' });
       }
-      
+
       if (userId === blockedId) {
         return res.status(400).json({ error: 'Cannot block yourself' });
       }
-      
+
       // Check if already blocked
       const isAlreadyBlocked = await storage.isUserBlocked(userId, blockedId);
       if (isAlreadyBlocked) {
         return res.status(400).json({ error: 'User is already blocked' });
       }
-      
+
       const blockData = insertBlockedUserSchema.parse({
         blockerId: userId,
         blockedId,
         reason: reason || null,
       });
-      
+
       const blockedUser = await storage.blockUser(blockData);
       res.json({ blockedUser });
     } catch (error) {
@@ -1593,7 +1612,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/users/:userId/blocked-users/:blockedId', async (req, res) => {
     try {
       const { userId, blockedId } = req.params;
-      
+
       await storage.unblockUser(userId, blockedId);
       res.json({ success: true });
     } catch (error) {
@@ -1619,29 +1638,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get the reporter's user ID from a session or auth token
       // For now, assuming it's passed in the request body
       const { reportedUserId, reason, description, reporterId } = req.body;
-      
+
       if (!reporterId) {
         return res.status(401).json({ error: 'Reporter ID is required' });
       }
-      
+
       const reportData = reportSchema.parse({
         reportedUserId,
         reason,
         description,
       });
-      
+
       if (reporterId === reportedUserId) {
         return res.status(400).json({ error: 'Cannot report yourself' });
       }
-      
+
       // Check if users exist
       const reporter = await storage.getUser(reporterId);
       const reportedUser = await storage.getUser(reportedUserId);
-      
+
       if (!reporter || !reportedUser) {
         return res.status(404).json({ error: 'User not found' });
       }
-      
+
       const insertData = insertReportSchema.parse({
         reporterId,
         reportedUserId: reportData.reportedUserId,
@@ -1649,7 +1668,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: reportData.description,
         status: 'pending',
       });
-      
+
       const report = await storage.createReport(insertData);
       res.json({ report });
     } catch (error) {
@@ -1663,11 +1682,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get the admin user ID from session/auth
       // For now, checking if user has admin role
       const { adminUserId } = req.query;
-      
+
       if (!adminUserId) {
         return res.status(401).json({ error: 'Admin authentication required' });
       }
-      
+
       const reports = await storage.getReports(adminUserId as string);
       res.json({ reports });
     } catch (error) {
@@ -1685,14 +1704,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { reportId } = req.params;
       const { adminUserId, ...statusUpdate } = req.body;
-      
+
       if (!adminUserId) {
         return res.status(401).json({ error: 'Admin authentication required' });
       }
-      
+
       const validatedStatusUpdate = updateReportStatusSchema.parse(statusUpdate);
       const updatedReport = await storage.updateReportStatus(reportId, validatedStatusUpdate, adminUserId);
-      
+
       res.json({ report: updatedReport });
     } catch (error) {
       console.error('Update report status error:', error);
@@ -1708,17 +1727,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId } = req.params;
       const { requesterId } = req.query;
-      
+
       if (!requesterId) {
         return res.status(401).json({ error: 'Authentication required' });
       }
-      
+
       // Check if requester is admin
       const requester = await storage.getUser(requesterId as string);
       if (!requester || requester.role !== 'admin') {
         return res.status(403).json({ error: 'Admin privileges required' });
       }
-      
+
       const userReports = await storage.getUserReports(userId);
       res.json({ reports: userReports });
     } catch (error) {
@@ -1731,17 +1750,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/dashboard-stats', async (req, res) => {
     try {
       const { adminUserId } = req.query;
-      
+
       if (!adminUserId) {
         return res.status(401).json({ error: 'Admin authentication required' });
       }
-      
+
       // Verify admin privileges
       const adminUser = await storage.getUser(adminUserId as string);
       if (!adminUser || adminUser.role !== 'admin') {
         return res.status(403).json({ error: 'Admin privileges required' });
       }
-      
+
       const stats = await storage.getAdminDashboardStats();
       res.json({ stats });
     } catch (error) {
@@ -1753,17 +1772,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/moderation-data', async (req, res) => {
     try {
       const { adminUserId } = req.query;
-      
+
       if (!adminUserId) {
         return res.status(401).json({ error: 'Admin authentication required' });
       }
-      
+
       // Verify admin privileges
       const adminUser = await storage.getUser(adminUserId as string);
       if (!adminUser || adminUser.role !== 'admin') {
         return res.status(403).json({ error: 'Admin privileges required' });
       }
-      
+
       const moderationData = await storage.getModerationData(adminUserId as string);
       res.json(moderationData);
     } catch (error) {
@@ -1775,17 +1794,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/banned-users', async (req, res) => {
     try {
       const { adminUserId } = req.query;
-      
+
       if (!adminUserId) {
         return res.status(401).json({ error: 'Admin authentication required' });
       }
-      
+
       // Verify admin privileges
       const adminUser = await storage.getUser(adminUserId as string);
       if (!adminUser || adminUser.role !== 'admin') {
         return res.status(403).json({ error: 'Admin privileges required' });
       }
-      
+
       const bannedUsers = await storage.getBannedUsers();
       res.json({ users: bannedUsers });
     } catch (error) {
@@ -1834,23 +1853,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/block-user', async (req, res) => {
     try {
       const { adminUserId, userId, reason } = req.body;
-      
+
       if (!adminUserId) {
         return res.status(401).json({ error: 'Admin authentication required' });
       }
-      
+
       // Verify admin privileges
       const adminUser = await storage.getUser(adminUserId);
       if (!adminUser || adminUser.role !== 'admin') {
         return res.status(403).json({ error: 'Admin privileges required' });
       }
-      
+
       const blockData = {
         blockerId: adminUserId,
         blockedId: userId,
         reason: reason || 'Blocked by admin'
       };
-      
+
       const blockedUser = await storage.blockUser(blockData);
       res.json({ success: true, blockedUser, message: 'User blocked successfully' });
     } catch (error: any) {
@@ -1863,19 +1882,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/unblock-user', async (req, res) => {
     try {
       const { adminUserId, userId } = req.body;
-      
+
       if (!adminUserId) {
         return res.status(401).json({ error: 'Admin authentication required' });
       }
-      
+
       // Verify admin privileges
       const adminUser = await storage.getUser(adminUserId);
       if (!adminUser || adminUser.role !== 'admin') {
         return res.status(403).json({ error: 'Admin privileges required' });
       }
-      
+
       const success = await storage.unblockUser(adminUserId, userId);
-      
+
       if (success) {
         res.json({ success: true, message: 'User unblocked successfully' });
       } else {
@@ -1891,28 +1910,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/ban-user', async (req, res) => {
     try {
       const { adminUserId, userId, reason } = req.body;
-      
+
       if (!adminUserId) {
         return res.status(401).json({ error: 'Admin authentication required' });
       }
-      
+
       // Verify admin privileges
       const adminUser = await storage.getUser(adminUserId);
       if (!adminUser || adminUser.role !== 'admin') {
         return res.status(403).json({ error: 'Admin privileges required' });
       }
-      
+
       // Prevent admin from banning themselves
       if (adminUserId === userId) {
         return res.status(400).json({ error: 'Cannot ban yourself' });
       }
-      
+
       const banData = {
         userId,
         reason: reason || 'Banned by admin',
         permanent: true
       };
-      
+
       const result = await storage.banUser(banData, adminUserId);
       res.json({ success: true, result, message: 'User banned successfully' });
     } catch (error: any) {
@@ -1925,17 +1944,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/unban-user', async (req, res) => {
     try {
       const { adminUserId, userId } = req.body;
-      
+
       if (!adminUserId) {
         return res.status(401).json({ error: 'Admin authentication required' });
       }
-      
+
       // Verify admin privileges
       const adminUser = await storage.getUser(adminUserId);
       if (!adminUser || adminUser.role !== 'admin') {
         return res.status(403).json({ error: 'Admin privileges required' });
       }
-      
+
       const result = await storage.unbanUser(userId, adminUserId, 'Unbanned by admin');
       res.json({ success: true, result, message: 'User unbanned successfully' });
     } catch (error: any) {
@@ -1959,20 +1978,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/cleanup-messages', async (req: Request, res: Response) => {
     try {
       const { adminUserId } = req.body;
-      
+
       if (!adminUserId) {
         return res.status(401).json({ error: 'Admin authentication required' });
       }
-      
+
       // Check if user is admin
       const user = await storage.getUser(adminUserId);
       if (!user || user.role !== 'admin') {
         return res.status(403).json({ error: 'Access denied: Admin privileges required' });
       }
-      
+
       const { cleanupScheduler } = await import('./cleanup-scheduler');
       const result = await cleanupScheduler.runCleanupNow();
-      
+
       res.json({
         success: true,
         message: 'Message cleanup completed successfully',
@@ -1994,20 +2013,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/cleanup-status', async (req: Request, res: Response) => {
     try {
       const { adminUserId } = req.query;
-      
+
       if (!adminUserId) {
         return res.status(401).json({ error: 'Admin authentication required' });
       }
-      
+
       // Check if user is admin
       const user = await storage.getUser(adminUserId as string);
       if (!user || user.role !== 'admin') {
         return res.status(403).json({ error: 'Access denied: Admin privileges required' });
       }
-      
+
       const { cleanupScheduler } = await import('./cleanup-scheduler');
       const status = cleanupScheduler.getStatus();
-      
+
       res.json({
         success: true,
         status

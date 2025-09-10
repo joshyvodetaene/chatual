@@ -130,7 +130,7 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
       // Rejoin current room if we were in one
       if (currentRoomRef.current) {
         console.log(`[WS_HOOK] Rejoining room: ${currentRoomRef.current}`);
-        
+
         // If this is a reconnection, fetch missed messages first
         if (isReconnect && disconnectionTimeRef.current) {
           console.log(`[WS_HOOK] Smart reconnection - fetching missed messages since ${disconnectionTimeRef.current.toISOString()}`);
@@ -188,12 +188,12 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
               photoUrl: message.message?.photoUrl,
               content: message.message?.content?.substring(0, 20)
             });
-            
+
             // Update last message timestamp for the room
             if (message.message?.roomId && message.message?.createdAt) {
               lastMessageTimestampRef.current[message.message.roomId] = message.message.createdAt;
             }
-            
+
             setMessages(prev => [...prev, message.message]);
             break;
           case 'user_joined':
@@ -256,15 +256,12 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
             }));
             break;
           case 'notification':
-            console.log(`[WS_HOOK] Received notification:`, {
-              type: message.notification?.type,
-              title: message.notification?.title,
-              body: message.notification?.body
+            console.log('[WS_HOOK] Received notification:', message);
+            // Dispatch custom event for notification center to catch
+            const notificationEvent = new CustomEvent('websocket-notification', {
+              detail: message
             });
-            // Emit custom event for notification manager to handle
-            window.dispatchEvent(new CustomEvent('websocket-notification', {
-              detail: message.notification
-            }));
+            window.dispatchEvent(notificationEvent);
             break;
           }
         };
@@ -284,19 +281,19 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
 
     ws.current.onclose = (event) => {
       console.log(`[WS_HOOK] WebSocket closed: code=${event.code}, reason='${event.reason}', clean=${event.wasClean}`);
-      
+
       // Handle normal closures (user logout, component unmounting)
       if (event.code === 1000 || event.reason === 'Component unmounting') {
         console.log('[WS_HOOK] Normal WebSocket closure');
         setConnectionStatus('disconnected');
         return;
       }
-      
+
       // Handle server cleanup (code 1001) - treat as temporary interruption  
       if (event.code === 1001) {
         console.log('[WS_HOOK] Server cleanup closure - treating as temporary interruption');
         setConnectionStatus('connecting');
-        
+
         // Quick reconnect for server cleanup events without counting as retry
         setTimeout(() => {
           if (userId && ws.current?.readyState !== WebSocket.OPEN) {
@@ -305,9 +302,9 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
         }, 300); // Very short delay for cleanup events
         return;
       }
-      
+
       setConnectionStatus('disconnected');
-      
+
       // Record disconnection time for smart reconnection
       disconnectionTimeRef.current = new Date();
 
@@ -353,11 +350,11 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
 
   const joinRoom = useCallback((roomId: string, clearMessages: boolean = true) => {
     console.log(`[WS_HOOK] Joining room: ${roomId}, clearMessages: ${clearMessages}`);
-    
+
     // Store previous room for cleanup
     const previousRoom = currentRoomRef.current;
     currentRoomRef.current = roomId;
-    
+
     // Clear messages only when explicitly requested (new room join, not reconnection)
     if (clearMessages) {
       setMessages([]);
@@ -377,7 +374,7 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
             roomId: previousRoom,
           }));
         }
-        
+
         // Join new room
         console.log(`[WS_HOOK] Sending join request for room: ${roomId}`);
         ws.current.send(JSON.stringify({
@@ -419,7 +416,7 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
         setMessages(prev => {
           const existingIds = new Set(prev.map(msg => msg.id));
           const newMessages = data.items.filter((msg: MessageWithUser) => !existingIds.has(msg.id));
-          
+
           if (newMessages.length > 0) {
             console.log(`[WS_HOOK] Adding ${newMessages.length} new missed messages`);
             // Sort by creation time to maintain chronological order
@@ -428,7 +425,7 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
             );
             return combined;
           }
-          
+
           return prev;
         });
       }

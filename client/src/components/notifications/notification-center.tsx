@@ -40,6 +40,61 @@ export function NotificationCenter() {
     }
   }, [isOpen, currentUser]);
 
+  // Load unread count on mount and periodically
+  useEffect(() => {
+    if (currentUser) {
+      loadUnreadCount();
+      // Refresh unread count every 30 seconds
+      const interval = setInterval(() => {
+        loadUnreadCount();
+      }, 30000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [currentUser]);
+
+  // Listen for real-time notifications via WebSocket
+  useEffect(() => {
+    const handleWebSocketNotification = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'notification' && data.data && currentUser) {
+          // Add to notifications list if dropdown is open
+          if (isOpen) {
+            setNotifications(prev => [data.data, ...prev].slice(0, 50));
+          }
+          // Always update unread count
+          if (!data.data.read) {
+            setUnreadCount(prev => prev + 1);
+          }
+        }
+      } catch (error) {
+        // Ignore parsing errors for non-notification messages
+      }
+    };
+
+    // Listen to WebSocket messages through custom event
+    const handleNotificationEvent = (event: CustomEvent) => {
+      const notification = event.detail;
+      if (notification && currentUser) {
+        // Add to notifications list if dropdown is open
+        if (isOpen) {
+          setNotifications(prev => [notification, ...prev].slice(0, 50));
+        }
+        // Always update unread count
+        if (!notification.read) {
+          setUnreadCount(prev => prev + 1);
+        }
+      }
+    };
+
+    window.addEventListener('websocket-notification', handleNotificationEvent as EventListener);
+    
+    return () => {
+      window.removeEventListener('websocket-notification', handleNotificationEvent as EventListener);
+    };
+  }, [currentUser, isOpen]);
+
   const loadNotifications = async () => {
     if (!currentUser) return;
     
@@ -55,6 +110,20 @@ export function NotificationCenter() {
       console.error('Failed to load notifications:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadUnreadCount = async () => {
+    if (!currentUser) return;
+    
+    try {
+      const response = await fetch(`/api/users/${currentUser.id}/notifications/unread-count`);
+      if (response.ok) {
+        const data = await response.json();
+        setUnreadCount(data.count || 0);
+      }
+    } catch (error) {
+      console.error('Failed to load unread count:', error);
     }
   };
 
