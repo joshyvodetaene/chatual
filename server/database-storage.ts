@@ -128,55 +128,50 @@ export class DatabaseStorage implements IStorage {
       // Check if administrator user exists
       const adminUser = await this.getUserByUsername('administrator');
 
-      if (!adminUser) {
-        // Create master admin user
-        const hashedPassword = await bcrypt.hash('12345678', 10);
-        const adminUserId = randomUUID();
+      // SECURITY: Admin user creation disabled in production
+      // To create an admin user, use proper admin setup procedures
+      if (process.env.NODE_ENV === 'development' && process.env.CREATE_DEV_ADMIN === 'true') {
+        if (!adminUser) {
+          // For development only - require explicit environment variable
+          const devPassword = process.env.DEV_ADMIN_PASSWORD;
+          if (!devPassword || devPassword.length < 12) {
+            console.warn('[SECURITY] DEV_ADMIN_PASSWORD environment variable required (min 12 chars) for development admin creation');
+            return;
+          }
 
-        const masterAdmin = {
-          id: adminUserId,
-          username: 'admin',
-          displayName: 'Administrator',
-          password: hashedPassword,
-          gender: 'male' as const,
-          location: 'System',
-          latitude: null,
-          longitude: null,
-          genderPreference: 'all' as const,
-          ageMin: 18,
-          ageMax: 99,
-          role: 'admin' as const,
-          avatar: null,
-          bio: 'System Administrator',
-          dateOfBirth: null,
-          isOnline: false,
-          lastSeen: new Date(),
-          age: 25,
-          isBanned: false,
-          bannedAt: null,
-          bannedBy: null,
-          banReason: null,
-        };
+          const hashedPassword = await bcrypt.hash(devPassword, 10);
+          const adminUserId = randomUUID();
 
-        await db.insert(users).values([masterAdmin]);
-        console.log('Master admin user created: administrator');
-      } else {
-        // Verify admin still has correct role and password
-        const passwordMatch = await bcrypt.compare('12345678', adminUser.password);
+          const masterAdmin = {
+            id: adminUserId,
+            username: 'admin',
+            displayName: 'Administrator',
+            password: hashedPassword,
+            gender: 'male' as const,
+            location: 'System',
+            latitude: null,
+            longitude: null,
+            genderPreference: 'all' as const,
+            ageMin: 18,
+            ageMax: 99,
+            role: 'admin' as const,
+            avatar: null,
+            bio: 'System Administrator',
+            dateOfBirth: null,
+            isOnline: false,
+            lastSeen: new Date(),
+            age: 25,
+            isBanned: false,
+            bannedAt: null,
+            bannedBy: null,
+            banReason: null,
+          };
 
-        if (adminUser.role !== 'admin' || !passwordMatch) {
-          // Reset admin credentials
-          const hashedPassword = await bcrypt.hash('12345678', 10);
-          await db
-            .update(users)
-            .set({
-              role: 'admin',
-              password: hashedPassword,
-              username: 'admin'
-            })
-            .where(eq(users.id, adminUser.id));
-          console.log('Administrator user credentials restored');
+          await db.insert(users).values([masterAdmin]);
+          console.log('[DEV] Development admin user created with environment password');
         }
+      } else {
+        console.log('[SECURITY] Admin user creation disabled outside development environment');
       }
     } catch (error) {
       console.error('Error ensuring administrator user:', error);

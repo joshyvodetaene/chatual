@@ -232,7 +232,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
             }));
             break;
           case 'notification':
-            console.log('[WS_HOOK] Received notification:', message);
             // Dispatch custom event for notification center to catch
             const notificationEvent = new CustomEvent('websocket-notification', {
               detail: message
@@ -321,7 +320,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
   }, [userId, connect]);
 
   const joinRoom = useCallback((roomId: string, clearMessages: boolean = true) => {
-    console.log(`[WS_HOOK] Joining room: ${roomId}, clearMessages: ${clearMessages}`);
 
     // Store previous room for cleanup
     const previousRoom = currentRoomRef.current;
@@ -339,7 +337,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
       try {
         // Send leave message for previous room if switching rooms
         if (previousRoom && previousRoom !== roomId && clearMessages) {
-          console.log(`[WS_HOOK] Leaving previous room: ${previousRoom}`);
           ws.current.send(JSON.stringify({
             type: 'leave',
             userId,
@@ -348,7 +345,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
         }
 
         // Join new room
-        console.log(`[WS_HOOK] Sending join request for room: ${roomId}`);
         ws.current.send(JSON.stringify({
           type: 'join',
           userId,
@@ -359,7 +355,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
         setLastError(`Failed to join room: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     } else {
-      console.log(`[WS_HOOK] Cannot join room - WebSocket not ready. Status: ${ws.current?.readyState}, userId: ${userId}`);
       // If WebSocket is not ready, we'll rejoin when it reconnects
     }
   }, [userId]);
@@ -367,7 +362,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
   // Fetch messages that were missed during disconnection
   const fetchMissedMessages = useCallback(async (roomId: string) => {
     if (!disconnectionTimeRef.current) {
-      console.log('[WS_HOOK] No disconnection timestamp available, skipping missed messages fetch');
       return;
     }
 
@@ -522,7 +516,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     if (connectionStatus === 'connected') {
       const healthCheckInterval = setInterval(() => {
         if (!healthCheck()) {
-          console.log('[WS_HOOK] Health check failed, attempting reconnection');
           reconnect();
         }
       }, 30000); // Check every 30 seconds
@@ -533,7 +526,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
 
   // Manual reconnect function
   const reconnect = useCallback(() => {
-    console.log('[WS_HOOK] Manual reconnection triggered');
     retryCountRef.current = 0;
     isReconnectingRef.current = true;
     connect();
