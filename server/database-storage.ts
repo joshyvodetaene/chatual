@@ -347,8 +347,6 @@ export class DatabaseStorage implements IStorage {
 
   async getUsersWithDistance(currentUserId: string): Promise<UserWithDistance[]> {
     try {
-      console.log(`[API] Getting users with distance calculation for: ${currentUserId}`);
-
       // Get current user's coordinates
       const [currentUser] = await db
         .select()
@@ -363,23 +361,31 @@ export class DatabaseStorage implements IStorage {
       const currentLat = parseFloat(currentUser.latitude || '0');
       const currentLng = parseFloat(currentUser.longitude || '0');
 
-      console.log(`[API] Current user coordinates: lat=${currentLat}, lng=${currentLng}, location="${currentUser.location}"`);
-
       // Get all users with their photos
       const allUsers = await db
         .select({
           id: users.id,
           username: users.username,
           displayName: users.displayName,
+          password: users.password,
           age: users.age,
           gender: users.gender,
           location: users.location,
           latitude: users.latitude,
           longitude: users.longitude,
+          genderPreference: users.genderPreference,
+          ageMin: users.ageMin,
+          ageMax: users.ageMax,
+          role: users.role,
+          avatar: users.avatar,
+          bio: users.bio,
+          dateOfBirth: users.dateOfBirth,
           lastSeen: users.lastSeen,
           isOnline: users.isOnline,
           isBanned: users.isBanned,
-          isBlocked: users.isBlocked,
+          bannedAt: users.bannedAt,
+          bannedBy: users.bannedBy,
+          banReason: users.banReason,
           photoId: sql<string | null>`${userPhotos.id}`,
           photoUrl: sql<string | null>`${userPhotos.photoUrl}`,
           photoFileName: sql<string | null>`${userPhotos.fileName}`,
@@ -392,11 +398,8 @@ export class DatabaseStorage implements IStorage {
         ))
         .where(and(
           ne(users.id, currentUserId),
-          eq(users.isBanned, false),
-          eq(users.isBlocked, false)
+          eq(users.isBanned, false)
         ));
-
-      console.log(`[API] Found ${allUsers.length} users to process`);
 
       // Prepare destinations for batch distance calculation
       const destinations = allUsers
@@ -420,8 +423,6 @@ export class DatabaseStorage implements IStorage {
         })
         .filter((dest): dest is { lat: number; lng: number; userId: string } => dest !== null);
 
-      console.log(`[API] Calculating distances for ${destinations.length} users with valid coordinates`);
-
       // Get distances using Google Maps API (batch calculation)
       let distanceResults = new Map();
       if (
@@ -437,7 +438,6 @@ export class DatabaseStorage implements IStorage {
             currentLng,
             destinations
           );
-          console.log(`[API] Got distance results for ${distanceResults.size} users`);
         } catch (error) {
           console.error('[API] Error calculating batch distances:', error);
           // Fallback to Haversine calculation
@@ -455,23 +455,30 @@ export class DatabaseStorage implements IStorage {
       const usersWithDistance: UserWithDistance[] = allUsers.map(user => {
         const distanceData = distanceResults.get(user.id);
         
-        if (distanceData) {
-          console.log(`[API] Distance for ${user.username}: ${distanceData.distance}km, ${distanceData.duration}min, mode: ${distanceData.mode}`);
-        }
 
         return {
           id: user.id,
           username: user.username,
           displayName: user.displayName,
+          password: user.password,
           age: user.age,
           gender: user.gender,
           location: user.location,
           latitude: user.latitude,
           longitude: user.longitude,
+          genderPreference: user.genderPreference,
+          ageMin: user.ageMin,
+          ageMax: user.ageMax,
+          role: user.role,
+          avatar: user.avatar,
+          bio: user.bio,
+          dateOfBirth: user.dateOfBirth,
           lastSeen: user.lastSeen ? new Date(user.lastSeen) : null,
           isOnline: user.isOnline,
           isBanned: user.isBanned,
-          isBlocked: user.isBlocked,
+          bannedAt: user.bannedAt,
+          bannedBy: user.bannedBy,
+          banReason: user.banReason,
           primaryPhoto: user.photoUrl ? {
             id: user.photoId || '',
             userId: user.id,
@@ -486,7 +493,6 @@ export class DatabaseStorage implements IStorage {
         };
       });
 
-      console.log(`[API] Returning ${usersWithDistance.length} users with distance data`);
       return usersWithDistance;
 
     } catch (error) {
