@@ -77,7 +77,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.host;
-    console.log(`[WS_HOOK] Building WebSocket URL - protocol: ${protocol}, host: ${host}`);
 
     // Ensure host is valid and properly formatted
     if (!host || host.trim() === '') {
@@ -87,7 +86,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     }
 
     const wsUrl = `${protocol}//${host}/ws`;
-    console.log(`[WS_HOOK] WebSocket URL constructed: ${wsUrl}`);
 
     // Validate the WebSocket URL
     try {
@@ -118,8 +116,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     }
 
     ws.current.onopen = () => {
-      console.log(`[WS_HOOK] WebSocket connected successfully at ${new Date().toISOString()}`);
-      console.log(`[WS_HOOK] Connection established on attempt ${retryCountRef.current + 1}`);
       setConnectionStatus('connected');
       setLastError(null);
       retryCountRef.current = 0; // Reset retry count on successful connection
@@ -130,7 +126,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
   
         // If this is a reconnection, fetch missed messages first
         if (isReconnect && disconnectionTimeRef.current) {
-          console.log(`[WS_HOOK] Smart reconnection - fetching missed messages since ${disconnectionTimeRef.current.toISOString()}`);
           fetchMissedMessages(currentRoomRef.current).then(() => {
             // Join room after fetching missed messages
             joinRoom(currentRoomRef.current!, false);
@@ -146,7 +141,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
 
       // Process any queued messages after a short delay to ensure room join completes
       if (queuedCount > 0) {
-        console.log(`[WS_HOOK] Processing ${queuedCount} queued messages...`);
         setTimeout(() => {
           processQueuedMessages();
         }, 500);
@@ -262,18 +256,15 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     };
 
     ws.current.onclose = (event) => {
-      console.log(`[WS_HOOK] WebSocket closed: code=${event.code}, reason='${event.reason}', clean=${event.wasClean}`);
 
       // Handle normal closures (user logout, component unmounting)
       if (event.code === 1000 || event.reason === 'Component unmounting') {
-        console.log('[WS_HOOK] Normal WebSocket closure');
         setConnectionStatus('disconnected');
         return;
       }
 
       // Handle server cleanup (code 1001) - treat as temporary interruption  
       if (event.code === 1001) {
-        console.log('[WS_HOOK] Server cleanup closure - treating as temporary interruption');
         setConnectionStatus('connecting');
 
         // Quick reconnect for server cleanup events without counting as retry
@@ -296,7 +287,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
         retryCountRef.current += 1;
         const delay = calculateRetryDelay(retryCountRef.current - 1);
 
-        console.log(`[WS_HOOK] Reconnecting in ${delay}ms (attempt ${retryCountRef.current}/${retryConfig.maxAttempts})`);
         setLastError(`Connection lost. Retrying in ${Math.ceil(delay / 1000)}s (${retryCountRef.current}/${retryConfig.maxAttempts})`);
 
         reconnectTimeoutRef.current = setTimeout(() => {

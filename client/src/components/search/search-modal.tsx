@@ -254,13 +254,13 @@ export default function SearchModal({
                             <Avatar className="w-8 h-8">
                               <AvatarImage src={message.user.avatar || undefined} />
                               <AvatarFallback className="text-xs">
-                                {message.user.displayName.charAt(0).toUpperCase()}
+                                {(message.user.displayName || message.user.username).charAt(0).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="text-sm font-medium text-gray-900 dark:text-white">
-                                  {message.user.displayName}
+                                  {message.user.displayName || message.user.username}
                                 </span>
                                 <span className="text-xs text-gray-500 flex items-center gap-1">
                                   <Clock className="w-3 h-3" />
@@ -297,13 +297,13 @@ export default function SearchModal({
                             <Avatar className="w-10 h-10">
                               <AvatarImage src={user.avatar || undefined} />
                               <AvatarFallback>
-                                {user.displayName.charAt(0).toUpperCase()}
+                                {(user.displayName || user.username).charAt(0).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
                                 <span className="font-medium text-gray-900 dark:text-white">
-                                  {user.displayName}
+                                  {user.displayName || user.username}
                                 </span>
                                 {user.isOnline && (
                                   <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
