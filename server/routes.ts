@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
@@ -78,7 +78,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Clean up stale connections and room users
   function cleanupStaleConnections() {
-    console.log('[WS_CLEANUP] Starting periodic cleanup of stale connections');
+    if (process.env.DEBUG_WS) console.log('[WS_CLEANUP] Starting periodic cleanup of stale connections');
     const now = Date.now();
     let cleanedConnections = 0;
     let cleanedRoomEntries = 0;
@@ -86,7 +86,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Clean up stale clients
     for (const [userId, client] of clients.entries()) {
       if (!isConnectionAlive(client)) {
-        console.log(`[WS_CLEANUP] Removing stale connection for user ${userId}`);
+        if (process.env.DEBUG_WS) console.log(`[WS_CLEANUP] Removing stale connection for user ${userId}`);
 
         // Remove from room if they were in one
         if (client.roomId && client.userId) {
@@ -140,13 +140,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     if (cleanedConnections > 0 || cleanedRoomEntries > 0) {
-      console.log(`[WS_CLEANUP] Cleaned ${cleanedConnections} stale connections and ${cleanedRoomEntries} room entries`);
+      if (process.env.DEBUG_WS) console.log(`[WS_CLEANUP] Cleaned ${cleanedConnections} stale connections and ${cleanedRoomEntries} room entries`);
     }
   }
 
   // Heartbeat function to check connection health
   function heartbeat() {
-    console.log('[WS_HEARTBEAT] Sending ping to all connected clients');
+    if (process.env.DEBUG_WS) console.log('[WS_HEARTBEAT] Sending ping to all connected clients');
     let activeConnections = 0;
     let staleConnections = 0;
 
@@ -164,13 +164,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           client.ping((error: Error | null) => {
             if (error) {
-              console.log(`[WS_HEARTBEAT] Ping failed for user ${userId}: ${error.message}`);
+              if (process.env.DEBUG_WS) console.log(`[WS_HEARTBEAT] Ping failed for user ${userId}: ${error.message}`);
               client.isAlive = false; // Only mark as false if ping actually failed
             }
           });
           activeConnections++;
         } catch (error) {
-          console.log(`[WS_HEARTBEAT] Failed to ping user ${userId}: ${error}`);
+          if (process.env.DEBUG_WS) console.log(`[WS_HEARTBEAT] Failed to ping user ${userId}: ${error}`);
           client.isAlive = false; // Only mark as false if ping failed
           staleConnections++;
         }
@@ -179,7 +179,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
 
-    console.log(`[WS_HEARTBEAT] Pinged ${activeConnections} clients, ${staleConnections} potentially stale`);
+    if (process.env.DEBUG_WS) console.log(`[WS_HEARTBEAT] Pinged ${activeConnections} clients, ${staleConnections} potentially stale`);
   }
 
   // Start periodic heartbeat and cleanup
@@ -778,7 +778,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           fromUser: {
             id: user1.id,
             username: user1.username,
-            username: user1.username,
             primaryPhoto: user1.primaryPhoto
           },
           room: room
@@ -822,7 +821,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             roomId: roomId,
             closedBy: {
               id: currentUser?.id,
-              username: currentUser?.username,
               username: currentUser?.username
             },
             message: `${currentUser?.username || 'Someone'} has closed this private chat`
