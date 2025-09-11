@@ -99,8 +99,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     }
 
     const isReconnect = isReconnectingRef.current;
-    console.log(`[WS_HOOK] ${isReconnect ? 'Reconnecting' : 'Connecting'} to WebSocket: ${wsUrl}`);
-    console.log(`[WS_HOOK] Retry attempt: ${retryCountRef.current}/${retryConfig.maxAttempts}`);
 
     setConnectionStatus(isReconnect ? 'reconnecting' : 'connecting');
     setLastError(null);
@@ -129,8 +127,7 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
 
       // Rejoin current room if we were in one
       if (currentRoomRef.current) {
-        console.log(`[WS_HOOK] Rejoining room: ${currentRoomRef.current}`);
-
+  
         // If this is a reconnection, fetch missed messages first
         if (isReconnect && disconnectionTimeRef.current) {
           console.log(`[WS_HOOK] Smart reconnection - fetching missed messages since ${disconnectionTimeRef.current.toISOString()}`);
@@ -173,22 +170,13 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     };
 
     ws.current.onmessage = (event) => {
-      console.log(`[WS_HOOK] Raw message received:`, event.data?.substring(0, 100));
       try {
         const message = JSON.parse(event.data);
-        console.log(`[WS_HOOK] Parsed message type: ${message.type}`);
 
         // Use requestIdleCallback for non-critical updates to improve performance and prevent HMR interruptions
         const processMessage = () => {
           switch (message.type) {
           case 'new_message':
-            console.log('WebSocket received new_message:', {
-              messageId: message.message?.id,
-              messageType: message.message?.messageType,
-              photoUrl: message.message?.photoUrl,
-              content: message.message?.content?.substring(0, 20)
-            });
-
             // Update last message timestamp for the room
             if (message.message?.roomId && message.message?.createdAt) {
               lastMessageTimestampRef.current[message.message.roomId] = message.message.createdAt;
@@ -197,11 +185,9 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
             setMessages(prev => [...prev, message.message]);
             break;
           case 'user_joined':
-            console.log(`[WS_HOOK] User joined: ${message.userId}`);
             setOnlineUsers(prev => new Set([...Array.from(prev), message.userId]));
             break;
           case 'user_left':
-            console.log(`[WS_HOOK] User left: ${message.userId}`);
             setOnlineUsers(prev => {
               const newSet = new Set(prev);
               newSet.delete(message.userId);
@@ -209,11 +195,9 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
             });
             break;
           case 'room_online_users':
-            console.log(`[WS_HOOK] Room online users update: ${message.onlineUsers?.length} users in room ${message.roomId}`);
             setRoomOnlineUsers(new Set(message.onlineUsers));
             break;
           case 'user_typing':
-            console.log(`[WS_HOOK] User typing event: ${message.userId} is ${message.isTyping ? 'typing' : 'not typing'}`);
             setTypingUsers(prev => {
               const newSet = new Set(prev);
               if (message.isTyping) {
@@ -225,7 +209,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
             });
             break;
           case 'private_chat_request':
-            console.log(`[WS_HOOK] Private chat request from ${message.fromUser?.username}: room ${message.roomId}`);
             // Show notification to user
             toast({
               title: "New Private Chat",
@@ -238,7 +221,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
             }
             break;
           case 'private_chat_closed':
-            console.log(`[WS_HOOK] Private chat closed by ${message.closedBy?.username}: room ${message.roomId}`);
             // Show notification to user
             toast({
               title: "Private Chat Closed",
@@ -400,7 +382,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
     }
 
     const disconnectionTimestamp = disconnectionTimeRef.current.toISOString();
-    console.log(`[WS_HOOK] Fetching missed messages for room ${roomId} since ${disconnectionTimestamp}`);
 
     try {
       const response = await fetch(`/api/rooms/${roomId}/messages/since?timestamp=${encodeURIComponent(disconnectionTimestamp)}&limit=100`);
@@ -409,7 +390,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
       }
 
       const data = await response.json();
-      console.log(`[WS_HOOK] Fetched ${data.items?.length || 0} missed messages`);
 
       if (data.items && data.items.length > 0) {
         // Add missed messages to current messages, avoiding duplicates
@@ -418,7 +398,6 @@ export function useWebSocket(userId?: string, retryConfig: RetryConfig = DEFAULT
           const newMessages = data.items.filter((msg: MessageWithUser) => !existingIds.has(msg.id));
 
           if (newMessages.length > 0) {
-            console.log(`[WS_HOOK] Adding ${newMessages.length} new missed messages`);
             // Sort by creation time to maintain chronological order
             const combined = [...prev, ...newMessages].sort((a, b) => 
               new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
