@@ -364,7 +364,7 @@ export default function ChatPage() {
 
   // Set initial active room
   useEffect(() => {
-    console.log(`[CHAT_PAGE] Initial room selection effect:`, {
+    if (process.env.NODE_ENV === 'development' && process.env.DEBUG_CHAT) console.log(`[CHAT_PAGE] Initial room selection effect:`, {
       hasRooms: !!roomsData?.rooms,
       roomCount: roomsData?.rooms?.length || 0,
       hasActiveRoom: !!activeRoom,
@@ -373,7 +373,7 @@ export default function ChatPage() {
     if (roomsData?.rooms && roomsData.rooms.length > 0 && !activeRoom && currentUser) {
       // Try to restore from localStorage first
       const savedRoom = localStorage.getItem('chatual_active_room');
-      console.log(`[CHAT_PAGE] Saved room from localStorage:`, savedRoom);
+      if (process.env.NODE_ENV === 'development' && process.env.DEBUG_CHAT) console.log(`[CHAT_PAGE] Saved room from localStorage:`, savedRoom);
       let roomToSet = roomsData.rooms[0]; // default
 
       if (savedRoom) {
@@ -381,23 +381,23 @@ export default function ChatPage() {
           const parsedRoom = JSON.parse(savedRoom);
           const foundRoom = roomsData.rooms.find(r => r.id === parsedRoom.id);
           if (foundRoom) {
-            console.log(`[CHAT_PAGE] Restored room from localStorage: ${foundRoom.name}`);
+            if (process.env.NODE_ENV === 'development' && process.env.DEBUG_CHAT) console.log(`[CHAT_PAGE] Restored room from localStorage: ${foundRoom.name}`);
             roomToSet = foundRoom;
           } else {
-            console.log(`[CHAT_PAGE] Saved room not found, using default: ${roomsData.rooms[0].name}`);
+            if (process.env.NODE_ENV === 'development' && process.env.DEBUG_CHAT) console.log(`[CHAT_PAGE] Saved room not found, using default: ${roomsData.rooms[0].name}`);
           }
         } catch (e) {
-          console.log(`[CHAT_PAGE] Error parsing saved room, using default:`, e);
+          if (process.env.NODE_ENV === 'development' && process.env.DEBUG_CHAT) console.log(`[CHAT_PAGE] Error parsing saved room, using default:`, e);
         }
       } else {
-        console.log(`[CHAT_PAGE] No saved room, using default: ${roomsData.rooms[0].name}`);
+        if (process.env.NODE_ENV === 'development' && process.env.DEBUG_CHAT) console.log(`[CHAT_PAGE] No saved room, using default: ${roomsData.rooms[0].name}`);
       }
 
-      console.log(`[CHAT_PAGE] Setting initial active room: ${roomToSet.name} (${roomToSet.id})`);
+      if (process.env.NODE_ENV === 'development' && process.env.DEBUG_CHAT) console.log(`[CHAT_PAGE] Setting initial active room: ${roomToSet.name} (${roomToSet.id})`);
       setActiveRoom(roomToSet);
       activeRoomRef.current = roomToSet;
       localStorage.setItem('chatual_active_room', JSON.stringify({ id: roomToSet.id, name: roomToSet.name }));
-      console.log(`[CHAT_PAGE] Active room saved to localStorage`);
+      if (process.env.NODE_ENV === 'development' && process.env.DEBUG_CHAT) console.log(`[CHAT_PAGE] Active room saved to localStorage`);
     }
   }, [roomsData?.rooms, activeRoom, currentUser]);
 
@@ -413,7 +413,7 @@ export default function ChatPage() {
   useEffect(() => {
     const handlePrivateChatClosed = (event: CustomEvent) => {
       const { roomId, closedBy } = event.detail;
-      console.log(`[CHAT_PAGE] Received private chat closure event for room ${roomId} by ${closedBy?.username}`);
+      if (process.env.NODE_ENV === 'development' && process.env.DEBUG_CHAT) console.log(`[CHAT_PAGE] Received private chat closure event for room ${roomId} by ${closedBy?.username}`);
       
       // Remove from privateRooms state and update localStorage with the new state
       setPrivateRooms(prev => {
@@ -643,7 +643,7 @@ export default function ChatPage() {
     
     // Prevent unnecessary re-renders if same room is selected
     if (previousRoom && previousRoom.id === room.id) {
-      console.log(`[CHAT_PAGE] Same room selected, skipping re-render: ${room.name}`);
+      if (process.env.NODE_ENV === 'development' && process.env.DEBUG_CHAT) console.log(`[CHAT_PAGE] Same room selected, skipping re-render: ${room.name}`);
       return;
     }
 
