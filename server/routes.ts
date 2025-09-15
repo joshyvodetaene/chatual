@@ -1621,8 +1621,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // For security, require password confirmation (optional enhancement)
       if (confirmPassword) {
-        const bcrypt = require('bcryptjs');
-        const isValidPassword = await bcrypt.compare(confirmPassword, user.password);
+        // Import bcrypt dynamically for this specific use case
+        const bcrypt = await import('bcryptjs');
+        const isValidPassword = await bcrypt.default.compare(confirmPassword, user.password);
         if (!isValidPassword) {
           return res.status(403).json({ error: 'Invalid password confirmation' });
         }

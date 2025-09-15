@@ -2386,6 +2386,9 @@ export class DatabaseStorage implements IStorage {
       moderationActions: 0,
       notifications: 0,
       notificationSettings: 0,
+      friendRequests: 0,
+      friendships: 0,
+      privacySettings: 0,
       createdRooms: 0
     };
 
@@ -2424,7 +2427,8 @@ export class DatabaseStorage implements IStorage {
             content: '[Message from deleted user]',
             photoUrl: null,
             photoFileName: null,
-            mentionedUserIds: []
+            mentionedUserIds: [],
+            userId: null // CRITICAL: Remove foreign key reference to allow user deletion
           })
           .where(eq(messages.userId, userId));
       });
@@ -2478,7 +2482,34 @@ export class DatabaseStorage implements IStorage {
       });
       deletedData.notificationSettings = notificationSettingsResult.rowCount || 0;
 
-      // 10. Delete or transfer ownership of rooms created by the user
+      // 10. Delete friend requests (both sent and received)
+      console.log(`[DB] Deleting friend requests...`);
+      const friendRequestsResult1 = await this.retryDatabaseOperation(async () => {
+        return await db.delete(friendRequests).where(eq(friendRequests.senderId, userId));
+      });
+      const friendRequestsResult2 = await this.retryDatabaseOperation(async () => {
+        return await db.delete(friendRequests).where(eq(friendRequests.receiverId, userId));
+      });
+      deletedData.friendRequests = (friendRequestsResult1.rowCount || 0) + (friendRequestsResult2.rowCount || 0);
+
+      // 11. Delete friendships (both as user1 and user2)
+      console.log(`[DB] Deleting friendships...`);
+      const friendshipsResult1 = await this.retryDatabaseOperation(async () => {
+        return await db.delete(friendships).where(eq(friendships.user1Id, userId));
+      });
+      const friendshipsResult2 = await this.retryDatabaseOperation(async () => {
+        return await db.delete(friendships).where(eq(friendships.user2Id, userId));
+      });
+      deletedData.friendships = (friendshipsResult1.rowCount || 0) + (friendshipsResult2.rowCount || 0);
+
+      // 12. Delete user privacy settings
+      console.log(`[DB] Deleting privacy settings...`);
+      const privacySettingsResult = await this.retryDatabaseOperation(async () => {
+        return await db.delete(userPrivacySettings).where(eq(userPrivacySettings.userId, userId));
+      });
+      deletedData.privacySettings = privacySettingsResult.rowCount || 0;
+
+      // 13. Delete or transfer ownership of rooms created by the user
       console.log(`[DB] Handling rooms created by user...`);
       const createdRooms = await db.select().from(rooms).where(eq(rooms.createdBy, userId));
       deletedData.createdRooms = createdRooms.length;
@@ -2511,7 +2542,7 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
-      // 11. Finally, delete the user record itself
+      // 14. Finally, delete the user record itself
       console.log(`[DB] Deleting user record...`);
       await this.retryDatabaseOperation(async () => {
         await db.delete(users).where(eq(users.id, userId));
