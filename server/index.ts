@@ -1,7 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import ConnectPgSimple from "connect-pg-simple";
-import MemoryStore from "memorystore";
+import memorystore from "memorystore";
 import path from "path";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
@@ -23,7 +23,8 @@ const createSessionStore = () => {
     });
   } else {
     // Use memory store for development with TTL
-    return MemoryStore(session)({
+    const MemoryStore = memorystore(session);
+    return new MemoryStore({
       checkPeriod: 86400000, // prune expired entries every 24h
     });
   }

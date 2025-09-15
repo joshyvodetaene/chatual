@@ -2685,7 +2685,7 @@ export class DatabaseStorage implements IStorage {
       const blockedRelations = await db
         .select()
         .from(blockedUsers)
-        .orderBy(desc(blockedUsers.createdAt));
+        .orderBy(blockedUsers.blockedAt);
       
       console.log(`[DB] Found ${blockedRelations.length} blocked user relations`);
       return blockedRelations;
@@ -2701,7 +2701,7 @@ export class DatabaseStorage implements IStorage {
       const reportedUsersList = await db
         .select()
         .from(reports)
-        .orderBy(desc(reports.createdAt));
+        .orderBy(reports.reportedAt);
       
       console.log(`[DB] Found ${reportedUsersList.length} reported users`);
       return reportedUsersList;
