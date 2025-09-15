@@ -55,6 +55,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   registerUser(user: RegisterUser): Promise<User>;
   authenticateUser(credentials: LoginUser): Promise<User | null>;
+  authenticateAdmin(credentials: { username: string; password: string }): Promise<any | null>;
   isUsernameAvailable(username: string): Promise<boolean>;
   updateUserOnlineStatus(userId: string, isOnline: boolean): Promise<void>;
   getOnlineUsers(): Promise<User[]>;

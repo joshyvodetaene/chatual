@@ -893,32 +893,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`[ADMIN_AUTH] Authenticating admin: ${credentials.username}`);
       
-      // Use regular user authentication but verify admin role
-      const user = await storage.authenticateUser(credentials);
-      if (!user) {
+      // Use admin-specific authentication for admin users
+      const admin = await storage.authenticateAdmin(credentials);
+      if (!admin) {
         console.log(`[ADMIN_AUTH] Authentication failed for username: ${credentials.username}`);
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
-      // Verify user has admin role
-      if (user.role !== 'admin') {
-        console.log(`[ADMIN_AUTH] User ${credentials.username} does not have admin role`);
-        return res.status(403).json({ error: 'Admin privileges required' });
-      }
-
-      // Verify admin account is not banned
-      if (user.isBanned) {
-        console.log(`[ADMIN_AUTH] Admin user ${credentials.username} is banned`);
-        return res.status(403).json({ error: 'Account is banned' });
-      }
-
-      console.log(`[ADMIN_AUTH] Authentication successful for admin: ${user.id} (${user.username})`);
+      console.log(`[ADMIN_AUTH] Authentication successful for admin: ${admin.id} (${admin.username})`);
       
       // Create admin session
       const sessionData = {
-        id: user.id,
-        username: user.username,
-        role: user.role,
+        id: admin.id,
+        username: admin.username,
+        role: 'admin',
         loginTime: Date.now()
       };
 
@@ -932,10 +920,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(500).json({ error: 'Session creation failed' });
         }
 
-        console.log(`[ADMIN_AUTH] Session created for admin: ${user.username}`);
+        console.log(`[ADMIN_AUTH] Session created for admin: ${admin.username}`);
         
         // Don't send password in response
-        const { password, ...adminWithoutPassword } = user;
+        const { password, ...adminWithoutPassword } = admin;
         res.json({ 
           admin: adminWithoutPassword,
           sessionId: req.sessionID,
