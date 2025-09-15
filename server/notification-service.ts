@@ -35,10 +35,10 @@ interface WebSocketClient extends WebSocket {
 }
 
 export class NotificationService {
-  private clients: Map<string, WebSocketClient>;
+  private sendToUser: (userId: string, message: any) => boolean;
 
-  constructor(clients: Map<string, WebSocketClient>) {
-    this.clients = clients;
+  constructor(sendToUser: (userId: string, message: any) => boolean) {
+    this.sendToUser = sendToUser;
   }
 
   /**
@@ -106,21 +106,22 @@ export class NotificationService {
   }
 
   /**
-   * Sends a real-time notification via WebSocket
+   * Sends a real-time notification via WebSocket (multi-device support)
    */
   private async sendRealTimeNotification(userId: string, notification: Notification): Promise<void> {
-    const client = this.clients.get(userId);
-    
-    if (client && client.readyState === WebSocket.OPEN) {
-      try {
-        client.send(JSON.stringify({
-          type: 'notification',
-          data: notification
-        }));
-        console.log(`Real-time notification sent to user ${userId}`);
-      } catch (error) {
-        console.error(`Failed to send real-time notification to user ${userId}:`, error);
+    try {
+      const sent = this.sendToUser(userId, {
+        type: 'notification',
+        data: notification
+      });
+      
+      if (sent) {
+        console.log(`Real-time notification sent to all connections for user ${userId}`);
+      } else {
+        console.log(`User ${userId} not online, notification saved to database only`);
       }
+    } catch (error) {
+      console.error(`Failed to send real-time notification to user ${userId}:`, error);
     }
   }
 
