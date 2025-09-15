@@ -1893,13 +1893,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/users/:userId/privacy-settings', async (req, res) => {
     try {
       const { userId } = req.params;
-      const settingsData = updatePrivacySettingsSchema.parse(req.body);
+      const result = updatePrivacySettingsSchema.strict().safeParse(req.body);
+      
+      if (!result.success) {
+        console.error('Privacy settings validation error:', result.error.flatten());
+        return res.status(400).json({ 
+          error: 'Invalid privacy settings data',
+          details: result.error.flatten()
+        });
+      }
 
-      const updatedSettings = await storage.updateUserPrivacySettings(userId, settingsData);
+      const updatedSettings = await storage.updateUserPrivacySettings(userId, result.data);
       res.json(updatedSettings);
     } catch (error) {
       console.error('Update privacy settings error:', error);
-      res.status(400).json({ error: 'Failed to update privacy settings' });
+      res.status(500).json({ error: 'Failed to update privacy settings' });
     }
   });
 

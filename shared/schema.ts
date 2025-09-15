@@ -287,9 +287,22 @@ export const insertPrivacySettingsSchema = createInsertSchema(userPrivacySetting
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  profileVisibility: z.enum(["public", "friends", "private"]),
+  allowDirectMessages: z.enum(["everyone", "friends", "nobody"]),
 });
 
-export const updatePrivacySettingsSchema = insertPrivacySettingsSchema.partial();
+export const updatePrivacySettingsSchema = z.object({
+  profileVisibility: z.enum(["public", "friends", "private"]).optional(),
+  showOnlineStatus: z.boolean().optional(),
+  showLastSeen: z.boolean().optional(),
+  showAge: z.boolean().optional(),
+  showLocation: z.boolean().optional(),
+  allowDirectMessages: z.enum(["everyone", "friends", "nobody"]).optional(),
+  showPhotosToStrangers: z.boolean().optional(),
+  discoverableInSearch: z.boolean().optional(),
+  allowMentions: z.boolean().optional(),
+});
 
 export const warnUserSchema = z.object({
   userId: z.string().min(1, "User ID is required"),
