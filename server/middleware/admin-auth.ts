@@ -40,38 +40,16 @@ export const requireAdminAuth = async (
       });
     }
 
-    // Verify admin still exists and has admin role in database
-    const adminUser = await storage.getUser(admin.id);
-    if (!adminUser) {
-      console.log('[ADMIN_AUTH] Admin user not found in database');
+    // Verify admin still exists in adminUsers table
+    const adminUser = await storage.getAdminUser(admin.id);
+    if (!adminUser || !adminUser.isActive) {
+      console.log('[ADMIN_AUTH] Admin user not found in database or inactive');
       // Clear invalid session
       authReq.session.admin = undefined;
       authReq.session.isAuthenticated = false;
       return res.status(401).json({ 
         error: 'Admin user not found',
         code: 'USER_NOT_FOUND'
-      });
-    }
-
-    if (adminUser.role !== 'admin') {
-      console.log('[ADMIN_AUTH] User no longer has admin role');
-      // Clear invalid session
-      authReq.session.admin = undefined;
-      authReq.session.isAuthenticated = false;
-      return res.status(403).json({ 
-        error: 'Admin privileges required',
-        code: 'INSUFFICIENT_PRIVILEGES'
-      });
-    }
-
-    if (adminUser.isBanned) {
-      console.log('[ADMIN_AUTH] Admin user is banned');
-      // Clear invalid session
-      authReq.session.admin = undefined;
-      authReq.session.isAuthenticated = false;
-      return res.status(403).json({ 
-        error: 'Account is banned',
-        code: 'ACCOUNT_BANNED'
       });
     }
 
@@ -107,8 +85,8 @@ export const optionalAdminAuth = async (
     const authReq = req as AuthenticatedRequest;
     
     if (authReq.session?.admin && authReq.session?.isAuthenticated) {
-      const adminUser = await storage.getUser(authReq.session.admin.id);
-      if (adminUser && adminUser.role === 'admin' && !adminUser.isBanned) {
+      const adminUser = await storage.getAdminUser(authReq.session.admin.id);
+      if (adminUser && adminUser.isActive) {
         (authReq as any).adminUser = adminUser;
       }
     }

@@ -2658,6 +2658,22 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getAdminUser(id: string): Promise<any | null> {
+    try {
+      const { adminUsers } = await import('@shared/schema');
+      
+      const [admin] = await db
+        .select()
+        .from(adminUsers)
+        .where(eq(adminUsers.id, id));
+
+      return admin || null;
+    } catch (error) {
+      console.error('Error getting admin user:', error);
+      throw error;
+    }
+  }
+
   // Admin user management methods
   async getBannedUsers(): Promise<User[]> {
     try {
