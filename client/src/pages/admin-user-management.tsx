@@ -63,6 +63,7 @@ export default function AdminUserManagement() {
   }, []);
 
   const getAuthHeaders = () => ({
+    'admin-id': adminUser?.id || '',
     'Content-Type': 'application/json'
   });
 
@@ -71,70 +72,65 @@ export default function AdminUserManagement() {
     queryKey: ['admin', 'users', 'all'],
     queryFn: async () => {
       const response = await fetch('/api/admin/users/all', {
-        headers: getAuthHeaders(),
-        credentials: 'include'
+        headers: getAuthHeaders()
       });
       if (!response.ok) throw new Error('Failed to fetch all users');
       const data = await response.json();
       return data.users;
     },
-    enabled: true
+    enabled: !!adminUser?.id
   });
 
   const { data: onlineUsers = [], isLoading: loadingOnline } = useQuery({
     queryKey: ['admin', 'users', 'online'],
     queryFn: async () => {
       const response = await fetch('/api/admin/users/online', {
-        headers: getAuthHeaders(),
-        credentials: 'include'
+        headers: getAuthHeaders()
       });
       if (!response.ok) throw new Error('Failed to fetch online users');
       const data = await response.json();
       return data.users;
     },
-    enabled: true
+    enabled: !!adminUser?.id
   });
 
   const { data: bannedUsers = [], isLoading: loadingBanned } = useQuery({
     queryKey: ['admin', 'users', 'banned'],
     queryFn: async () => {
       const response = await fetch('/api/admin/users/banned', {
-        headers: getAuthHeaders(),
-        credentials: 'include'
+        headers: getAuthHeaders()
       });
       if (!response.ok) throw new Error('Failed to fetch banned users');
       const data = await response.json();
       return data.users;
     },
-    enabled: true
+    enabled: !!adminUser?.id
   });
 
   const { data: blockedUsers = [], isLoading: loadingBlocked } = useQuery({
     queryKey: ['admin', 'users', 'blocked'],
     queryFn: async () => {
       const response = await fetch('/api/admin/users/blocked', {
-        headers: getAuthHeaders(),
-        credentials: 'include'
+        headers: getAuthHeaders()
       });
       if (!response.ok) throw new Error('Failed to fetch blocked users');
       const data = await response.json();
       return data.users;
     },
-    enabled: true
+    enabled: !!adminUser?.id
   });
 
   const { data: reportedUsers = [], isLoading: loadingReported } = useQuery({
     queryKey: ['admin', 'users', 'reported'],
     queryFn: async () => {
       const response = await fetch('/api/admin/users/reported', {
-        headers: getAuthHeaders(),
-        credentials: 'include'
+        headers: getAuthHeaders()
       });
       if (!response.ok) throw new Error('Failed to fetch reported users');
       const data = await response.json();
       return data.users;
     },
-    enabled: true
+    enabled: !!adminUser?.id
   });
 
   // Mutations for user actions
@@ -143,7 +139,6 @@ export default function AdminUserManagement() {
       const response = await fetch('/api/admin/send-message', {
         method: 'POST',
         headers: getAuthHeaders(),
-        credentials: 'include',
         body: JSON.stringify({ userId, message })
       });
       if (!response.ok) throw new Error('Failed to send message');
@@ -169,7 +164,6 @@ export default function AdminUserManagement() {
       const response = await fetch(`/api/admin/users/${userId}/ban`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        credentials: 'include',
         body: JSON.stringify({ reason })
       });
       if (!response.ok) throw new Error('Failed to ban user');
@@ -196,7 +190,6 @@ export default function AdminUserManagement() {
       const response = await fetch(`/api/admin/users/${userId}/unban`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        credentials: 'include',
         body: JSON.stringify({ reason: 'Unbanned by admin' })
       });
       if (!response.ok) throw new Error('Failed to unban user');
@@ -237,27 +230,27 @@ export default function AdminUserManagement() {
     const status = getUserStatus(user);
     
     return (
-      <Card className="w-full overflow-hidden" data-testid={`user-card-${user.id}`}>
-        <CardHeader className="pb-3 px-3 sm:px-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0 flex-1">
-              <div className="flex flex-col min-w-0 flex-1">
-                <CardTitle className="text-base sm:text-lg truncate" data-testid={`user-username-${user.id}`}>
+      <Card className="mb-4" data-testid={`user-card-${user.id}`}>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col">
+                <CardTitle className="text-lg" data-testid={`user-username-${user.id}`}>
                   {user.username}
                 </CardTitle>
                 {user.displayName && (
-                  <CardDescription className="truncate" data-testid={`user-displayname-${user.id}`}>
+                  <CardDescription data-testid={`user-displayname-${user.id}`}>
                     {user.displayName}
                   </CardDescription>
                 )}
               </div>
-              <Badge className={`${status.color} text-white flex-shrink-0 text-xs`} data-testid={`user-status-${user.id}`}>
+              <Badge className={`${status.color} text-white`} data-testid={`user-status-${user.id}`}>
                 {status.text}
               </Badge>
             </div>
             
             {showActions && (
-              <div className="flex gap-1 sm:gap-2 flex-wrap">
+              <div className="flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -265,11 +258,10 @@ export default function AdminUserManagement() {
                     setSelectedUser(user);
                     setMessageDialog(true);
                   }}
-                  className="text-xs sm:text-sm px-2 sm:px-3"
                   data-testid={`button-message-${user.id}`}
                 >
-                  <MessageSquare className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
-                  <span className="hidden sm:inline">Message</span>
+                  <MessageSquare className="w-4 h-4 mr-1" />
+                  Message
                 </Button>
                 
                 {user.isBanned ? (
@@ -278,11 +270,10 @@ export default function AdminUserManagement() {
                     size="sm"
                     onClick={() => unbanUserMutation.mutate(user.id)}
                     disabled={unbanUserMutation.isPending}
-                    className="text-xs sm:text-sm px-2 sm:px-3"
                     data-testid={`button-unban-${user.id}`}
                   >
-                    <UserCheck className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
-                    <span className="hidden sm:inline">Unban</span>
+                    <UserCheck className="w-4 h-4 mr-1" />
+                    Unban
                   </Button>
                 ) : (
                   <Button
@@ -292,11 +283,10 @@ export default function AdminUserManagement() {
                       setSelectedUser(user);
                       setBanDialog(true);
                     }}
-                    className="text-xs sm:text-sm px-2 sm:px-3"
                     data-testid={`button-ban-${user.id}`}
                   >
-                    <Ban className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
-                    <span className="hidden sm:inline">Ban</span>
+                    <Ban className="w-4 h-4 mr-1" />
+                    Ban
                   </Button>
                 )}
               </div>
@@ -304,24 +294,24 @@ export default function AdminUserManagement() {
           </div>
         </CardHeader>
         
-        <CardContent className="pt-0 px-3 sm:px-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm">
-            <div className="min-w-0">
+        <CardContent className="pt-0">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
               <span className="text-slate-500">User ID:</span>
-              <span className="ml-2 font-mono text-xs break-all" data-testid={`user-id-${user.id}`}>
+              <span className="ml-2 font-mono text-xs" data-testid={`user-id-${user.id}`}>
                 {user.id.slice(0, 8)}...
               </span>
             </div>
-            <div className="min-w-0">
+            <div>
               <span className="text-slate-500">Last Seen:</span>
-              <span className="ml-2 break-words" data-testid={`user-lastseen-${user.id}`}>
+              <span className="ml-2" data-testid={`user-lastseen-${user.id}`}>
                 {formatDate(user.lastSeen)}
               </span>
             </div>
             {user.isBanned && user.banReason && (
-              <div className="col-span-1 sm:col-span-2 min-w-0">
+              <div className="col-span-2">
                 <span className="text-slate-500">Ban Reason:</span>
-                <span className="ml-2 text-red-600 break-words" data-testid={`user-banreason-${user.id}`}>
+                <span className="ml-2 text-red-600" data-testid={`user-banreason-${user.id}`}>
                   {user.banReason}
                 </span>
               </div>
@@ -341,61 +331,56 @@ export default function AdminUserManagement() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 overflow-auto">
-      <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-none">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-6">
+      <div className="container mx-auto">
         {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-            <div className="flex items-center gap-3">
-              <Shield className="h-6 w-6 sm:h-8 sm:w-8 text-blue-400 flex-shrink-0" />
-              <h1 className="text-2xl sm:text-3xl font-bold text-white break-words" data-testid="page-title">
-                User Management
-              </h1>
-            </div>
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-4">
+            <Shield className="h-8 w-8 text-blue-400" />
+            <h1 className="text-3xl font-bold text-white" data-testid="page-title">
+              User Management
+            </h1>
           </div>
-          <p className="text-slate-400 text-sm sm:text-base" data-testid="page-description">
+          <p className="text-slate-400" data-testid="page-description">
             Manage users, view reports, and take administrative actions
           </p>
         </div>
 
         {/* Search */}
-        <div className="mb-4 sm:mb-6">
-          <div className="relative w-full sm:max-w-md">
+        <div className="mb-6">
+          <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
             <Input
               placeholder="Search users..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-slate-800 border-slate-700 text-white w-full"
+              className="pl-10 bg-slate-800 border-slate-700 text-white"
               data-testid="search-users"
             />
           </div>
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
-          <div className="overflow-x-auto">
-            <TabsList className="bg-slate-800 border-slate-700 w-full sm:w-auto inline-flex">
-              {tabData.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <TabsTrigger 
-                    key={tab.id} 
-                    value={tab.id} 
-                    className="data-[state=active]:bg-slate-700 flex-shrink-0 text-xs sm:text-sm px-2 sm:px-4"
-                    data-testid={`tab-${tab.id}`}
-                  >
-                    <Icon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                    <span className="hidden sm:inline">{tab.label}</span>
-                    <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
-                    <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs px-1">
-                      {tab.users.length}
-                    </Badge>
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
-          </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="bg-slate-800 border-slate-700">
+            {tabData.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <TabsTrigger 
+                  key={tab.id} 
+                  value={tab.id} 
+                  className="data-[state=active]:bg-slate-700"
+                  data-testid={`tab-${tab.id}`}
+                >
+                  <Icon className="w-4 h-4 mr-2" />
+                  {tab.label}
+                  <Badge variant="secondary" className="ml-2">
+                    {tab.users.length}
+                  </Badge>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
 
           {tabData.map((tab) => (
             <TabsContent key={tab.id} value={tab.id} className="space-y-4">
@@ -408,12 +393,10 @@ export default function AdminUserManagement() {
                   <div className="text-slate-400">No {tab.label.toLowerCase()} found</div>
                 </div>
               ) : (
-                <div className="max-h-[70vh] overflow-y-auto overflow-x-hidden">
-                  <div className="grid gap-3 sm:gap-4 grid-cols-1" data-testid={`users-list-${tab.id}`}>
-                    {tab.users.map((user) => (
-                      <UserCard key={user.id} user={user} />
-                    ))}
-                  </div>
+                <div className="grid gap-4" data-testid={`users-list-${tab.id}`}>
+                  {tab.users.map((user) => (
+                    <UserCard key={user.id} user={user} />
+                  ))}
                 </div>
               )}
             </TabsContent>
@@ -422,7 +405,7 @@ export default function AdminUserManagement() {
 
         {/* Message Dialog */}
         <Dialog open={messageDialog} onOpenChange={setMessageDialog}>
-          <DialogContent className="bg-slate-800 border-slate-700 text-white w-[95vw] max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent className="bg-slate-800 border-slate-700 text-white">
             <DialogHeader>
               <DialogTitle data-testid="dialog-message-title">
                 Send Message to {selectedUser?.username}
@@ -447,8 +430,8 @@ export default function AdminUserManagement() {
               </div>
             </div>
             
-            <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-              <Button variant="outline" onClick={() => setMessageDialog(false)} className="w-full sm:w-auto">
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setMessageDialog(false)}>
                 Cancel
               </Button>
               <Button
@@ -461,7 +444,6 @@ export default function AdminUserManagement() {
                   }
                 }}
                 disabled={!messageContent.trim() || sendMessageMutation.isPending}
-                className="w-full sm:w-auto"
                 data-testid="button-send-message"
               >
                 {sendMessageMutation.isPending ? 'Sending...' : 'Send Message'}
@@ -472,7 +454,7 @@ export default function AdminUserManagement() {
 
         {/* Ban Dialog */}
         <Dialog open={banDialog} onOpenChange={setBanDialog}>
-          <DialogContent className="bg-slate-800 border-slate-700 text-white w-[95vw] max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent className="bg-slate-800 border-slate-700 text-white">
             <DialogHeader>
               <DialogTitle className="text-red-400" data-testid="dialog-ban-title">
                 Ban User: {selectedUser?.username}
@@ -497,8 +479,8 @@ export default function AdminUserManagement() {
               </div>
             </div>
             
-            <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-              <Button variant="outline" onClick={() => setBanDialog(false)} className="w-full sm:w-auto">
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setBanDialog(false)}>
                 Cancel
               </Button>
               <Button
@@ -512,7 +494,6 @@ export default function AdminUserManagement() {
                   }
                 }}
                 disabled={banUserMutation.isPending}
-                className="w-full sm:w-auto"
                 data-testid="button-confirm-ban"
               >
                 {banUserMutation.isPending ? 'Banning...' : 'Ban User'}

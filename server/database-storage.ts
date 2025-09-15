@@ -2605,38 +2605,21 @@ export class DatabaseStorage implements IStorage {
         .where(eq(adminUsers.username, 'chatualadmin'));
 
       if (existingAdmin) {
-        console.log('[ADMIN] Fixed admin user already exists:', existingAdmin.username);
+        console.log('[ADMIN] Fixed admin user already exists');
         return;
       }
 
-      console.log('[ADMIN] Creating fixed admin user: chatualadmin');
-      
       // Create fixed admin user
       const hashedPassword = await bcrypt.hash('Hardcore123!', 10);
       
-      const newAdmin = {
-        username: 'chatualadmin',
-        password: hashedPassword,
-        isActive: true
-      };
-      
       await db
         .insert(adminUsers)
-        .values([newAdmin]);
+        .values({
+          username: 'chatualadmin',
+          password: hashedPassword,
+        });
 
       console.log('[ADMIN] Fixed admin user created successfully');
-      
-      // Verify creation
-      const [verifyAdmin] = await db
-        .select()
-        .from(adminUsers)
-        .where(eq(adminUsers.username, 'chatualadmin'));
-      
-      if (verifyAdmin) {
-        console.log('[ADMIN] Verification: Admin user exists in database');
-      } else {
-        console.log('[ADMIN] ERROR: Admin user was NOT created in database');
-      }
     } catch (error) {
       console.error('Error creating fixed admin user:', error);
       throw error;
@@ -2702,7 +2685,7 @@ export class DatabaseStorage implements IStorage {
       const blockedRelations = await db
         .select()
         .from(blockedUsers)
-        .orderBy(blockedUsers.blockedAt);
+        .orderBy(desc(blockedUsers.createdAt));
       
       console.log(`[DB] Found ${blockedRelations.length} blocked user relations`);
       return blockedRelations;
@@ -2718,7 +2701,7 @@ export class DatabaseStorage implements IStorage {
       const reportedUsersList = await db
         .select()
         .from(reports)
-        .orderBy(reports.reportedAt);
+        .orderBy(desc(reports.createdAt));
       
       console.log(`[DB] Found ${reportedUsersList.length} reported users`);
       return reportedUsersList;
