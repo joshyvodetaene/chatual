@@ -6,6 +6,8 @@ import { insertUserSchema, insertRoomSchema, insertMessageSchema, registerUserSc
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { NotificationService } from "./notification-service";
 import { validateCityWithGoogle } from "./lib/geocoding";
+import { requireAdminAuth } from "./middleware/admin-auth";
+import type { AuthenticatedRequest } from "./types/session";
 
 interface WebSocketClient extends WebSocket {
   userId?: string;
@@ -890,16 +892,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[ADMIN_AUTH] Schema validation passed for admin login: ${credentials.username}`);
 
       console.log(`[ADMIN_AUTH] Authenticating admin: ${credentials.username}`);
-      const admin = await storage.authenticateAdmin(credentials);
-      if (!admin) {
-        console.log(`[ADMIN_AUTH] Authentication failed for admin username: ${credentials.username}`);
-        return res.status(401).json({ error: 'Invalid admin credentials' });
+      
+      // Use regular user authentication but verify admin role
+      const user = await storage.authenticateUser(credentials);
+      if (!user) {
+        console.log(`[ADMIN_AUTH] Authentication failed for username: ${credentials.username}`);
+        return res.status(401).json({ error: 'Invalid credentials' });
       }
 
-      console.log(`[ADMIN_AUTH] Authentication successful for admin: ${admin.id} (${admin.username})`);
-      // Don't send password in response
-      const { password, ...adminWithoutPassword } = admin;
-      res.json({ admin: adminWithoutPassword });
+      // Verify user has admin role
+      if (user.role !== 'admin') {
+        console.log(`[ADMIN_AUTH] User ${credentials.username} does not have admin role`);
+        return res.status(403).json({ error: 'Admin privileges required' });
+      }
+
+      // Verify admin account is not banned
+      if (user.isBanned) {
+        console.log(`[ADMIN_AUTH] Admin user ${credentials.username} is banned`);
+        return res.status(403).json({ error: 'Account is banned' });
+      }
+
+      console.log(`[ADMIN_AUTH] Authentication successful for admin: ${user.id} (${user.username})`);
+      
+      // Create admin session
+      const sessionData = {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        loginTime: Date.now()
+      };
+
+      req.session.admin = sessionData;
+      req.session.isAuthenticated = true;
+
+      // Save session (force save for security)
+      req.session.save((err) => {
+        if (err) {
+          console.error('[ADMIN_AUTH] Session save error:', err);
+          return res.status(500).json({ error: 'Session creation failed' });
+        }
+
+        console.log(`[ADMIN_AUTH] Session created for admin: ${user.username}`);
+        
+        // Don't send password in response
+        const { password, ...adminWithoutPassword } = user;
+        res.json({ 
+          admin: adminWithoutPassword,
+          sessionId: req.sessionID,
+          message: 'Login successful'
+        });
+      });
     } catch (error) {
       console.error(`[ADMIN_AUTH] Admin login error:`, error);
       res.status(400).json({ error: 'Admin login failed' });
@@ -909,10 +951,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/logout', async (req, res) => {
     console.log(`[ADMIN_AUTH] Admin logout attempt started at ${new Date().toISOString()}`);
     try {
-      res.json({ success: true });
+      const adminUsername = req.session?.admin?.username || 'unknown';
+      
+      // Destroy the session
+      req.session.destroy((err) => {
+        if (err) {
+          console.error(`[ADMIN_AUTH] Session destruction error for ${adminUsername}:`, err);
+          return res.status(500).json({ error: 'Logout failed' });
+        }
+        
+        console.log(`[ADMIN_AUTH] Session destroyed for admin: ${adminUsername}`);
+        
+        // Clear the session cookie
+        res.clearCookie('admin_session_id');
+        res.json({ 
+          success: true,
+          message: 'Logout successful'
+        });
+      });
     } catch (error) {
       console.error(`[ADMIN_AUTH] Admin logout error:`, error);
       res.status(400).json({ error: 'Admin logout failed' });
+    }
+  });
+
+  // Admin user management endpoints
+  app.get('/api/admin/users/all', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      res.json({ users: allUsers });
+    } catch (error) {
+      console.error('Error fetching all users:', error);
+      res.status(500).json({ error: 'Failed to fetch users' });
+    }
+  });
+
+  app.get('/api/admin/users/online', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const onlineUsers = await storage.getOnlineUsers();
+      res.json({ users: onlineUsers });
+    } catch (error) {
+      console.error('Error fetching online users:', error);
+      res.status(500).json({ error: 'Failed to fetch online users' });
+    }
+  });
+
+  app.get('/api/admin/users/banned', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const bannedUsers = await storage.getBannedUsers();
+      res.json({ users: bannedUsers });
+    } catch (error) {
+      console.error('Error fetching banned users:', error);
+      res.status(500).json({ error: 'Failed to fetch banned users' });
+    }
+  });
+
+  app.get('/api/admin/users/blocked', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const blockedUsers = await storage.getAllBlockedUsers();
+      res.json({ users: blockedUsers });
+    } catch (error) {
+      console.error('Error fetching blocked users:', error);
+      res.status(500).json({ error: 'Failed to fetch blocked users' });
+    }
+  });
+
+  app.get('/api/admin/users/reported', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const reportedUsers = await storage.getReportedUsers();
+      res.json({ users: reportedUsers });
+    } catch (error) {
+      console.error('Error fetching reported users:', error);
+      res.status(500).json({ error: 'Failed to fetch reported users' });
+    }
+  });
+
+  // Admin messaging endpoint
+  app.post('/api/admin/send-message', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const adminUser = (req as any).adminUser; // Set by requireAdminAuth middleware
+      const { userId, message, messageType = 'admin_notification' } = req.body;
+      
+      if (!userId || !message) {
+        return res.status(400).json({ error: 'User ID and message are required' });
+      }
+
+      const result = await storage.sendAdminMessage(adminUser.id, userId, message, messageType);
+      res.json({ success: true, messageId: result.id });
+    } catch (error) {
+      console.error('Error sending admin message:', error);
+      res.status(500).json({ error: 'Failed to send message' });
+    }
+  });
+
+  // User action endpoints
+  app.post('/api/admin/users/:userId/ban', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const adminUser = (req as any).adminUser; // Set by requireAdminAuth middleware
+      const { userId } = req.params;
+      const { reason } = req.body;
+
+      const banData = {
+        userId,
+        reason: reason || 'Banned by admin',
+        permanent: true // Permanent ban
+      };
+
+      const result = await storage.banUser(banData, adminUser.id);
+      res.json({ success: true, action: result });
+    } catch (error) {
+      console.error('Error banning user:', error);
+      res.status(500).json({ error: 'Failed to ban user' });
+    }
+  });
+
+  app.post('/api/admin/users/:userId/unban', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const adminUser = (req as any).adminUser; // Set by requireAdminAuth middleware
+      const { userId } = req.params;
+      const { reason } = req.body;
+
+      const result = await storage.unbanUser(userId, adminUser.id, reason || 'Unbanned by admin');
+      res.json({ success: true, result });
+    } catch (error) {
+      console.error('Error unbanning user:', error);
+      res.status(500).json({ error: 'Failed to unban user' });
     }
   });
 
@@ -1484,20 +1647,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin get all rooms endpoint
-  app.get('/api/admin/rooms', async (req, res) => {
+  app.get('/api/admin/rooms', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { adminUserId } = req.query;
-
-      if (!adminUserId) {
-        return res.status(401).json({ error: 'Admin authentication required' });
-      }
-
-      // Verify admin privileges
-      const adminUser = await storage.getUser(adminUserId as string);
-      if (!adminUser || adminUser.role !== 'admin') {
-        return res.status(403).json({ error: 'Admin privileges required' });
-      }
-
       const rooms = await storage.getRooms();
       res.json({ rooms });
     } catch (error) {
@@ -1507,26 +1658,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin create room endpoint
-  app.post('/api/admin/rooms', async (req, res) => {
+  app.post('/api/admin/rooms', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { adminUserId, name, description, isPrivate = false } = req.body;
-
-      if (!adminUserId) {
-        return res.status(401).json({ error: 'Admin authentication required' });
-      }
-
-      // Verify admin privileges
-      const adminUser = await storage.getUser(adminUserId);
-      if (!adminUser || adminUser.role !== 'admin') {
-        return res.status(403).json({ error: 'Admin privileges required' });
-      }
+      const adminUser = (req as any).adminUser; // Set by requireAdminAuth middleware
+      const { name, description, isPrivate = false } = req.body;
 
       const roomData = {
         name,
         description: description || '',
         isPrivate,
         memberIds: [],
-        createdBy: adminUserId
+        createdBy: adminUser.id
       };
 
       const room = await storage.createRoom(roomData);
@@ -1538,16 +1680,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin delete room endpoint
-  app.delete('/api/admin/rooms/:id', async (req, res) => {
+  app.delete('/api/admin/rooms/:id', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { adminUserId } = req.body;
+      const adminUser = (req as any).adminUser; // Set by requireAdminAuth middleware
       const roomId = req.params.id;
 
-      if (!adminUserId) {
-        return res.status(401).json({ error: 'Admin authentication required' });
-      }
-
-      const success = await storage.deleteRoom(roomId, adminUserId);
+      const success = await storage.deleteRoom(roomId, adminUser.id);
 
       if (success) {
         res.json({ success: true, message: 'Room deleted successfully' });
@@ -1565,20 +1703,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin clear all messages endpoint
-  app.delete('/api/admin/messages', async (req, res) => {
+  app.delete('/api/admin/messages', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { adminUserId } = req.body;
-
-      if (!adminUserId) {
-        return res.status(401).json({ error: 'Admin authentication required' });
-      }
-
-      // Verify admin privileges
-      const adminUser = await storage.getUser(adminUserId);
-      if (!adminUser || adminUser.role !== 'admin') {
-        return res.status(403).json({ error: 'Admin privileges required' });
-      }
-
       const success = await storage.clearAllMessages();
 
       if (success) {
@@ -1593,20 +1719,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin get all users endpoint
-  app.get('/api/admin/users', async (req, res) => {
+  app.get('/api/admin/users', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { adminUserId } = req.query;
-
-      if (!adminUserId) {
-        return res.status(401).json({ error: 'Admin authentication required' });
-      }
-
-      // Verify admin privileges
-      const adminUser = await storage.getUser(adminUserId as string);
-      if (!adminUser || adminUser.role !== 'admin') {
-        return res.status(403).json({ error: 'Admin privileges required' });
-      }
-
       // Get all users for admin view
       const allUsers = await storage.getAllUsers();
       res.json({ users: allUsers });
@@ -2050,17 +2164,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/admin/reports', async (req, res) => {
+  app.get('/api/admin/reports', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      // Get the admin user ID from session/auth
-      // For now, checking if user has admin role
-      const { adminUserId } = req.query;
-
-      if (!adminUserId) {
-        return res.status(401).json({ error: 'Admin authentication required' });
-      }
-
-      const reports = await storage.getReports(adminUserId as string);
+      const adminUser = (req as any).adminUser; // Set by requireAdminAuth middleware
+      const reports = await storage.getReports(adminUser.id);
       res.json({ reports });
     } catch (error) {
       console.error('Get reports error:', error);
@@ -2073,17 +2180,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
-  app.put('/api/admin/reports/:reportId/status', async (req, res) => {
+  app.put('/api/admin/reports/:reportId/status', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
     try {
+      const adminUser = (req as any).adminUser; // Set by requireAdminAuth middleware
       const { reportId } = req.params;
-      const { adminUserId, ...statusUpdate } = req.body;
-
-      if (!adminUserId) {
-        return res.status(401).json({ error: 'Admin authentication required' });
-      }
+      const statusUpdate = req.body;
 
       const validatedStatusUpdate = updateReportStatusSchema.parse(statusUpdate);
-      const updatedReport = await storage.updateReportStatus(reportId, validatedStatusUpdate, adminUserId);
+      const updatedReport = await storage.updateReportStatus(reportId, validatedStatusUpdate, adminUser.id);
 
       res.json({ report: updatedReport });
     } catch (error) {
@@ -2120,20 +2224,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin Dashboard Routes
-  app.get('/api/admin/dashboard-stats', async (req, res) => {
+  app.get('/api/admin/dashboard-stats', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { adminUserId } = req.query;
-
-      if (!adminUserId) {
-        return res.status(401).json({ error: 'Admin authentication required' });
-      }
-
-      // Verify admin privileges
-      const adminUser = await storage.getUser(adminUserId as string);
-      if (!adminUser || adminUser.role !== 'admin') {
-        return res.status(403).json({ error: 'Admin privileges required' });
-      }
-
       const stats = await storage.getAdminDashboardStats();
       res.json({ stats });
     } catch (error) {
@@ -2142,21 +2234,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/admin/moderation-data', async (req, res) => {
+  app.get('/api/admin/moderation-data', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { adminUserId } = req.query;
-
-      if (!adminUserId) {
-        return res.status(401).json({ error: 'Admin authentication required' });
-      }
-
-      // Verify admin privileges
-      const adminUser = await storage.getUser(adminUserId as string);
-      if (!adminUser || adminUser.role !== 'admin') {
-        return res.status(403).json({ error: 'Admin privileges required' });
-      }
-
-      const moderationData = await storage.getModerationData(adminUserId as string);
+      const adminUser = (req as any).adminUser; // Set by requireAdminAuth middleware
+      const moderationData = await storage.getModerationData(adminUser.id);
       res.json(moderationData);
     } catch (error) {
       console.error('Error fetching moderation data:', error);
@@ -2164,20 +2245,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/admin/banned-users', async (req, res) => {
+  app.get('/api/admin/banned-users', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { adminUserId } = req.query;
-
-      if (!adminUserId) {
-        return res.status(401).json({ error: 'Admin authentication required' });
-      }
-
-      // Verify admin privileges
-      const adminUser = await storage.getUser(adminUserId as string);
-      if (!adminUser || adminUser.role !== 'admin') {
-        return res.status(403).json({ error: 'Admin privileges required' });
-      }
-
       const bannedUsers = await storage.getBannedUsers();
       res.json({ users: bannedUsers });
     } catch (error) {
@@ -2186,11 +2255,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/warn-user', async (req, res) => {
+  app.post('/api/admin/warn-user', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const adminUserId = req.headers.adminuserid as string || '7a6dab62-7327-4f79-b025-952b687688c1';
+      const adminUser = (req as any).adminUser; // Set by requireAdminAuth middleware
       const warnData = warnUserSchema.parse(req.body);
-      const action = await storage.warnUser(warnData, adminUserId);
+      const action = await storage.warnUser(warnData, adminUser.id);
       res.json({ action });
     } catch (error) {
       console.error('Error warning user:', error);
@@ -2198,11 +2267,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/ban-user', async (req, res) => {
+  app.post('/api/admin/ban-user', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const adminUserId = req.headers.adminuserid as string || '7a6dab62-7327-4f79-b025-952b687688c1';
+      const adminUser = (req as any).adminUser; // Set by requireAdminAuth middleware
       const banData = banUserSchema.parse(req.body);
-      const result = await storage.banUser(banData, adminUserId);
+      const result = await storage.banUser(banData, adminUser.id);
       res.json(result);
     } catch (error) {
       console.error('Error banning user:', error);
@@ -2210,11 +2279,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/unban-user', async (req, res) => {
+  app.post('/api/admin/unban-user', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const adminUserId = req.headers.adminuserid as string || '7a6dab62-7327-4f79-b025-952b687688c1';
+      const adminUser = (req as any).adminUser; // Set by requireAdminAuth middleware
       const { userId, reason } = req.body;
-      const result = await storage.unbanUser(userId, adminUserId, reason || 'Unbanned by admin');
+      const result = await storage.unbanUser(userId, adminUser.id, reason || 'Unbanned by admin');
       res.json(result);
     } catch (error) {
       console.error('Error unbanning user:', error);
@@ -2223,22 +2292,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin block user endpoint
-  app.post('/api/admin/block-user', async (req, res) => {
+  app.post('/api/admin/block-user', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { adminUserId, userId, reason } = req.body;
-
-      if (!adminUserId) {
-        return res.status(401).json({ error: 'Admin authentication required' });
-      }
-
-      // Verify admin privileges
-      const adminUser = await storage.getUser(adminUserId);
-      if (!adminUser || adminUser.role !== 'admin') {
-        return res.status(403).json({ error: 'Admin privileges required' });
-      }
+      const adminUser = (req as any).adminUser; // Set by requireAdminAuth middleware
+      const { userId, reason } = req.body;
 
       const blockData = {
-        blockerId: adminUserId,
+        blockerId: adminUser.id,
         blockedId: userId,
         reason: reason || 'Blocked by admin'
       };
@@ -2252,21 +2312,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin unblock user endpoint
-  app.post('/api/admin/unblock-user', async (req, res) => {
+  app.post('/api/admin/unblock-user', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { adminUserId, userId } = req.body;
+      const adminUser = (req as any).adminUser; // Set by requireAdminAuth middleware
+      const { userId } = req.body;
 
-      if (!adminUserId) {
-        return res.status(401).json({ error: 'Admin authentication required' });
-      }
-
-      // Verify admin privileges
-      const adminUser = await storage.getUser(adminUserId);
-      if (!adminUser || adminUser.role !== 'admin') {
-        return res.status(403).json({ error: 'Admin privileges required' });
-      }
-
-      const success = await storage.unblockUser(adminUserId, userId);
+      const success = await storage.unblockUser(adminUser.id, userId);
 
       if (success) {
         res.json({ success: true, message: 'User unblocked successfully' });
@@ -2280,22 +2331,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin ban user endpoint
-  app.post('/api/admin/ban-user', async (req, res) => {
+  app.post('/api/admin/ban-user', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { adminUserId, userId, reason } = req.body;
-
-      if (!adminUserId) {
-        return res.status(401).json({ error: 'Admin authentication required' });
-      }
-
-      // Verify admin privileges
-      const adminUser = await storage.getUser(adminUserId);
-      if (!adminUser || adminUser.role !== 'admin') {
-        return res.status(403).json({ error: 'Admin privileges required' });
-      }
+      const adminUser = (req as any).adminUser; // Set by requireAdminAuth middleware
+      const { userId, reason } = req.body;
 
       // Prevent admin from banning themselves
-      if (adminUserId === userId) {
+      if (adminUser.id === userId) {
         return res.status(400).json({ error: 'Cannot ban yourself' });
       }
 
@@ -2305,7 +2347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         permanent: true
       };
 
-      const result = await storage.banUser(banData, adminUserId);
+      const result = await storage.banUser(banData, adminUser.id);
       res.json({ success: true, result, message: 'User banned successfully' });
     } catch (error: any) {
       console.error('Ban user error:', error);
@@ -2314,21 +2356,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin unban user endpoint
-  app.post('/api/admin/unban-user', async (req, res) => {
+  app.post('/api/admin/unban-user', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { adminUserId, userId } = req.body;
+      const adminUser = (req as any).adminUser; // Set by requireAdminAuth middleware
+      const { userId } = req.body;
 
-      if (!adminUserId) {
-        return res.status(401).json({ error: 'Admin authentication required' });
-      }
-
-      // Verify admin privileges
-      const adminUser = await storage.getUser(adminUserId);
-      if (!adminUser || adminUser.role !== 'admin') {
-        return res.status(403).json({ error: 'Admin privileges required' });
-      }
-
-      const result = await storage.unbanUser(userId, adminUserId, 'Unbanned by admin');
+      const result = await storage.unbanUser(userId, adminUser.id, 'Unbanned by admin');
       res.json({ success: true, result, message: 'User unbanned successfully' });
     } catch (error: any) {
       console.error('Unban user error:', error);
@@ -2348,19 +2381,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Manual cleanup endpoint for admins
-  app.post('/api/admin/cleanup-messages', async (req: Request, res: Response) => {
+  app.post('/api/admin/cleanup-messages', requireAdminAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { adminUserId } = req.body;
-
-      if (!adminUserId) {
-        return res.status(401).json({ error: 'Admin authentication required' });
-      }
-
-      // Check if user is admin
-      const user = await storage.getUser(adminUserId);
-      if (!user || user.role !== 'admin') {
-        return res.status(403).json({ error: 'Access denied: Admin privileges required' });
-      }
+      // Admin privileges already verified by middleware
 
       const { cleanupScheduler } = await import('./cleanup-scheduler');
       const result = await cleanupScheduler.runCleanupNow();
@@ -2383,19 +2406,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Cleanup status endpoint for admins
-  app.get('/api/admin/cleanup-status', async (req: Request, res: Response) => {
+  app.get('/api/admin/cleanup-status', requireAdminAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { adminUserId } = req.query;
-
-      if (!adminUserId) {
-        return res.status(401).json({ error: 'Admin authentication required' });
-      }
-
-      // Check if user is admin
-      const user = await storage.getUser(adminUserId as string);
-      if (!user || user.role !== 'admin') {
-        return res.status(403).json({ error: 'Access denied: Admin privileges required' });
-      }
+      // Admin privileges already verified by middleware
 
       const { cleanupScheduler } = await import('./cleanup-scheduler');
       const status = cleanupScheduler.getStatus();

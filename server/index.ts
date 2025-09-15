@@ -1,4 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
+import ConnectPgSimple from "connect-pg-simple";
+import MemoryStore from "memorystore";
 import path from "path";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
@@ -7,6 +10,40 @@ import { cleanupScheduler } from "./cleanup-scheduler";
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Configure session store based on environment
+const createSessionStore = () => {
+  if (process.env.NODE_ENV === 'production' && process.env.DATABASE_URL) {
+    // Use PostgreSQL session store for production
+    const PgStore = ConnectPgSimple(session);
+    return new PgStore({
+      conString: process.env.DATABASE_URL,
+      tableName: 'admin_sessions',
+      createTableIfMissing: true,
+    });
+  } else {
+    // Use memory store for development with TTL
+    return MemoryStore(session)({
+      checkPeriod: 86400000, // prune expired entries every 24h
+    });
+  }
+};
+
+// Configure express-session with secure settings
+app.use(session({
+  name: 'admin_session_id', // Don't use default 'connect.sid'
+  secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production-12345',
+  store: createSessionStore(),
+  resave: false,
+  saveUninitialized: false,
+  rolling: true, // Reset expiration on activity
+  cookie: {
+    secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+    httpOnly: true, // Prevent XSS
+    maxAge: 1000 * 60 * 60 * 2, // 2 hours
+    sameSite: 'strict' // CSRF protection
+  }
+}));
 
 // Serve attached assets statically
 app.use('/attached_assets', express.static(path.resolve(import.meta.dirname, '../attached_assets')));

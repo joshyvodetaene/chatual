@@ -81,7 +81,7 @@ export const blockedUsers = pgTable("blocked_users", {
 export const userModerationActions = pgTable("user_moderation_actions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id),
-  actionType: varchar("action_type").notNull(), // "warning", "ban", "unban"
+  actionType: varchar("action_type", { enum: ["warning", "ban", "unban", "block", "unblock"] }).notNull(),
   reason: text("reason").notNull(),
   notes: text("notes"),
   performedBy: varchar("performed_by").notNull().references(() => users.id),
@@ -94,9 +94,9 @@ export const reports = pgTable("reports", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   reporterId: varchar("reporter_id").notNull().references(() => users.id),
   reportedUserId: varchar("reported_user_id").notNull().references(() => users.id),
-  reason: varchar("reason").notNull(), // "harassment", "spam", "inappropriate_content", "fake_profile", "other"
+  reason: varchar("reason", { enum: ["harassment", "spam", "inappropriate_content", "fake_profile", "other"] }).notNull(),
   description: text("description"), // Detailed description of the report
-  status: varchar("status").notNull().default("pending"), // "pending", "reviewed", "resolved", "dismissed"
+  status: varchar("status", { enum: ["pending", "reviewed", "resolved", "dismissed"] }).notNull().default("pending"),
   reportedAt: timestamp("reported_at").defaultNow(),
   reviewedAt: timestamp("reviewed_at"),
   reviewedBy: varchar("reviewed_by").references(() => users.id), // Admin who reviewed the report
@@ -390,6 +390,32 @@ export type AdminUser = typeof adminUsers.$inferSelect;
 export const adminLoginSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
+});
+
+// Additional admin action schemas for better validation
+export const adminBlockUserSchema = z.object({
+  userId: z.string().min(1, "User ID is required"),
+  reason: z.string().min(1, "Reason is required").max(500, "Reason must be less than 500 characters"),
+});
+
+export const adminUnblockUserSchema = z.object({
+  userId: z.string().min(1, "User ID is required"),
+});
+
+export const adminSendMessageSchema = z.object({
+  userId: z.string().min(1, "User ID is required"),
+  message: z.string().min(1, "Message is required").max(1000, "Message must be less than 1000 characters"),
+  messageType: z.string().default("admin_notification"),
+});
+
+export const adminCreateRoomSchema = z.object({
+  name: z.string().min(1, "Room name is required").max(100, "Room name must be less than 100 characters"),
+  description: z.string().max(500, "Description must be less than 500 characters").optional(),
+  isPrivate: z.boolean().default(false),
+});
+
+export const adminDeleteRoomSchema = z.object({
+  roomId: z.string().min(1, "Room ID is required"),
 });
 
 export type MessageWithUser = Message & {

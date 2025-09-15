@@ -95,7 +95,7 @@ export default function AdminDesk() {
       description: 'Manage user accounts, roles, and permissions',
       icon: Users,
       color: 'bg-blue-500',
-      action: () => toast({ title: 'Feature coming soon', description: 'User management panel' }),
+      action: () => setLocation('/admin/users'),
       testId: 'card-user-management'
     },
     {

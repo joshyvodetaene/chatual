@@ -2657,4 +2657,98 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+
+  // Admin user management methods
+  async getBannedUsers(): Promise<User[]> {
+    try {
+      console.log('[DB] Fetching banned users');
+      const bannedUsers = await db
+        .select()
+        .from(users)
+        .where(and(
+          eq(users.isBanned, true),
+          ne(users.role, 'admin') // Exclude admin users
+        ))
+        .orderBy(desc(users.bannedAt));
+      
+      console.log(`[DB] Found ${bannedUsers.length} banned users`);
+      return bannedUsers;
+    } catch (error) {
+      console.error('Error fetching banned users:', error);
+      throw error;
+    }
+  }
+
+  async getAllBlockedUsers(): Promise<any[]> {
+    try {
+      console.log('[DB] Fetching all blocked users');
+      const blockedRelations = await db
+        .select()
+        .from(blockedUsers)
+        .orderBy(desc(blockedUsers.createdAt));
+      
+      console.log(`[DB] Found ${blockedRelations.length} blocked user relations`);
+      return blockedRelations;
+    } catch (error) {
+      console.error('Error fetching blocked users:', error);
+      throw error;
+    }
+  }
+
+  async getReportedUsers(): Promise<any[]> {
+    try {
+      console.log('[DB] Fetching reported users');
+      const reportedUsersList = await db
+        .select()
+        .from(reports)
+        .orderBy(desc(reports.createdAt));
+      
+      console.log(`[DB] Found ${reportedUsersList.length} reported users`);
+      return reportedUsersList;
+    } catch (error) {
+      console.error('Error fetching reported users:', error);
+      throw error;
+    }
+  }
+
+  async sendAdminMessage(adminId: string, userId: string, message: string, messageType: string = 'admin_notification'): Promise<any> {
+    try {
+      console.log(`[DB] Admin ${adminId} sending message to user ${userId}`);
+      
+      const messageData = {
+        id: randomUUID(),
+        content: message,
+        messageType,
+        userId: adminId, // From admin
+        roomId: null, // Direct admin message
+        photoUrl: null,
+        photoFileName: null,
+        mentionedUserIds: [userId], // To user
+        isDeleted: false,
+        createdAt: new Date(),
+        sequenceId: Date.now()
+      };
+
+      await db.insert(messages).values([messageData]);
+      
+      // Create a notification for the user
+      const notificationData = {
+        id: randomUUID(),
+        userId,
+        type: 'admin_message',
+        title: 'Message from Administrator',
+        content: message,
+        isRead: false,
+        createdAt: new Date()
+      };
+
+      await db.insert(notifications).values([notificationData]);
+      
+      console.log(`[DB] Admin message sent successfully`);
+      return messageData;
+    } catch (error) {
+      console.error('Error sending admin message:', error);
+      throw error;
+    }
+  }
 }
