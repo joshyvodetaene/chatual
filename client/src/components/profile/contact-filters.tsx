@@ -25,8 +25,8 @@ export default function ContactFilters({ user }: ContactFiltersProps) {
     defaultValues: {
       displayName: user.displayName,
       location: user.location,
-      latitude: user.latitude || undefined,
-      longitude: user.longitude || undefined,
+      latitude: user.latitude ?? undefined,
+      longitude: user.longitude ?? undefined,
       genderPreference: (user.genderPreference as 'all' | 'male' | 'female') || 'all',
       ageMin: user.ageMin || 18,
       ageMax: user.ageMax || 99,
