@@ -40,8 +40,15 @@ export const requireAdminAuth = async (
       });
     }
 
-    // Verify admin still exists and has admin role in database
-    const adminUser = await storage.getUser(admin.id);
+    // Verify admin still exists in adminUsers table
+    const { adminUsers } = await import('@shared/schema');
+    const { eq } = await import('drizzle-orm');
+    
+    const [adminUser] = await storage.db
+      .select()
+      .from(adminUsers)
+      .where(eq(adminUsers.id, admin.id));
+      
     if (!adminUser) {
       console.log('[ADMIN_AUTH] Admin user not found in database');
       // Clear invalid session
@@ -53,25 +60,14 @@ export const requireAdminAuth = async (
       });
     }
 
-    if (adminUser.role !== 'admin') {
-      console.log('[ADMIN_AUTH] User no longer has admin role');
+    if (!adminUser.isActive) {
+      console.log('[ADMIN_AUTH] Admin user is not active');
       // Clear invalid session
       authReq.session.admin = undefined;
       authReq.session.isAuthenticated = false;
       return res.status(403).json({ 
-        error: 'Admin privileges required',
-        code: 'INSUFFICIENT_PRIVILEGES'
-      });
-    }
-
-    if (adminUser.isBanned) {
-      console.log('[ADMIN_AUTH] Admin user is banned');
-      // Clear invalid session
-      authReq.session.admin = undefined;
-      authReq.session.isAuthenticated = false;
-      return res.status(403).json({ 
-        error: 'Account is banned',
-        code: 'ACCOUNT_BANNED'
+        error: 'Admin account is disabled',
+        code: 'ACCOUNT_DISABLED'
       });
     }
 
