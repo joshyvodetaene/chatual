@@ -174,6 +174,16 @@ export const userPrivacySettings = pgTable("user_privacy_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Admin user table for system administration
+export const adminUsers = pgTable("admin_users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  username: varchar("username").notNull().unique(),
+  password: varchar("password").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  lastLogin: timestamp("last_login"),
+  isActive: boolean("is_active").default(true).notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   isOnline: true,
@@ -374,6 +384,13 @@ export type InsertFriendship = z.infer<typeof insertFriendshipSchema>;
 export type UserPrivacySettings = typeof userPrivacySettings.$inferSelect;
 export type InsertPrivacySettings = z.infer<typeof insertPrivacySettingsSchema>;
 export type UpdatePrivacySettings = z.infer<typeof updatePrivacySettingsSchema>;
+
+// Admin types
+export type AdminUser = typeof adminUsers.$inferSelect;
+export const adminLoginSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required"),
+});
 
 export type MessageWithUser = Message & {
   user: User;

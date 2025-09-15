@@ -880,6 +880,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin authentication routes
+  app.post('/api/admin/login', async (req, res) => {
+    console.log(`[ADMIN_AUTH] Admin login attempt started at ${new Date().toISOString()}`);
+    console.log(`[ADMIN_AUTH] Admin login attempt for username: ${req.body?.username}`);
+    try {
+      const { adminLoginSchema } = await import('@shared/schema');
+      const credentials = adminLoginSchema.parse(req.body);
+      console.log(`[ADMIN_AUTH] Schema validation passed for admin login: ${credentials.username}`);
+
+      console.log(`[ADMIN_AUTH] Authenticating admin: ${credentials.username}`);
+      const admin = await storage.authenticateAdmin(credentials);
+      if (!admin) {
+        console.log(`[ADMIN_AUTH] Authentication failed for admin username: ${credentials.username}`);
+        return res.status(401).json({ error: 'Invalid admin credentials' });
+      }
+
+      console.log(`[ADMIN_AUTH] Authentication successful for admin: ${admin.id} (${admin.username})`);
+      // Don't send password in response
+      const { password, ...adminWithoutPassword } = admin;
+      res.json({ admin: adminWithoutPassword });
+    } catch (error) {
+      console.error(`[ADMIN_AUTH] Admin login error:`, error);
+      res.status(400).json({ error: 'Admin login failed' });
+    }
+  });
+
+  app.post('/api/admin/logout', async (req, res) => {
+    console.log(`[ADMIN_AUTH] Admin logout attempt started at ${new Date().toISOString()}`);
+    try {
+      res.json({ success: true });
+    } catch (error) {
+      console.error(`[ADMIN_AUTH] Admin logout error:`, error);
+      res.status(400).json({ error: 'Admin logout failed' });
+    }
+  });
+
   // User routes
   app.get('/api/users/online', async (req, res) => {
     console.log(`[API] Fetching online users at ${new Date().toISOString()}`);

@@ -76,5 +76,14 @@ app.use((req, res, next) => {
     // Log cleanup scheduler status
     const status = cleanupScheduler.getStatus();
     console.log(`[CLEANUP] Scheduler active: ${status.isScheduled ? 'Yes' : 'No'}, keeping ${status.messagesPerRoom} messages per room`);
+    
+    // Initialize fixed admin user in development
+    try {
+      const { DatabaseStorage } = await import('./database-storage');
+      const storage = new DatabaseStorage();
+      await storage.createFixedAdminUser();
+    } catch (error) {
+      console.error('[ADMIN] Failed to create fixed admin user:', error);
+    }
   });
 })();

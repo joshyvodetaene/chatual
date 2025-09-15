@@ -2424,7 +2424,7 @@ export class DatabaseStorage implements IStorage {
             photoUrl: null,
             photoFileName: null,
             mentionedUserIds: [],
-            userId: null // CRITICAL: Remove foreign key reference to allow user deletion
+            userId: 'deleted-user' // CRITICAL: Replace with placeholder to allow user deletion
           })
           .where(eq(messages.userId, userId));
       });
@@ -2577,5 +2577,71 @@ export class DatabaseStorage implements IStorage {
 
     // Return rounded distance in kilometers
     return Math.round(distance);
+  }
+
+  // Admin methods
+  async createFixedAdminUser(): Promise<void> {
+    try {
+      const { adminUsers } = await import('@shared/schema');
+      const bcrypt = await import('bcryptjs');
+      
+      // Check if admin user already exists
+      const [existingAdmin] = await db
+        .select()
+        .from(adminUsers)
+        .where(eq(adminUsers.username, 'chatualadmin'));
+
+      if (existingAdmin) {
+        console.log('[ADMIN] Fixed admin user already exists');
+        return;
+      }
+
+      // Create fixed admin user
+      const hashedPassword = await bcrypt.hash('Hardcore123!', 10);
+      
+      await db
+        .insert(adminUsers)
+        .values({
+          username: 'chatualadmin',
+          password: hashedPassword,
+        });
+
+      console.log('[ADMIN] Fixed admin user created successfully');
+    } catch (error) {
+      console.error('Error creating fixed admin user:', error);
+      throw error;
+    }
+  }
+
+  async authenticateAdmin(credentials: { username: string; password: string }): Promise<any | null> {
+    try {
+      const { adminUsers } = await import('@shared/schema');
+      const bcrypt = await import('bcryptjs');
+
+      const [admin] = await db
+        .select()
+        .from(adminUsers)
+        .where(eq(adminUsers.username, credentials.username));
+
+      if (!admin || !admin.isActive) {
+        return null;
+      }
+
+      const isValidPassword = await bcrypt.compare(credentials.password, admin.password);
+      if (!isValidPassword) {
+        return null;
+      }
+
+      // Update last login
+      await db
+        .update(adminUsers)
+        .set({ lastLogin: new Date() })
+        .where(eq(adminUsers.id, admin.id));
+
+      return admin;
+    } catch (error) {
+      console.error('Error authenticating admin:', error);
+      throw error;
+    }
   }
 }
