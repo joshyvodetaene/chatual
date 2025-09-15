@@ -23,7 +23,7 @@ const createSessionStore = () => {
     });
   } else {
     // Use memory store for development with TTL
-    return MemoryStore(session)({
+    return new (MemoryStore(session))({
       checkPeriod: 86400000, // prune expired entries every 24h
     });
   }
