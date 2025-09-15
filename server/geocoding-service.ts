@@ -1,5 +1,47 @@
 import fetch from 'node-fetch';
 
+// Google Maps Distance Matrix API interfaces
+interface DistanceMatrixElement {
+  status: 'OK' | 'NOT_FOUND' | 'ZERO_RESULTS' | 'MAX_ROUTE_LENGTH_EXCEEDED';
+  duration?: {
+    text: string;
+    value: number; // seconds
+  };
+  distance?: {
+    text: string;
+    value: number; // meters
+  };
+}
+
+interface DistanceMatrixRow {
+  elements: DistanceMatrixElement[];
+}
+
+interface DistanceMatrixResponse {
+  status: 'OK' | 'INVALID_REQUEST' | 'MAX_ELEMENTS_EXCEEDED' | 'OVER_DAILY_LIMIT' | 'OVER_QUERY_LIMIT' | 'REQUEST_DENIED' | 'UNKNOWN_ERROR';
+  error_message?: string;
+  rows: DistanceMatrixRow[];
+}
+
+// Type guard for Distance Matrix API responses
+function isDistanceMatrixResponse(data: unknown): data is DistanceMatrixResponse {
+  if (!data || typeof data !== 'object') return false;
+  const obj = data as any;
+  
+  return (
+    typeof obj.status === 'string' &&
+    Array.isArray(obj.rows) &&
+    obj.rows.every((row: any) => 
+      row && typeof row === 'object' &&
+      Array.isArray(row.elements) &&
+      row.elements.every((element: any) =>
+        element && typeof element === 'object' &&
+        typeof element.status === 'string'
+      )
+    )
+  );
+}
+
 interface GeocodingResult {
   latitude: number;
   longitude: number;
@@ -1223,7 +1265,19 @@ export class GeocodingService {
       console.log(`[GEOCODING] Requesting distance from Google Maps API: ${origins} -> ${destinations}`);
       
       const response = await fetch(url.toString());
-      const data = await response.json();
+      const json = await response.json();
+
+      // Type guard to ensure response structure
+      if (!isDistanceMatrixResponse(json)) {
+        console.error('[GEOCODING] Invalid response structure from Google Maps API');
+        return {
+          distance: this.calculateDistance(originLat, originLng, destLat, destLng),
+          duration: 0,
+          mode: 'straight_line'
+        };
+      }
+
+      const data: DistanceMatrixResponse = json;
 
       if (data.status !== 'OK') {
         console.error(`[GEOCODING] Google Maps API error: ${data.status} - ${data.error_message || 'Unknown error'}`);
@@ -1237,6 +1291,16 @@ export class GeocodingService {
       const element = data.rows[0]?.elements[0];
       if (!element || element.status !== 'OK') {
         console.warn(`[GEOCODING] Distance calculation failed: ${element?.status || 'No data'}`);
+        return {
+          distance: this.calculateDistance(originLat, originLng, destLat, destLng),
+          duration: 0,
+          mode: 'straight_line'
+        };
+      }
+
+      // Safely access distance and duration with null checks
+      if (!element.distance || !element.duration) {
+        console.warn('[GEOCODING] Distance or duration data missing from API response');
         return {
           distance: this.calculateDistance(originLat, originLng, destLat, destLng),
           duration: 0,
@@ -1308,10 +1372,26 @@ export class GeocodingService {
         console.log(`[GEOCODING] Batch distance request for ${chunk.length} destinations`);
 
         const response = await fetch(url.toString());
-        const data = await response.json();
+        const json = await response.json();
+
+        // Type guard to ensure response structure
+        if (!isDistanceMatrixResponse(json)) {
+          console.error('[GEOCODING] Invalid batch response structure from Google Maps API');
+          // Fallback to Haversine for this chunk
+          for (const dest of chunk) {
+            results.set(dest.userId, {
+              distance: this.calculateDistance(originLat, originLng, dest.lat, dest.lng),
+              duration: 0,
+              mode: 'straight_line'
+            });
+          }
+          continue;
+        }
+
+        const data: DistanceMatrixResponse = json;
 
         if (data.status !== 'OK') {
-          console.error(`[GEOCODING] Batch distance API error: ${data.status}`);
+          console.error(`[GEOCODING] Batch distance API error: ${data.status} - ${data.error_message || 'Unknown error'}`);
           // Fallback to Haversine for this chunk
           for (const dest of chunk) {
             results.set(dest.userId, {
@@ -1329,7 +1409,7 @@ export class GeocodingService {
           const element = elements[i];
           const dest = chunk[i];
 
-          if (element && element.status === 'OK') {
+          if (element && element.status === 'OK' && element.distance && element.duration) {
             const distanceKm = Math.round(element.distance.value / 1000);
             const durationMinutes = Math.round(element.duration.value / 60);
             
