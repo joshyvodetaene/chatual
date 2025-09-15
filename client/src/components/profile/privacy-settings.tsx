@@ -24,9 +24,8 @@ export default function PrivacySettings({ user, isMobile = false }: PrivacySetti
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Fetch current privacy settings
-  const { data: privacyData, isLoading } = useQuery({
+  const { data: privacyData, isLoading } = useQuery<UserPrivacySettings>({
     queryKey: [`/api/users/${user.id}/privacy-settings`],
-    queryFn: () => apiRequest('GET', `/api/users/${user.id}/privacy-settings`),
   });
 
   const [privacySettings, setPrivacySettings] = useState<PrivacyPreferences>({
