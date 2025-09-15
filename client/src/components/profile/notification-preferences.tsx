@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Bell, BellOff, MessageCircle, Heart, UserPlus, AtSign, Camera, AlertTriangle, Volume2, VolumeX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import type { User } from '@shared/schema';
 
@@ -20,66 +20,67 @@ interface NotificationSettings {
   enableNotifications: boolean;
   soundEnabled: boolean;
   vibrationEnabled: boolean;
-  quietHours: {
-    enabled: boolean;
-    startTime: string;
-    endTime: string;
-  };
-  notifications: {
-    newMessages: boolean;
-    mentions: boolean;
-    reactions: boolean;
-    friendRequests: boolean;
-    photoLikes: boolean;
-    profileViews: boolean;
-    newMatches: boolean;
-    roomInvites: boolean;
-    systemUpdates: boolean;
-    securityAlerts: boolean;
-  };
-  emailNotifications: {
-    dailySummary: boolean;
-    weeklyHighlights: boolean;
-    importantUpdates: boolean;
-    securityAlerts: boolean;
-  };
+  quietHoursEnabled: boolean;
+  quietHoursStart: string;
+  quietHoursEnd: string;
+  newMessages: boolean;
+  mentions: boolean;
+  reactions: boolean;
+  friendRequests: boolean;
+  photoLikes: boolean;
+  profileViews: boolean;
+  newMatches: boolean;
+  roomInvites: boolean;
+  systemUpdates: boolean;
+  securityAlerts: boolean;
+  emailDailySummary: boolean;
+  emailWeeklyHighlights: boolean;
+  emailImportantUpdates: boolean;
+  emailSecurityAlerts: boolean;
 }
 
 export default function NotificationPreferences({ user, isMobile = false }: NotificationPreferencesProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Load current notification settings from backend
+  const { data: loadedSettings, isLoading } = useQuery({
+    queryKey: [`/api/users/${user.id}/notification-settings`],
+    enabled: !!user.id,
+  });
+
   // Initialize with default notification settings
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
     enableNotifications: true,
     soundEnabled: true,
     vibrationEnabled: true,
-    quietHours: {
-      enabled: false,
-      startTime: '22:00',
-      endTime: '08:00',
-    },
-    notifications: {
-      newMessages: true,
-      mentions: true,
-      reactions: true,
-      friendRequests: true,
-      photoLikes: true,
-      profileViews: false,
-      newMatches: true,
-      roomInvites: true,
-      systemUpdates: true,
-      securityAlerts: true,
-    },
-    emailNotifications: {
-      dailySummary: false,
-      weeklyHighlights: true,
-      importantUpdates: true,
-      securityAlerts: true,
-    },
+    quietHoursEnabled: false,
+    quietHoursStart: '22:00',
+    quietHoursEnd: '08:00',
+    newMessages: true,
+    mentions: true,
+    reactions: true,
+    friendRequests: true,
+    photoLikes: true,
+    profileViews: false,
+    newMatches: true,
+    roomInvites: true,
+    systemUpdates: true,
+    securityAlerts: true,
+    emailDailySummary: false,
+    emailWeeklyHighlights: true,
+    emailImportantUpdates: true,
+    emailSecurityAlerts: true,
   });
 
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Update state when settings are loaded from backend
+  useEffect(() => {
+    if (loadedSettings) {
+      setNotificationSettings(loadedSettings as NotificationSettings);
+    }
+  }, [loadedSettings]);
 
   const updateNotificationsMutation = useMutation({
     mutationFn: async (settings: NotificationSettings) => {
@@ -103,19 +104,11 @@ export default function NotificationPreferences({ user, isMobile = false }: Noti
     },
   });
 
-  const handleSettingChange = (path: string, value: any) => {
-    setNotificationSettings(prev => {
-      const newSettings = { ...prev };
-      const keys = path.split('.');
-      let current: any = newSettings;
-      
-      for (let i = 0; i < keys.length - 1; i++) {
-        current = current[keys[i]];
-      }
-      
-      current[keys[keys.length - 1]] = value;
-      return newSettings;
-    });
+  const handleSettingChange = (field: string, value: any) => {
+    setNotificationSettings(prev => ({
+      ...prev,
+      [field]: value,
+    }));
     setHasUnsavedChanges(true);
   };
 
@@ -235,19 +228,19 @@ export default function NotificationPreferences({ user, isMobile = false }: Noti
                       )}>Pause notifications during specific hours</p>
                     </div>
                     <Switch
-                      checked={notificationSettings.quietHours.enabled}
-                      onCheckedChange={(checked) => handleSettingChange('quietHours.enabled', checked)}
+                      checked={notificationSettings.quietHoursEnabled}
+                      onCheckedChange={(checked) => handleSettingChange('quietHoursEnabled', checked)}
                       data-testid="switch-quiet-hours"
                     />
                   </div>
 
-                  {notificationSettings.quietHours.enabled && (
+                  {notificationSettings.quietHoursEnabled && (
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">Start Time</label>
                         <Select
-                          value={notificationSettings.quietHours.startTime}
-                          onValueChange={(value) => handleSettingChange('quietHours.startTime', value)}
+                          value={notificationSettings.quietHoursStart}
+                          onValueChange={(value) => handleSettingChange('quietHoursStart', value)}
                         >
                           <SelectTrigger>
                             <SelectValue />
@@ -267,8 +260,8 @@ export default function NotificationPreferences({ user, isMobile = false }: Noti
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">End Time</label>
                         <Select
-                          value={notificationSettings.quietHours.endTime}
-                          onValueChange={(value) => handleSettingChange('quietHours.endTime', value)}
+                          value={notificationSettings.quietHoursEnd}
+                          onValueChange={(value) => handleSettingChange('quietHoursEnd', value)}
                         >
                           <SelectTrigger>
                             <SelectValue />
@@ -346,8 +339,8 @@ export default function NotificationPreferences({ user, isMobile = false }: Noti
                     </div>
                   </div>
                   <Switch
-                    checked={notificationSettings.notifications[key as keyof typeof notificationSettings.notifications] as boolean}
-                    onCheckedChange={(checked) => handleSettingChange(`notifications.${key}`, checked)}
+                    checked={notificationSettings[key as keyof NotificationSettings] as boolean}
+                    onCheckedChange={(checked) => handleSettingChange(key, checked)}
                     data-testid={`switch-${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`}
                   />
                 </div>
@@ -377,10 +370,10 @@ export default function NotificationPreferences({ user, isMobile = false }: Noti
           <CardContent className={cn(isMobile ? "p-4 pt-0" : "")}>
             <div className="space-y-4">
               {[
-                { key: 'dailySummary', label: 'Daily Summary', description: 'Daily digest of your activity' },
-                { key: 'weeklyHighlights', label: 'Weekly Highlights', description: 'Weekly summary of important events' },
-                { key: 'importantUpdates', label: 'Important Updates', description: 'Critical app updates and changes' },
-                { key: 'securityAlerts', label: 'Security Alerts', description: 'Security-related notifications' },
+                { key: 'emailDailySummary', label: 'Daily Summary', description: 'Daily digest of your activity' },
+                { key: 'emailWeeklyHighlights', label: 'Weekly Highlights', description: 'Weekly summary of important events' },
+                { key: 'emailImportantUpdates', label: 'Important Updates', description: 'Critical app updates and changes' },
+                { key: 'emailSecurityAlerts', label: 'Security Alerts', description: 'Security-related notifications' },
               ].map(({ key, label, description }) => (
                 <div key={key} className="flex items-center justify-between">
                   <div>
@@ -391,9 +384,9 @@ export default function NotificationPreferences({ user, isMobile = false }: Noti
                     )}>{description}</p>
                   </div>
                   <Switch
-                    checked={notificationSettings.emailNotifications[key as keyof typeof notificationSettings.emailNotifications] as boolean}
-                    onCheckedChange={(checked) => handleSettingChange(`emailNotifications.${key}`, checked)}
-                    data-testid={`switch-email-${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`}
+                    checked={notificationSettings[key as keyof NotificationSettings] as boolean}
+                    onCheckedChange={(checked) => handleSettingChange(key, checked)}
+                    data-testid={`switch-${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`}
                   />
                 </div>
               ))}

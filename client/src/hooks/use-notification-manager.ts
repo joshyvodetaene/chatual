@@ -2,22 +2,27 @@ import { useState, useEffect, useRef } from 'react';
 import { NotificationSounds } from '@/components/notifications/notification-sounds';
 
 export interface NotificationSettings {
-  sounds: boolean;
-  volume: number;
-  vibration: boolean;
-  quietHours: boolean;
+  enableNotifications: boolean;
+  soundEnabled: boolean;
+  vibrationEnabled: boolean;
+  quietHoursEnabled: boolean;
   quietHoursStart: string;
   quietHoursEnd: string;
-  notificationTypes: {
-    messages: boolean;
-    mentions: boolean;
-    reactions: boolean;
-    friend_requests: boolean;
-    room_invites: boolean;
-    system: boolean;
-    moderator: boolean;
-    events: boolean;
-  };
+  newMessages: boolean;
+  mentions: boolean;
+  reactions: boolean;
+  friendRequests: boolean;
+  photoLikes: boolean;
+  profileViews: boolean;
+  newMatches: boolean;
+  roomInvites: boolean;
+  systemUpdates: boolean;
+  securityAlerts: boolean;
+  emailDailySummary: boolean;
+  emailWeeklyHighlights: boolean;
+  emailImportantUpdates: boolean;
+  emailSecurityAlerts: boolean;
+  volume?: number; // Optional field for sound volume
 }
 
 interface NotificationData {
@@ -54,8 +59,7 @@ export function useNotificationManager() {
       const notification = event.detail;
       if (notification && settings) {
         // Check if notification type is enabled
-        const typeKey = notification.type as keyof typeof settings.notificationTypes;
-        if (settings.notificationTypes[typeKey] === false) {
+        if (!shouldShowNotification(notification.type)) {
           return;
         }
         
@@ -79,15 +83,15 @@ export function useNotificationManager() {
         setToasts(prev => [...prev, toast]);
         
         // Play sound if enabled
-        if (settings.sounds) {
+        if (settings.soundEnabled) {
           notificationSounds.current.playSound(notification.type, {
             enabled: true,
-            volume: settings.volume,
+            volume: settings.volume || 50,
           });
         }
         
         // Vibrate if enabled and supported
-        if (settings.vibration && navigator.vibrate) {
+        if (settings.vibrationEnabled && navigator.vibrate) {
           const pattern = notification.priority === 'urgent' ? [200, 100, 200] : [100];
           navigator.vibrate(pattern);
         }
@@ -118,22 +122,27 @@ export function useNotificationManager() {
       } else {
         // Use default settings if none exist
         const defaultSettings: NotificationSettings = {
-          sounds: true,
-          volume: 50,
-          vibration: true,
-          quietHours: false,
+          enableNotifications: true,
+          soundEnabled: true,
+          vibrationEnabled: true,
+          quietHoursEnabled: false,
           quietHoursStart: '22:00',
-          quietHoursEnd: '07:00',
-          notificationTypes: {
-            messages: true,
-            mentions: true,
-            reactions: true,
-            friend_requests: true,
-            room_invites: true,
-            system: true,
-            moderator: true,
-            events: true,
-          },
+          quietHoursEnd: '08:00',
+          newMessages: true,
+          mentions: true,
+          reactions: true,
+          friendRequests: true,
+          photoLikes: true,
+          profileViews: false,
+          newMatches: true,
+          roomInvites: true,
+          systemUpdates: true,
+          securityAlerts: true,
+          emailDailySummary: false,
+          emailWeeklyHighlights: true,
+          emailImportantUpdates: true,
+          emailSecurityAlerts: true,
+          volume: 50,
         };
         setSettings(defaultSettings);
       }
@@ -143,7 +152,7 @@ export function useNotificationManager() {
   };
   
   const isInQuietHours = (): boolean => {
-    if (!settings?.quietHours) return false;
+    if (!settings?.quietHoursEnabled) return false;
     
     const now = new Date();
     const currentTime = now.getHours() * 60 + now.getMinutes();
@@ -165,9 +174,40 @@ export function useNotificationManager() {
   const shouldShowNotification = (type: string): boolean => {
     if (!settings) return true;
     
+    // Check if notifications are globally enabled
+    if (!settings.enableNotifications) return false;
+    
+    // Map notification types to backend schema fields
+    const typeMapping: Record<string, keyof NotificationSettings> = {
+      'message': 'newMessages',
+      'messages': 'newMessages',
+      'mention': 'mentions',
+      'mentions': 'mentions', 
+      'reaction': 'reactions',
+      'reactions': 'reactions',
+      'friend_request': 'friendRequests',
+      'friend_requests': 'friendRequests',
+      'photo_like': 'photoLikes',
+      'photo_likes': 'photoLikes',
+      'profile_view': 'profileViews',
+      'profile_views': 'profileViews',
+      'new_match': 'newMatches',
+      'new_matches': 'newMatches',
+      'room_invite': 'roomInvites',
+      'room_invites': 'roomInvites',
+      'system': 'systemUpdates',
+      'system_update': 'systemUpdates',
+      'system_updates': 'systemUpdates',
+      'security': 'securityAlerts',
+      'security_alert': 'securityAlerts',
+      'security_alerts': 'securityAlerts',
+      'moderator': 'systemUpdates', // Map moderator to system updates
+      'events': 'systemUpdates', // Map events to system updates
+    };
+    
     // Check if notification type is enabled
-    const typeKey = type as keyof typeof settings.notificationTypes;
-    if (settings.notificationTypes[typeKey] === false) {
+    const settingKey = typeMapping[type];
+    if (settingKey && settings[settingKey] === false) {
       return false;
     }
     
@@ -191,15 +231,15 @@ export function useNotificationManager() {
     setToasts(prev => [...prev, toast]);
     
     // Play sound if enabled
-    if (settings?.sounds) {
+    if (settings?.soundEnabled) {
       notificationSounds.current.playSound(notificationData.type, {
         enabled: true,
-        volume: settings.volume,
+        volume: settings.volume || 50,
       });
     }
     
     // Vibrate if enabled and supported
-    if (settings?.vibration && navigator.vibrate) {
+    if (settings?.vibrationEnabled && navigator.vibrate) {
       const pattern = notificationData.priority === 'urgent' ? [200, 100, 200] : [100];
       navigator.vibrate(pattern);
     }
