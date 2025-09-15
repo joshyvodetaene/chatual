@@ -123,10 +123,6 @@ export const userNotificationSettings = pgTable('user_notification_settings', {
   roomInvites: boolean('room_invites').default(true).notNull(),
   systemUpdates: boolean('system_updates').default(true).notNull(),
   securityAlerts: boolean('security_alerts').default(true).notNull(),
-  emailDailySummary: boolean('email_daily_summary').default(false).notNull(),
-  emailWeeklyHighlights: boolean('email_weekly_highlights').default(true).notNull(),
-  emailImportantUpdates: boolean('email_important_updates').default(true).notNull(),
-  emailSecurityAlerts: boolean('email_security_alerts').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });

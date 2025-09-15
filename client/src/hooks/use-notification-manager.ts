@@ -18,10 +18,6 @@ export interface NotificationSettings {
   roomInvites: boolean;
   systemUpdates: boolean;
   securityAlerts: boolean;
-  emailDailySummary: boolean;
-  emailWeeklyHighlights: boolean;
-  emailImportantUpdates: boolean;
-  emailSecurityAlerts: boolean;
   volume?: number; // Optional field for sound volume
 }
 
@@ -138,10 +134,6 @@ export function useNotificationManager() {
           roomInvites: true,
           systemUpdates: true,
           securityAlerts: true,
-          emailDailySummary: false,
-          emailWeeklyHighlights: true,
-          emailImportantUpdates: true,
-          emailSecurityAlerts: true,
           volume: 50,
         };
         setSettings(defaultSettings);

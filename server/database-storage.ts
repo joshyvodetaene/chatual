@@ -2292,10 +2292,6 @@ export class DatabaseStorage implements IStorage {
         roomInvites: true,
         systemUpdates: true,
         securityAlerts: true,
-        emailDailySummary: false,
-        emailWeeklyHighlights: true,
-        emailImportantUpdates: true,
-        emailSecurityAlerts: true
       };
 
       const [newSettings] = await db

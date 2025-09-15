@@ -350,50 +350,6 @@ export default function NotificationPreferences({ user, isMobile = false }: Noti
         </Card>
       )}
 
-      {/* Email Notifications */}
-      {notificationSettings.enableNotifications && (
-        <Card className="glass-effect backdrop-blur-glass border-primary/20">
-          <CardHeader className={cn(isMobile ? "p-4 pb-3" : "")}>
-            <CardTitle className={cn(
-              "flex items-center space-x-2",
-              isMobile ? "text-lg" : ""
-            )}>
-              <div className="w-6 h-6 flex items-center justify-center bg-blue-500 rounded text-white text-xs font-bold">@</div>
-              <span>Email Notifications</span>
-            </CardTitle>
-            <CardDescription className={cn(
-              isMobile ? "text-sm" : ""
-            )}>
-              Receive updates and summaries via email
-            </CardDescription>
-          </CardHeader>
-          <CardContent className={cn(isMobile ? "p-4 pt-0" : "")}>
-            <div className="space-y-4">
-              {[
-                { key: 'emailDailySummary', label: 'Daily Summary', description: 'Daily digest of your activity' },
-                { key: 'emailWeeklyHighlights', label: 'Weekly Highlights', description: 'Weekly summary of important events' },
-                { key: 'emailImportantUpdates', label: 'Important Updates', description: 'Critical app updates and changes' },
-                { key: 'emailSecurityAlerts', label: 'Security Alerts', description: 'Security-related notifications' },
-              ].map(({ key, label, description }) => (
-                <div key={key} className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-white">{label}</p>
-                    <p className={cn(
-                      "text-gray-400",
-                      isMobile ? "text-xs" : "text-sm"
-                    )}>{description}</p>
-                  </div>
-                  <Switch
-                    checked={notificationSettings[key as keyof NotificationSettings] as boolean}
-                    onCheckedChange={(checked) => handleSettingChange(key, checked)}
-                    data-testid={`switch-${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`}
-                  />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Save Button */}
       {hasUnsavedChanges && (
