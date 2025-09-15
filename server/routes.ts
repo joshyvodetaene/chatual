@@ -907,6 +907,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Route alias to fix path mismatch issue
+  app.get('/api/users/:userId/with-distance', async (req, res) => {
+    console.log(`[API] Fetching users with distance for userId: ${req.params.userId} (alias route)`);
+    try {
+      const { userId } = req.params;
+      console.log(`[API] Getting users with distance calculation for: ${userId}`);
+      const users = await storage.getUsersWithDistance(userId);
+      console.log(`[API] Found ${users.length} users with distance data`);
+      res.json({ users });
+    } catch (error) {
+      console.error(`[API] Error fetching users with distance:`, error);
+      res.status(500).json({ error: 'Failed to fetch users with distance' });
+    }
+  });
+
   // GDPR Data Export endpoint
   app.get('/api/users/:userId/export-data', async (req, res) => {
     console.log(`[GDPR] Data export request for user: ${req.params.userId}`);
@@ -1061,6 +1076,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         isValid: false, 
         message: 'Internal server error during city validation' 
+      });
+    }
+  });
+
+  // Health check endpoint to verify API routing works
+  app.get('/api/health', (req, res) => {
+    res.json({ ok: true, timestamp: new Date().toISOString() });
+  });
+
+  // Static location mapping test endpoint (dev only)
+  app.get('/api/geocode/coords', async (req, res) => {
+    try {
+      const { location } = req.query;
+      
+      if (!location || typeof location !== 'string') {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Location parameter is required' 
+        });
+      }
+
+      const { GeocodingService } = await import('./geocoding-service');
+      const result = await GeocodingService.geocodeLocation(location);
+      res.json(result);
+    } catch (error) {
+      console.error('Static geocoding error:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Internal server error during static geocoding' 
       });
     }
   });

@@ -1,4 +1,4 @@
-import fetch from 'node-fetch';
+// Using global fetch (Node 18+) instead of node-fetch for better compatibility
 
 // Google Maps Distance Matrix API interfaces
 interface DistanceMatrixElement {
