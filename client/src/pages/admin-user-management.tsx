@@ -393,10 +393,14 @@ export default function AdminUserManagement() {
                   <div className="text-slate-400">No {tab.label.toLowerCase()} found</div>
                 </div>
               ) : (
-                <div className="grid gap-4" data-testid={`users-list-${tab.id}`}>
-                  {tab.users.map((user) => (
-                    <UserCard key={user.id} user={user} />
-                  ))}
+                <div className="max-h-[70vh] overflow-auto border border-slate-700 rounded-lg p-4 bg-slate-800/50">
+                  <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 min-w-max" data-testid={`users-list-${tab.id}`}>
+                    {tab.users.map((user) => (
+                      <div key={user.id} className="min-w-[300px]">
+                        <UserCard user={user} />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </TabsContent>
