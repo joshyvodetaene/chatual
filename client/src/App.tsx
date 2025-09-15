@@ -9,6 +9,8 @@ import ChatPage from "@/pages/chat";
 import ProfileSettings from "@/pages/profile-settings";
 import FriendsPage from "@/pages/friends";
 import AdminDashboard from "@/pages/admin-dashboard";
+import AdminLogin from "@/pages/admin-login";
+import AdminDesk from "@/pages/admin-desk";
 import UserProfilePage from "@/pages/user-profile";
 import PrivacyPolicyPage from "@/pages/privacy-policy";
 import NotFound from "@/pages/not-found";
@@ -23,7 +25,9 @@ function Router() {
       <Route path="/chat" component={ChatPage} />
       <Route path="/settings" component={ProfileSettings} />
       <Route path="/friends" component={FriendsPage} />
-      <Route path="/admin" component={AdminDashboard} />
+      <Route path="/admin" component={AdminLogin} />
+      <Route path="/admin/admindesk" component={AdminDesk} />
+      <Route path="/admin/dashboard" component={AdminDashboard} />
       <Route path="/profile/:userId" component={UserProfilePage} />
       <Route path="/privacy-policy" component={PrivacyPolicyPage} />
       <Route component={NotFound} />

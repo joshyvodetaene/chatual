@@ -317,10 +317,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getOnlineUsers(): Promise<User[]> {
-    console.log(`[DB] Fetching online users`);
+    console.log(`[DB] Fetching online users (excluding admin users)`);
     try {
-      const onlineUsers = await db.select().from(users).where(eq(users.isOnline, true));
-      console.log(`[DB] Found ${onlineUsers.length} online users`);
+      const onlineUsers = await db
+        .select()
+        .from(users)
+        .where(and(
+          eq(users.isOnline, true),
+          ne(users.role, 'admin') // Exclude admin users for security
+        ));
+      console.log(`[DB] Found ${onlineUsers.length} online users (admin users excluded)`);
       return onlineUsers;
     } catch (error) {
       console.error(`[DB] Error fetching online users:`, error);
@@ -329,10 +335,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllUsers(): Promise<User[]> {
-    console.log(`[DB] Fetching all users`);
+    console.log(`[DB] Fetching all users (excluding admin users)`);
     try {
-      const allUsers = await db.select().from(users);
-      console.log(`[DB] Found ${allUsers.length} total users`);
+      const allUsers = await db
+        .select()
+        .from(users)
+        .where(ne(users.role, 'admin')); // Exclude admin users for security
+      console.log(`[DB] Found ${allUsers.length} total users (admin users excluded)`);
       return allUsers;
     } catch (error) {
       console.error(`[DB] Error fetching all users:`, error);
@@ -393,7 +402,8 @@ export class DatabaseStorage implements IStorage {
         ))
         .where(and(
           ne(users.id, currentUserId),
-          eq(users.isBanned, false)
+          eq(users.isBanned, false),
+          ne(users.role, 'admin') // Exclude admin users for security
         ));
 
       // Prepare destinations for batch distance calculation
@@ -862,6 +872,9 @@ export class DatabaseStorage implements IStorage {
 
     // Exclude banned users
     whereConditions.push(eq(users.isBanned, false));
+    
+    // Exclude admin users for security
+    whereConditions.push(ne(users.role, 'admin'));
 
     const searchResults = await db
       .select()
