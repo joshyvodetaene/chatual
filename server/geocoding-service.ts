@@ -50,10 +50,6 @@ interface GeocodingResult {
 }
 
 export class GeocodingService {
-  // Using OpenCage Geocoding API (free tier: 2500 requests/day)
-  private static readonly API_KEY = process.env.OPENCAGE_API_KEY || 'demo-key';
-  private static readonly BASE_URL = 'https://api.opencagedata.com/geocode/v1/json';
-  
   // Google Maps API for distance calculations
   private static readonly GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || '';
   private static readonly DISTANCE_MATRIX_URL = 'https://maps.googleapis.com/maps/api/distancematrix/json';
@@ -66,8 +62,8 @@ export class GeocodingService {
         return { latitude: 0, longitude: 0, success: false, error: 'Location is required' };
       }
 
-      // For demo purposes, we'll use a simple geocoding approach
-      // In production, you'd use the OpenCage API with proper error handling
+      // Use location mapping for geocoding
+      // Real coordinate data from static location database
       const coordinates = this.getCoordinatesForLocation(cleanLocation);
       
       if (coordinates) {
