@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Check, ChevronsUpDown, MapPin, AlertCircle, Loader2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,8 @@ export function CityAutocomplete({
   const [isValidating, setIsValidating] = useState(false);
   const [validationResult, setValidationResult] = useState<CityValidationResult | null>(null);
   const [showFreeTextInput, setShowFreeTextInput] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [activeField, setActiveField] = useState<'main' | 'popover'>('main');
 
   // Update input value when prop value changes
   useEffect(() => {
@@ -158,8 +160,10 @@ export function CityAutocomplete({
         <PopoverTrigger asChild>
           <div className="relative">
             <Input
+              ref={inputRef}
               value={inputValue}
               onChange={(e) => handleInputChange(e.target.value)}
+              onFocus={() => setActiveField('main')}
               placeholder={placeholder}
               disabled={disabled}
               className={cn("pr-20", className)}
@@ -190,12 +194,14 @@ export function CityAutocomplete({
             </div>
           </div>
         </PopoverTrigger>
-        <PopoverContent className="w-full p-0" align="start">
+        <PopoverContent className="w-full p-0" align="start" onOpenAutoFocus={(e) => activeField === 'main' ? e.preventDefault() : undefined}>
           <Command>
             <CommandInput
               placeholder="Search cities..."
               value={inputValue}
               onValueChange={handleInputChange}
+              onFocus={() => setActiveField('popover')}
+              onMouseDown={() => setActiveField('popover')}
             />
             <CommandList>
               {suggestions.length === 0 && inputValue.length >= 2 ? (
