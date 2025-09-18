@@ -75,6 +75,8 @@ export const blockedUsers = pgTable("blocked_users", {
   blockedId: varchar("blocked_id").notNull().references(() => users.id),
   blockedAt: timestamp("blocked_at").defaultNow(),
   reason: text("reason"), // Optional reason for blocking
+  expiresAt: timestamp("expires_at"), // For scheduled blocks
+  roomId: varchar("room_id").references(() => rooms.id), // For room-specific blocks
 });
 
 // User warnings/bans tracking table

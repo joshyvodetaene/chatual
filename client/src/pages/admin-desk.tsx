@@ -9,6 +9,7 @@ import { useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { 
   Shield, 
+  Users,
   MessageSquare, 
   Settings, 
   LogOut, 
@@ -95,6 +96,14 @@ export default function AdminDesk() {
   }
 
   const adminCards = [
+    {
+      title: 'User Management',
+      description: 'Manage users, reports, bans, and moderation',
+      icon: Users,
+      color: 'bg-blue-500',
+      action: () => setLocation('/admin/users'),
+      testId: 'card-user-management'
+    },
     {
       title: 'Chatroom Management',
       description: 'Create and manage public chatrooms',

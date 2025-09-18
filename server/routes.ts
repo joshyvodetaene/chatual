@@ -2440,5 +2440,189 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin user management - Extended functionality
+
+  // Get all users for admin (existing endpoint was missing)
+  app.get('/api/admin/users/all', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      res.json({ users: allUsers });
+    } catch (error) {
+      console.error('Error fetching all users:', error);
+      res.status(500).json({ error: 'Failed to fetch users' });
+    }
+  });
+
+  app.get('/api/admin/users/online', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const onlineUsers = await storage.getOnlineUsers();
+      res.json({ users: onlineUsers });
+    } catch (error) {
+      console.error('Error fetching online users:', error);
+      res.status(500).json({ error: 'Failed to fetch online users' });
+    }
+  });
+
+  app.get('/api/admin/users/banned', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const bannedUsers = await storage.getBannedUsers();
+      res.json({ users: bannedUsers });
+    } catch (error) {
+      console.error('Error fetching banned users:', error);
+      res.status(500).json({ error: 'Failed to fetch banned users' });
+    }
+  });
+
+  app.get('/api/admin/users/blocked', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const blockedUsers = await storage.getAllBlockedUsers();
+      res.json({ users: blockedUsers });
+    } catch (error) {
+      console.error('Error fetching blocked users:', error);
+      res.status(500).json({ error: 'Failed to fetch blocked users' });
+    }
+  });
+  
+  // Scheduled blocking endpoint
+  app.post('/api/admin/users/:userId/block-scheduled', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const { userId } = req.params;
+      const { reason, duration, roomId } = req.body; // duration in hours
+
+      // For now, we'll use the existing blockUser but could extend for scheduling
+      const blockData = {
+        blockerId: adminUser.id,
+        blockedId: userId,
+        reason: reason || 'Blocked by admin',
+        roomSpecific: !!roomId,
+        roomId: roomId || null
+      };
+
+      const result = await storage.blockUser(blockData);
+      res.json({ success: true, block: result });
+    } catch (error) {
+      console.error('Error blocking user:', error);
+      res.status(500).json({ error: 'Failed to block user' });
+    }
+  });
+
+  // Unblock user endpoint
+  app.post('/api/admin/users/:userId/unblock', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const { userId } = req.params;
+
+      const result = await storage.unblockUser(adminUser.id, userId);
+      res.json({ success: true, result });
+    } catch (error) {
+      console.error('Error unblocking user:', error);
+      res.status(500).json({ error: 'Failed to unblock user' });
+    }
+  });
+
+  // Send admin message to user
+  app.post('/api/admin/users/:userId/message', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const { userId } = req.params;
+      const { message, type } = req.body;
+
+      // Create a notification for the user
+      const notificationData = {
+        userId: userId,
+        type: type || 'admin_message',
+        title: 'Message from Admin',
+        message: message,
+        data: JSON.stringify({ fromAdmin: true, adminId: adminUser.id })
+      };
+
+      const notification = await storage.createNotification(notificationData);
+      res.json({ success: true, notification });
+    } catch (error) {
+      console.error('Error sending admin message:', error);
+      res.status(500).json({ error: 'Failed to send message' });
+    }
+  });
+
+  // Delete user account (admin)
+  app.delete('/api/admin/users/:userId/delete', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const { userId } = req.params;
+      const { reason } = req.body;
+
+      // Log the action first
+      const actionData = {
+        userId: userId,
+        actionType: 'account_deletion',
+        reason: reason || 'Account deleted by admin',
+        performedBy: adminUser.id,
+        permanent: true
+      };
+
+      // Delete the user account
+      const result = await storage.deleteUserAccount(userId);
+      
+      if (result.success) {
+        res.json({ 
+          success: true, 
+          message: 'User account deleted successfully',
+          deletedData: result.deletedData 
+        });
+      } else {
+        res.status(500).json({ error: 'Failed to delete user account' });
+      }
+    } catch (error) {
+      console.error('Error deleting user account:', error);
+      res.status(500).json({ error: 'Failed to delete user account' });
+    }
+  });
+
+  // Get all reports for admin management
+  app.get('/api/admin/reports', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const reports = await storage.getReports(adminUser.id);
+      res.json({ reports });
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+      res.status(500).json({ error: 'Failed to fetch reports' });
+    }
+  });
+
+  // Update report status
+  app.put('/api/admin/reports/:reportId/status', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const { reportId } = req.params;
+      const { status, resolution } = req.body;
+
+      const statusUpdate = {
+        status,
+        resolution: resolution || '',
+        reviewedBy: adminUser.id
+      };
+
+      const report = await storage.updateReportStatus(reportId, statusUpdate, adminUser.id);
+      res.json({ success: true, report });
+    } catch (error) {
+      console.error('Error updating report status:', error);
+      res.status(500).json({ error: 'Failed to update report status' });
+    }
+  });
+
+  // Get user moderation history
+  app.get('/api/admin/users/:userId/moderation-history', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { userId } = req.params;
+      const history = await storage.getUserModerationHistory(userId);
+      res.json({ success: true, history });
+    } catch (error) {
+      console.error('Error fetching moderation history:', error);
+      res.status(500).json({ error: 'Failed to fetch moderation history' });
+    }
+  });
+
   return httpServer;
 }
