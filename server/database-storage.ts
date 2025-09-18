@@ -1777,10 +1777,6 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getBannedUsers(): Promise<User[]> {
-    return await db.select().from(users).where(eq(users.isBanned, true));
-  }
-
   async getBannedUsersCount(): Promise<number> {
     const result = await db.select({ count: sql<number>`count(*)` }).from(users).where(eq(users.isBanned, true));
     return result[0]?.count || 0;
@@ -2806,7 +2802,7 @@ export class DatabaseStorage implements IStorage {
       const blockedRelations = await db
         .select()
         .from(blockedUsers)
-        .orderBy(desc(blockedUsers.createdAt));
+        .orderBy(desc(blockedUsers.blockedAt));
       
       console.log(`[DB] Found ${blockedRelations.length} blocked user relations`);
       return blockedRelations;
@@ -2822,7 +2818,7 @@ export class DatabaseStorage implements IStorage {
       const reportedUsersList = await db
         .select()
         .from(reports)
-        .orderBy(desc(reports.createdAt));
+        .orderBy(desc(reports.reportedAt));
       
       console.log(`[DB] Found ${reportedUsersList.length} reported users`);
       return reportedUsersList;
@@ -2850,15 +2846,13 @@ export class DatabaseStorage implements IStorage {
         sequenceId: Date.now()
       };
 
-      await db.insert(messages).values([messageData]);
-      
-      // Create a notification for the user
+      // Note: This creates a notification instead of a direct message
       const notificationData = {
         id: randomUUID(),
-        userId,
-        type: 'admin_message',
-        title: 'Message from Administrator',
-        content: message,
+        userId: userId,
+        type: messageType,
+        title: 'Admin Message',
+        body: message,
         isRead: false,
         createdAt: new Date()
       };
