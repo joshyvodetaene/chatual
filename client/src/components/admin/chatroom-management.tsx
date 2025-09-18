@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
 
 import { 
@@ -77,7 +77,7 @@ export default function ChatroomManagement({ className }: ChatroomManagementProp
         body: JSON.stringify(data),
       });
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/rooms'] });
       queryClient.invalidateQueries({ queryKey: ['/api/rooms'] }); // Also invalidate public rooms
       toast({
@@ -391,7 +391,7 @@ export default function ChatroomManagement({ className }: ChatroomManagementProp
                         "text-slate-500",
                         isMobile ? "text-xs" : "text-xs"
                       )}>
-                        Created {new Date(room.createdAt || '').toLocaleDateString()}
+                        Created {room.createdAt ? new Date(room.createdAt).toLocaleDateString() : 'Unknown'}
                       </p>
                     </div>
                     <Button
