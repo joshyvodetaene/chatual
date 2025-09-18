@@ -114,18 +114,8 @@ app.use((req, res, next) => {
     const status = cleanupScheduler.getStatus();
     console.log(`[CLEANUP] Scheduler active: ${status.isScheduled ? 'Yes' : 'No'}, keeping ${status.messagesPerRoom} messages per room`);
     
-    // Initialize fixed admin user ONLY in development
-    if (process.env.NODE_ENV === 'development') {
-      try {
-        console.log('[ADMIN] Development environment detected - creating fixed admin user');
-        const { DatabaseStorage } = await import('./database-storage');
-        const storage = new DatabaseStorage();
-        await storage.createFixedAdminUser();
-      } catch (error) {
-        console.error('[ADMIN] Failed to create fixed admin user:', error);
-      }
-    } else {
-      console.log('[ADMIN] Production environment - fixed admin user creation skipped for security');
-    }
+    // Initialize system admin users
+    const { initializeSystemAdmins } = await import('./startup');
+    await initializeSystemAdmins();
   });
 })();
