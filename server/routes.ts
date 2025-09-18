@@ -1640,7 +1640,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const rooms = await storage.getRooms();
       res.json({ rooms });
     } catch (error) {
-      console.error('Get admin rooms error:', error);
+      console.error('Get rooms error:', error);
       res.status(500).json({ error: 'Failed to fetch rooms' });
     }
   });

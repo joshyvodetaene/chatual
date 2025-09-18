@@ -105,12 +105,12 @@ export default function AdminDesk() {
       testId: 'card-user-management'
     },
     {
-      title: 'Message Monitoring',
-      description: 'Monitor chat rooms and message content',
+      title: 'Chatroom Management',
+      description: 'Create and manage public chatrooms',
       icon: MessageSquare,
       color: 'bg-green-500',
-      action: () => toast({ title: 'Feature coming soon', description: 'Message monitoring panel' }),
-      testId: 'card-message-monitoring'
+      action: () => setLocation('/admin/chatrooms'),
+      testId: 'card-chatroom-management'
     },
     {
       title: 'System Settings',
