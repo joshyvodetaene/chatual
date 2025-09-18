@@ -6,7 +6,8 @@ import { insertUserSchema, insertRoomSchema, insertMessageSchema, registerUserSc
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { NotificationService } from "./notification-service";
 import { validateCityWithGoogle } from "./lib/geocoding";
-import { requireAdminAuth } from "./middleware/admin-auth";
+import { requireAdminAuth, requirePermission } from "./middleware/admin-auth";
+import { PERMISSIONS } from "@shared/schema";
 import type { AuthenticatedRequest } from "./types/session";
 
 interface WebSocketClient extends WebSocket {

@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import type { AuthenticatedRequest } from "../types/session";
 import { storage } from "../storage";
+import { UserRole, Permission, hasPermission, hasMinimumRole, PERMISSIONS } from '@shared/schema';
 
 /**
  * Middleware to verify admin authentication via session
@@ -58,10 +59,13 @@ export const requireAdminAuth = async (
       authReq.session.admin.username = adminUser.username;
     }
 
-    // Attach admin user to request for use in route handlers
-    (authReq as any).adminUser = adminUser;
+    // Attach admin user with role to request for use in route handlers
+    (authReq as any).adminUser = {
+      ...adminUser,
+      role: adminUser.role as UserRole
+    };
     
-    console.log(`[ADMIN_AUTH] Admin authentication successful for: ${admin.username} (${admin.id})`);
+    console.log(`[ADMIN_AUTH] Admin authentication successful for: ${admin.username} (${admin.id}) with role: ${adminUser.role}`);
     next();
   } catch (error) {
     console.error('[ADMIN_AUTH] Authentication middleware error:', error);
@@ -97,4 +101,86 @@ export const optionalAdminAuth = async (
     // Don't block request on optional auth errors
     next();
   }
+};
+
+/**
+ * Create permission-specific middleware for RBAC enforcement
+ */
+export const requirePermission = (requiredPermission: Permission) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      
+      // First ensure admin is authenticated
+      if (!authReq.adminUser || !authReq.adminUser.role) {
+        console.warn(`[RBAC] Permission check failed: No authenticated admin user found`);
+        return res.status(401).json({ 
+          error: 'Admin authentication required for this action',
+          code: 'NO_ADMIN_AUTH',
+          requiredPermission
+        });
+      }
+
+      const userRole = authReq.adminUser.role as UserRole;
+      const hasAccess = hasPermission(userRole, requiredPermission);
+
+      if (!hasAccess) {
+        console.warn(`[RBAC] Access denied: Admin '${authReq.adminUser.username}' (role: ${userRole}) lacks permission '${requiredPermission}'`);
+        return res.status(403).json({ 
+          error: `Insufficient permissions. Required: ${requiredPermission}`,
+          code: 'INSUFFICIENT_PERMISSIONS',
+          userRole,
+          requiredPermission
+        });
+      }
+
+      console.log(`[RBAC] Permission granted: Admin '${authReq.adminUser.username}' (role: ${userRole}) has permission '${requiredPermission}'`);
+      next();
+    } catch (error) {
+      console.error('[RBAC] Permission middleware error:', error);
+      res.status(500).json({ 
+        error: 'Permission verification failed',
+        code: 'PERMISSION_CHECK_ERROR'
+      });
+    }
+  };
+};
+
+/**
+ * Create minimum role requirement middleware
+ */
+export const requireMinimumRole = (minimumRole: UserRole) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      
+      if (!authReq.adminUser || !authReq.adminUser.role) {
+        return res.status(401).json({ 
+          error: 'Admin authentication required',
+          code: 'NO_ADMIN_AUTH'
+        });
+      }
+
+      const userRole = authReq.adminUser.role as UserRole;
+      const hasAccess = hasMinimumRole(userRole, minimumRole);
+
+      if (!hasAccess) {
+        console.warn(`[RBAC] Access denied: Admin '${authReq.adminUser.username}' (role: ${userRole}) below minimum role '${minimumRole}'`);
+        return res.status(403).json({ 
+          error: `Insufficient role level. Minimum required: ${minimumRole}`,
+          code: 'INSUFFICIENT_ROLE',
+          userRole,
+          minimumRole
+        });
+      }
+
+      next();
+    } catch (error) {
+      console.error('[RBAC] Role middleware error:', error);
+      res.status(500).json({ 
+        error: 'Role verification failed',
+        code: 'ROLE_CHECK_ERROR'
+      });
+    }
+  };
 };

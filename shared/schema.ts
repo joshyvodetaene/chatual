@@ -186,6 +186,7 @@ export const adminUsers = pgTable("admin_users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: varchar("username").notNull().unique(),
   password: varchar("password").notNull(),
+  role: varchar("role").notNull().default("admin"), // RBAC integration
   createdAt: timestamp("created_at").defaultNow(),
   lastLogin: timestamp("last_login"),
   isActive: boolean("is_active").default(true).notNull(),
@@ -661,7 +662,7 @@ export const PERMISSIONS = {
 
 export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS];
 
-// Role permissions mapping
+// Role permissions mapping - carefully separated for security
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   [USER_ROLES.USER]: [
     // Users have no admin permissions by default
@@ -675,11 +676,30 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PERMISSIONS.VIEW_MODERATION_ACTIONS
   ],
   [USER_ROLES.ADMIN]: [
-    // Admin has full access to all permissions
-    ...Object.values(PERMISSIONS) as Permission[]
+    // Admin permissions - comprehensive but not super-admin level
+    PERMISSIONS.VIEW_USERS,
+    PERMISSIONS.MANAGE_USERS,
+    PERMISSIONS.BAN_USERS,
+    PERMISSIONS.UNBAN_USERS,
+    PERMISSIONS.VIEW_REPORTS,
+    PERMISSIONS.MANAGE_REPORTS,
+    PERMISSIONS.MODERATE_MESSAGES,
+    PERMISSIONS.DELETE_MESSAGES,
+    PERMISSIONS.VIEW_ROOMS,
+    PERMISSIONS.MANAGE_ROOMS,
+    PERMISSIONS.CREATE_ROOMS,
+    PERMISSIONS.DELETE_ROOMS,
+    PERMISSIONS.VIEW_ADMIN_DASHBOARD,
+    PERMISSIONS.MANAGE_SYSTEM_CONFIG,
+    PERMISSIONS.VIEW_SYSTEM_LOGS,
+    PERMISSIONS.MANAGE_DATABASE,
+    PERMISSIONS.VIEW_MODERATION_ACTIONS,
+    PERMISSIONS.PERFORM_BULK_ACTIONS,
+    PERMISSIONS.MANAGE_USER_BEHAVIOR,
+    PERMISSIONS.CONFIGURE_AUTO_MODERATION
   ],
   [USER_ROLES.SUPER_ADMIN]: [
-    // Super admin has all permissions (same as admin for now)
+    // Super admin has ALL permissions including dangerous ones
     ...Object.values(PERMISSIONS) as Permission[]
   ]
 };
@@ -697,7 +717,7 @@ export const hasAllPermissions = (userRole: UserRole, permissions: Permission[])
   return permissions.every(permission => hasPermission(userRole, permission));
 };
 
-// Role hierarchy helper (higher roles inherit lower role permissions)
+// Role hierarchy levels (for minimum role checks - no automatic inheritance)
 export const getRoleLevel = (role: UserRole): number => {
   switch (role) {
     case USER_ROLES.USER: return 1;

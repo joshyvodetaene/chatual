@@ -59,12 +59,19 @@ import {
   type UserPrivacySettings,
   type InsertPrivacySettings,
   type UpdatePrivacySettings,
+  type UserRole,
+  type Permission,
+  hasPermission,
+  hasMinimumRole,
+  USER_ROLES,
+  PERMISSIONS,
+  ROLE_PERMISSIONS,
   friendRequests,
   friendships,
   userPrivacySettings
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, ne, sql, gt, lt, gte, like, ilike, inArray } from "drizzle-orm";
+import { eq, and, or, desc, ne, sql, gt, lt, gte, like, ilike, inArray, isNull } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 import type { IStorage } from "./storage";
@@ -77,6 +84,7 @@ export class DatabaseStorage implements IStorage {
     setTimeout(() => {
       this.ensureDefaultRooms();
       this.ensureAdministratorUser();
+      this.ensureAdminRoleAssignments();
     }, 100);
   }
 
@@ -197,6 +205,105 @@ export class DatabaseStorage implements IStorage {
       console.log('Database connections closed successfully');
     } catch (error) {
       console.error('Error closing database connections:', error);
+    }
+  }
+
+  // =====================================
+  // RBAC (Role-Based Access Control) Methods
+  // =====================================
+
+  /**
+   * Check if a user has a specific permission
+   */
+  hasUserPermission(userRole: UserRole, permission: Permission): boolean {
+    return hasPermission(userRole, permission);
+  }
+
+  /**
+   * Check if user has minimum role level
+   */
+  hasMinimumUserRole(userRole: UserRole, minimumRole: UserRole): boolean {
+    return hasMinimumRole(userRole, minimumRole);
+  }
+
+  /**
+   * Validate admin access with specific permission
+   */
+  validateAdminAccess(adminUser: { role: UserRole }, requiredPermission: Permission): boolean {
+    if (!adminUser || !adminUser.role) {
+      console.warn('[RBAC] Admin user or role missing in access validation');
+      return false;
+    }
+
+    const hasAccess = this.hasUserPermission(adminUser.role as UserRole, requiredPermission);
+    
+    if (!hasAccess) {
+      console.warn(`[RBAC] Access denied: Admin role '${adminUser.role}' lacks permission '${requiredPermission}'`);
+    }
+
+    return hasAccess;
+  }
+
+  /**
+   * Get admin user permissions
+   */
+  getAdminPermissions(userRole: UserRole): Permission[] {
+    // Use static import that was already imported at the top
+    return ROLE_PERMISSIONS[userRole] || [];
+  }
+
+  /**
+   * Assign role to admin user
+   */
+  async assignAdminRole(adminId: string, role: UserRole, assignedBy: string, reason?: string): Promise<void> {
+    try {
+      const { adminUsers } = await import('@shared/schema');
+      
+      await db
+        .update(adminUsers)
+        .set({ 
+          role: role,
+          lastLogin: new Date() // Track when role was updated
+        })
+        .where(eq(adminUsers.id, adminId));
+
+      console.log(`[RBAC] Role '${role}' assigned to admin '${adminId}' by '${assignedBy}'`);
+      if (reason) {
+        console.log(`[RBAC] Assignment reason: ${reason}`);
+      }
+    } catch (error) {
+      console.error(`[RBAC] Error assigning role '${role}' to admin '${adminId}':`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * SECURITY: Update existing admin roles only - NO auto-creation
+   */
+  async ensureAdminRoleAssignments(): Promise<void> {
+    try {
+      const { adminUsers } = await import('@shared/schema');
+      
+      // SECURITY: Only update existing admins, never create new ones
+      // Find admins without roles and assign default admin role
+      const adminsWithoutRoles = await db
+        .select()
+        .from(adminUsers)
+        .where(or(eq(adminUsers.role, ''), isNull(adminUsers.role)));
+
+      for (const admin of adminsWithoutRoles) {
+        await db
+          .update(adminUsers)
+          .set({ role: USER_ROLES.ADMIN })
+          .where(eq(adminUsers.id, admin.id));
+        
+        console.log(`[RBAC] Updated existing admin '${admin.username}' with default admin role`);
+      }
+
+      console.log(`[RBAC] Admin role assignment check completed`);
+    } catch (error) {
+      console.error('[RBAC] Error ensuring admin role assignments:', error);
+      throw error;
     }
   }
 
@@ -2752,7 +2859,15 @@ export class DatabaseStorage implements IStorage {
         .set({ lastLogin: new Date() })
         .where(eq(adminUsers.id, admin.id));
 
-      return admin;
+      // Return admin with role for RBAC
+      return {
+        id: admin.id,
+        username: admin.username,
+        role: admin.role as UserRole,
+        isActive: admin.isActive,
+        createdAt: admin.createdAt,
+        lastLogin: new Date()
+      };
     } catch (error) {
       console.error('Error authenticating admin:', error);
       throw error;
