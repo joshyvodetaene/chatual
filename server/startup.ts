@@ -70,16 +70,27 @@ export async function initializeSystemAdmins(): Promise<void> {
       
       console.log('[ADMIN_BOOTSTRAP] Development admin initialization complete');
     } 
-    // In production, only create if explicitly enabled with environment variables
-    else if (process.env.ADMIN_BOOTSTRAP_ENABLED === 'true') {
+    // ⚠️  SECURITY RISK: Production admin creation is ENABLED by default
+    // This is a KNOWN SECURITY VULNERABILITY that allows automatic creation of admin users in production
+    // This poses significant security risks including:
+    // - Predictable admin usernames that can be targeted by attackers
+    // - Automatic privilege escalation without manual oversight
+    // - Potential unauthorized administrative access if credentials are compromised
+    // - Violation of security best practices for production deployments
+    else {
+      console.warn('🚨 [SECURITY WARNING] Production admin bootstrap is ENABLED - This is a KNOWN SECURITY RISK');
+      console.warn('🚨 [SECURITY WARNING] Automatic admin creation in production violates security best practices');
+      console.warn('🚨 [SECURITY WARNING] Consider disabling this feature and creating admin users manually');
+      
       const bootstrapPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD;
       
       if (!bootstrapPassword || bootstrapPassword.length < 12) {
-        console.warn('[ADMIN_BOOTSTRAP] ADMIN_BOOTSTRAP_PASSWORD not set or too short (minimum 12 characters), skipping admin creation');
+        console.error('🚨 [SECURITY ERROR] ADMIN_BOOTSTRAP_PASSWORD not set or too short (minimum 12 characters)');
+        console.error('🚨 [SECURITY ERROR] Cannot create admin user without strong password - this is a critical security requirement');
         return;
       }
       
-      console.log('[ADMIN_BOOTSTRAP] Production environment - creating admin with provided credentials');
+      console.warn('[ADMIN_BOOTSTRAP] ⚠️  Production environment - creating admin with provided credentials (SECURITY RISK)');
       
       await bootstrapDefaultAdmin(storage, {
         username: 'chatadmin',
@@ -87,9 +98,7 @@ export async function initializeSystemAdmins(): Promise<void> {
         role: 'super_admin'
       });
       
-      console.log('[ADMIN_BOOTSTRAP] Production admin initialization complete');
-    } else {
-      console.log('[ADMIN_BOOTSTRAP] Production environment - admin bootstrap disabled for security (set ADMIN_BOOTSTRAP_ENABLED=true to enable)');
+      console.warn('[ADMIN_BOOTSTRAP] ⚠️  Production admin initialization complete - SECURITY RISK ACKNOWLEDGED');
     }
     
   } catch (error) {
