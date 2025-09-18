@@ -1,4 +1,5 @@
 import { storage } from './storage';
+import { createTaggedLogger } from './logger';
 
 /**
  * Daily cleanup scheduler for old messages
@@ -11,13 +12,14 @@ const MESSAGES_TO_KEEP_PER_ROOM = 40;
 export class CleanupScheduler {
   private intervalId: NodeJS.Timeout | null = null;
   private isRunning = false;
+  private logger = createTaggedLogger('CLEANUP');
 
   constructor() {
     this.setupCleanupScheduler();
   }
 
   private setupCleanupScheduler() {
-    console.log('[CLEANUP] Setting up daily message cleanup scheduler');
+    this.logger.info('Setting up daily message cleanup scheduler');
     
     // Run cleanup immediately on startup (with a small delay)
     setTimeout(() => {
@@ -29,12 +31,12 @@ export class CleanupScheduler {
       this.runCleanup();
     }, CLEANUP_INTERVAL);
     
-    console.log('[CLEANUP] Scheduler initialized - will run every 24 hours');
+    this.logger.info('Scheduler initialized - will run every 24 hours');
   }
 
   private async runCleanup() {
     if (this.isRunning) {
-      console.log('[CLEANUP] Cleanup already in progress, skipping this run');
+      this.logger.debug('Cleanup already in progress, skipping this run');
       return;
     }
 
@@ -42,29 +44,29 @@ export class CleanupScheduler {
     const startTime = Date.now();
     
     try {
-      console.log('[CLEANUP] Starting daily message cleanup...');
+      this.logger.info('Starting daily message cleanup...');
       
       const result = await storage.cleanupOldMessages(MESSAGES_TO_KEEP_PER_ROOM);
       
       const duration = Date.now() - startTime;
-      console.log(`[CLEANUP] Cleanup completed in ${duration}ms: ${result.totalDeleted} messages deleted from ${result.roomsCleaned} rooms`);
+      this.logger.info(`Cleanup completed in ${duration}ms: ${result.totalDeleted} messages deleted from ${result.roomsCleaned} rooms`);
       
       // Log summary
       if (result.totalDeleted > 0) {
-        console.log(`[CLEANUP] Successfully cleaned ${result.roomsCleaned} rooms, freed up space by removing ${result.totalDeleted} old messages`);
+        this.logger.info(`Successfully cleaned ${result.roomsCleaned} rooms, freed up space by removing ${result.totalDeleted} old messages`);
       } else {
-        console.log('[CLEANUP] No old messages to clean up');
+        this.logger.debug('No old messages to clean up');
       }
       
     } catch (error) {
-      console.error('[CLEANUP] Error during scheduled cleanup:', error);
+      this.logger.error('Error during scheduled cleanup:', error);
     } finally {
       this.isRunning = false;
     }
   }
 
   public async runCleanupNow(): Promise<{ totalDeleted: number; roomsCleaned: number }> {
-    console.log('[CLEANUP] Manual cleanup requested');
+    this.logger.info('Manual cleanup requested');
     
     if (this.isRunning) {
       throw new Error('Cleanup is already in progress');

@@ -234,14 +234,14 @@ export class DatabaseStorage implements IStorage {
    */
   validateAdminAccess(adminUser: { role: UserRole }, requiredPermission: Permission): boolean {
     if (!adminUser || !adminUser.role) {
-      console.warn('[RBAC] Admin user or role missing in access validation');
+      this.logger.warn('Admin user or role missing in access validation');
       return false;
     }
 
     const hasAccess = this.hasUserPermission(adminUser.role as UserRole, requiredPermission);
     
     if (!hasAccess) {
-      console.warn(`[RBAC] Access denied: Admin role '${adminUser.role}' lacks permission '${requiredPermission}'`);
+      this.logger.warn(`Access denied: Admin role lacks required permission`);
     }
 
     return hasAccess;
@@ -270,12 +270,12 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(adminUsers.id, adminId));
 
-      console.log(`[RBAC] Role '${role}' assigned to admin '${adminId}' by '${assignedBy}'`);
+      this.logger.info(`Role assigned to admin`);
       if (reason) {
-        console.log(`[RBAC] Assignment reason: ${reason}`);
+        this.logger.debug(`Assignment reason: ${reason}`);
       }
     } catch (error) {
-      console.error(`[RBAC] Error assigning role '${role}' to admin '${adminId}':`, error);
+      this.logger.error(`Error assigning role to admin:`, error);
       throw error;
     }
   }
@@ -300,12 +300,12 @@ export class DatabaseStorage implements IStorage {
           .set({ role: USER_ROLES.ADMIN })
           .where(eq(adminUsers.id, admin.id));
         
-        console.log(`[RBAC] Updated existing admin '${admin.username}' with default admin role`);
+        this.logger.info(`Updated existing admin with default admin role`);
       }
 
-      console.log(`[RBAC] Admin role assignment check completed`);
+      this.logger.debug(`Admin role assignment check completed`);
     } catch (error) {
-      console.error('[RBAC] Error ensuring admin role assignments:', error);
+      this.logger.error('Error ensuring admin role assignments:', error);
       throw error;
     }
   }
@@ -316,7 +316,7 @@ export class DatabaseStorage implements IStorage {
       const [user] = await db.select().from(users).where(eq(users.id, id));
       return user;
     } catch (error) {
-      console.error(`Error getting user ${id}:`, error);
+      this.logger.error(`Error getting user:`, error);
       throw error;
     }
   }
@@ -326,7 +326,7 @@ export class DatabaseStorage implements IStorage {
       const [user] = await db.select().from(users).where(eq(users.username, username));
       return user;
     } catch (error) {
-      console.error(`Error getting user by username ${username}:`, error);
+      this.logger.error(`Error getting user by username:`, error);
       throw error;
     }
   }
@@ -336,7 +336,7 @@ export class DatabaseStorage implements IStorage {
       const [newUser] = await db.insert(users).values(user).returning();
       return newUser;
     } catch (error) {
-      console.error(`Error creating user ${user.username}:`, error);
+      this.logger.error(`Error creating user:`, error);
       throw error;
     }
   }
@@ -364,54 +364,54 @@ export class DatabaseStorage implements IStorage {
       const result = await this.createUser(newUser);
       return result;
     } catch (error) {
-      console.error(`Error registering user ${user.username}:`, error);
+      this.logger.error(`Error registering user:`, error);
       throw error;
     }
   }
 
   async authenticateUser(credentials: LoginUser): Promise<User | null> {
-    console.log(`[DB] Authenticating user: ${credentials.username}`);
+    this.logger.debug(`Authenticating user request`);
     try {
       const user = await this.getUserByUsername(credentials.username);
       if (!user) {
-        console.log(`[DB] Authentication failed - user not found: ${credentials.username}`);
+        this.logger.debug(`Authentication failed - user not found`);
         return null;
       }
 
-      console.log(`[DB] User found, verifying password for: ${credentials.username}`);
+      this.logger.debug(`User found, verifying password`);
       const isValidPassword = await bcrypt.compare(credentials.password, user.password);
       if (!isValidPassword) {
-        console.log(`[DB] Authentication failed - invalid password for: ${credentials.username}`);
+        this.logger.debug(`Authentication failed - invalid password`);
         return null;
       }
 
-      console.log(`[DB] Password verified, updating online status for: ${user.id}`);
+      this.logger.debug(`Password verified, updating online status`);
       // Update online status
       await this.updateUserOnlineStatus(user.id, true);
-      console.log(`[DB] Authentication successful for user: ${user.id} (${user.username})`);
+      this.logger.debug(`Authentication successful for user`);
 
       return user;
     } catch (error) {
-      console.error(`[DB] Error authenticating user ${credentials.username}:`, error);
+      this.logger.error(`Error during authentication:`, error);
       throw error;
     }
   }
 
   async isUsernameAvailable(username: string): Promise<boolean> {
-    console.log(`[DB] Checking username availability: ${username}`);
+    this.logger.debug(`Checking username availability`);
     try {
       const user = await this.getUserByUsername(username);
       const isAvailable = !user;
-      console.log(`[DB] Username ${username} is ${isAvailable ? 'available' : 'taken'}`);
+      this.logger.debug(`Username availability checked`);
       return isAvailable;
     } catch (error) {
-      console.error(`[DB] Error checking username availability ${username}:`, error);
+      this.logger.error(`Error checking username availability:`, error);
       throw error;
     }
   }
 
   async updateUserOnlineStatus(userId: string, isOnline: boolean): Promise<void> {
-    console.log(`[DB] Updating online status for user ${userId}: ${isOnline}`);
+    this.logger.trace(`Updating user online status`);
     try {
       await db.update(users)
         .set({
@@ -419,15 +419,15 @@ export class DatabaseStorage implements IStorage {
           lastSeen: new Date()
         })
         .where(eq(users.id, userId));
-      console.log(`[DB] Online status updated successfully for user ${userId}`);
+      this.logger.trace(`Online status updated successfully`);
     } catch (error) {
-      console.error(`[DB] Error updating online status for user ${userId}:`, error);
+      this.logger.error(`Error updating online status:`, error);
       throw error;
     }
   }
 
   async getOnlineUsers(): Promise<User[]> {
-    console.log(`[DB] Fetching online users (excluding admin users)`);
+    this.logger.trace(`Fetching online users (excluding admin users)`);
     try {
       const onlineUsers = await db
         .select()
@@ -437,25 +437,25 @@ export class DatabaseStorage implements IStorage {
           ne(users.role, 'admin'), // Exclude admin users for security
           ne(users.role, 'system') // Exclude system users for security
         ));
-      console.log(`[DB] Found ${onlineUsers.length} online users (admin users excluded)`);
+      this.logger.trace(`Found ${onlineUsers.length} online users (admin users excluded)`);
       return onlineUsers;
     } catch (error) {
-      console.error(`[DB] Error fetching online users:`, error);
+      this.logger.error(`Error fetching online users:`, error);
       throw error;
     }
   }
 
   async getAllUsers(): Promise<User[]> {
-    console.log(`[DB] Fetching all users (excluding admin users)`);
+    this.logger.trace(`Fetching all users (excluding admin users)`);
     try {
       const allUsers = await db
         .select()
         .from(users)
         .where(and(ne(users.role, 'admin'), ne(users.role, 'system'))); // Exclude admin and system users for security
-      console.log(`[DB] Found ${allUsers.length} total users (admin users excluded)`);
+      this.logger.trace(`Found ${allUsers.length} total users (admin users excluded)`);
       return allUsers;
     } catch (error) {
-      console.error(`[DB] Error fetching all users:`, error);
+      this.logger.error(`Error fetching all users:`, error);
       throw error;
     }
   }
@@ -469,7 +469,7 @@ export class DatabaseStorage implements IStorage {
         .where(eq(users.id, currentUserId));
 
       if (!currentUser) {
-        console.error(`[API] Current user not found: ${currentUserId}`);
+        this.logger.error(`Current user not found`);
         throw new Error('User not found');
       }
 
@@ -815,7 +815,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPrivateRooms(userId: string): Promise<PrivateRoom[]> {
-    console.log(`[DB] Getting private rooms for user: ${userId}`);
+    this.logger.trace(`Getting private rooms for user`);
 
     // Get all private rooms where the user is a member
     const privateRoomsData = await db
@@ -858,7 +858,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    console.log(`[DB] Returning ${privateRoomsWithOtherUser.length} private rooms with user details`);
+    this.logger.trace(`Returning ${privateRoomsWithOtherUser.length} private rooms with user details`);
     return privateRoomsWithOtherUser;
   }
 

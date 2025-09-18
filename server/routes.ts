@@ -169,7 +169,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Clean up stale connections and room users
   function cleanupStaleConnections() {
-    if (process.env.DEBUG_WS) console.log('[WS_CLEANUP] Starting periodic cleanup of stale connections');
+    wsLogger.debug('Starting periodic cleanup of stale connections');
     const now = Date.now();
     let cleanedConnections = 0;
     let cleanedRoomEntries = 0;
@@ -187,7 +187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Remove stale connections
       for (const client of staleConnections) {
-        if (process.env.DEBUG_WS) console.log(`[WS_CLEANUP] Removing stale connection ${client.connectionId} for user ${userId}`);
+        wsLogger.debug(`Removing stale connection ${client.connectionId} for user`);
 
         // Check if user has other connections in this room before removing
         const userLeavingRoom = client.roomId && client.userId && !hasOtherRoomConnections(client.userId, client.roomId, client.connectionId);
@@ -200,9 +200,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (userLeavingRoom && client.roomId && client.userId) {
           removeUserFromRoom(client.roomId, client.userId);
           cleanedRoomEntries++;
-          if (process.env.DEBUG_WS) console.log(`[WS_CLEANUP] User ${userId} removed from room ${client.roomId} (no other connections)`);
+          wsLogger.debug(`User removed from room (no other connections)`);
         } else if (client.roomId) {
-          if (process.env.DEBUG_WS) console.log(`[WS_CLEANUP] User ${userId} kept in room ${client.roomId} (has other connections)`);
+          wsLogger.debug(`User kept in room (has other connections)`);
         }
 
         try {
@@ -221,7 +221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Update database status for users who are now completely offline
     for (const userId of usersToUpdateStatus) {
       storage.updateUserOnlineStatus(userId, false).catch(error => {
-        console.error(`[WS_CLEANUP] Failed to update user status for ${userId}:`, error);
+        wsLogger.error(`Failed to update user status:`, error);
       });
     }
 
@@ -263,13 +263,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     if (cleanedConnections > 0 || cleanedRoomEntries > 0) {
-      if (process.env.DEBUG_WS) console.log(`[WS_CLEANUP] Cleaned ${cleanedConnections} stale connections and ${cleanedRoomEntries} room entries`);
+      wsLogger.debug(`Cleaned ${cleanedConnections} stale connections and ${cleanedRoomEntries} room entries`);
     }
   }
 
   // Heartbeat function to check connection health
   function heartbeat() {
-    if (process.env.DEBUG_WS) console.log('[WS_HEARTBEAT] Sending ping to all connected clients');
+    wsLogger.debug('Sending ping to all connected clients');
     let activeConnections = 0;
     let staleConnections = 0;
 
@@ -290,13 +290,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             client.ping((error: Error | null) => {
               if (error) {
-                if (process.env.DEBUG_WS) console.log(`[WS_HEARTBEAT] Ping failed for connection ${client.connectionId} (user ${userId}): ${error.message}`);
+                wsLogger.debug(`Ping failed for connection ${client.connectionId}: ${error.message}`);
                 client.isAlive = false; // Only mark as false if ping actually failed
               }
             });
             activeConnections++;
           } catch (error) {
-            if (process.env.DEBUG_WS) console.log(`[WS_HEARTBEAT] Failed to ping connection ${client.connectionId} (user ${userId}): ${error}`);
+            wsLogger.debug(`Failed to ping connection ${client.connectionId}:`, error);
             client.isAlive = false; // Only mark as false if ping failed
             staleConnections++;
           }
@@ -306,7 +306,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
 
-    if (process.env.DEBUG_WS) console.log(`[WS_HEARTBEAT] Pinged ${activeConnections} clients, ${staleConnections} potentially stale`);
+    wsLogger.debug(`Pinged ${activeConnections} clients, ${staleConnections} potentially stale`);
   }
 
   // Start periodic heartbeat and cleanup
@@ -325,7 +325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           client.close(1001, 'Server shutdown');
         } catch (error) {
-          console.error(`[WS_SHUTDOWN] Error closing connection ${client.connectionId} for user ${userId}:`, error);
+          wsLogger.error(`Error closing connection ${client.connectionId}:`, error);
         }
       }
     }
@@ -367,7 +367,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             sentCount++;
             wsLogger.trace(`Message sent to user ${client.userId} (connection ${client.connectionId})`);
           } catch (error) {
-            console.error(`Failed to send message to user ${client.userId} (connection ${client.connectionId}):`, error);
+            wsLogger.error(`Failed to send message to user (connection ${client.connectionId}):`, error);
             // Mark client as potentially problematic for cleanup
             client.isAlive = false;
           }
@@ -395,7 +395,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sentCount++;
           wsLogger.trace(`Message sent to user ${userId} (connection ${client.connectionId})`);
         } catch (error) {
-          console.error(`Failed to send message to user ${userId} (connection ${client.connectionId}):`, error);
+          wsLogger.error(`Failed to send message to user (connection ${client.connectionId}):`, error);
           client.isAlive = false;
         }
       }
@@ -434,7 +434,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const wasRemoved = roomUsers.get(roomId)!.delete(userId);
 
       if (wasRemoved) {
-        console.log(`[WS_ROOM] User ${userId} removed from room ${roomId}. Room now has ${roomUsers.get(roomId)!.size} users`);
+        wsLogger.debug(`User removed from room. Room now has ${roomUsers.get(roomId)!.size} users`);
       }
 
       // Broadcast updated online users for this room
@@ -476,7 +476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     if (removedUsers > 0) {
       roomUsers.set(roomId, validUsers);
-      console.log(`[WS_SYNC] Synchronized room ${roomId}: removed ${removedUsers} stale users`);
+      wsLogger.debug(`Synchronized room: removed ${removedUsers} stale users`);
 
       // Broadcast updated list
       const onlineUsers = Array.from(validUsers);

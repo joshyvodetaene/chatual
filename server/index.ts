@@ -87,16 +87,22 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      // In production, log only essential request info without response bodies
+      const isProduction = process.env.NODE_ENV === 'production';
+      if (isProduction) {
+        const apiLogger = createTaggedLogger('API');
+        apiLogger.info(`${req.method} ${path} ${res.statusCode} in ${duration}ms`);
+      } else {
+        // Development: include response data for debugging
+        let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+        if (capturedJsonResponse) {
+          logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        }
+        if (logLine.length > 80) {
+          logLine = logLine.slice(0, 79) + "…";
+        }
+        log(logLine);
       }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
     }
   });
 
@@ -140,7 +146,8 @@ app.use((req, res, next) => {
     
     // Log cleanup scheduler status
     const status = cleanupScheduler.getStatus();
-    console.log(`[CLEANUP] Scheduler active: ${status.isScheduled ? 'Yes' : 'No'}, keeping ${status.messagesPerRoom} messages per room`);
+    const cleanupLogger = createTaggedLogger('CLEANUP');
+    cleanupLogger.info(`Scheduler active: ${status.isScheduled ? 'Yes' : 'No'}, keeping ${status.messagesPerRoom} messages per room`);
     
     // Initialize system admin users
     const { initializeSystemAdmins } = await import('./startup');
