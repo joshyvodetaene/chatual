@@ -2890,6 +2890,214 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Admin User Management Methods
+  async getAllAdminUsers(): Promise<any[]> {
+    try {
+      const { adminUsers } = await import('@shared/schema');
+      
+      const allAdmins = await db
+        .select({
+          id: adminUsers.id,
+          username: adminUsers.username,
+          role: adminUsers.role,
+          isActive: adminUsers.isActive,
+          createdAt: adminUsers.createdAt,
+          lastLogin: adminUsers.lastLogin
+        })
+        .from(adminUsers)
+        .orderBy(adminUsers.createdAt);
+
+      return allAdmins;
+    } catch (error) {
+      console.error('Error getting all admin users:', error);
+      throw error;
+    }
+  }
+
+  async createAdminUser(adminData: { username: string; password: string; role: UserRole }, createdBy: string): Promise<any> {
+    try {
+      const { adminUsers } = await import('@shared/schema');
+      const bcrypt = await import('bcryptjs');
+
+      // Check if username already exists
+      const [existingAdmin] = await db
+        .select()
+        .from(adminUsers)
+        .where(eq(adminUsers.username, adminData.username));
+
+      if (existingAdmin) {
+        throw new Error('Admin username already exists');
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(adminData.password, 10);
+
+      // Create new admin user
+      const [newAdmin] = await db
+        .insert(adminUsers)
+        .values({
+          id: randomUUID(),
+          username: adminData.username,
+          password: hashedPassword,
+          role: adminData.role,
+          isActive: true,
+          createdAt: new Date()
+        })
+        .returning({
+          id: adminUsers.id,
+          username: adminUsers.username,
+          role: adminUsers.role,
+          isActive: adminUsers.isActive,
+          createdAt: adminUsers.createdAt
+        });
+
+      console.log(`[ADMIN_MGMT] Admin user '${adminData.username}' created by '${createdBy}' with role '${adminData.role}'`);
+      return newAdmin;
+    } catch (error) {
+      console.error('Error creating admin user:', error);
+      throw error;
+    }
+  }
+
+  async updateAdminUser(adminId: string, updateData: { username?: string; password?: string; role?: UserRole }, updatedBy: string): Promise<any> {
+    try {
+      const { adminUsers } = await import('@shared/schema');
+      const bcrypt = await import('bcryptjs');
+
+      // Check if admin exists
+      const [existingAdmin] = await db
+        .select()
+        .from(adminUsers)
+        .where(eq(adminUsers.id, adminId));
+
+      if (!existingAdmin) {
+        throw new Error('Admin user not found');
+      }
+
+      // Check for username conflicts if updating username
+      if (updateData.username && updateData.username !== existingAdmin.username) {
+        const [conflictAdmin] = await db
+          .select()
+          .from(adminUsers)
+          .where(eq(adminUsers.username, updateData.username));
+
+        if (conflictAdmin) {
+          throw new Error('Username already exists');
+        }
+      }
+
+      // Prepare update data
+      const updateFields: any = {};
+      
+      if (updateData.username) {
+        updateFields.username = updateData.username;
+      }
+      
+      if (updateData.password) {
+        updateFields.password = await bcrypt.hash(updateData.password, 10);
+      }
+      
+      if (updateData.role) {
+        updateFields.role = updateData.role;
+      }
+
+      // Update admin user
+      const [updatedAdmin] = await db
+        .update(adminUsers)
+        .set(updateFields)
+        .where(eq(adminUsers.id, adminId))
+        .returning({
+          id: adminUsers.id,
+          username: adminUsers.username,
+          role: adminUsers.role,
+          isActive: adminUsers.isActive,
+          createdAt: adminUsers.createdAt,
+          lastLogin: adminUsers.lastLogin
+        });
+
+      console.log(`[ADMIN_MGMT] Admin user '${existingAdmin.username}' updated by '${updatedBy}'`);
+      return updatedAdmin;
+    } catch (error) {
+      console.error('Error updating admin user:', error);
+      throw error;
+    }
+  }
+
+  async deleteAdminUser(adminId: string, deletedBy: string): Promise<boolean> {
+    try {
+      const { adminUsers } = await import('@shared/schema');
+
+      // Check if admin exists and get details
+      const [adminToDelete] = await db
+        .select()
+        .from(adminUsers)
+        .where(eq(adminUsers.id, adminId));
+
+      if (!adminToDelete) {
+        throw new Error('Admin user not found');
+      }
+
+      // Prevent deletion of the chatualladmin account (for security)
+      if (adminToDelete.username === 'chatualladmin') {
+        throw new Error('Cannot delete the primary admin account');
+      }
+
+      // Soft delete by setting isActive to false (preserve audit trail)
+      await db
+        .update(adminUsers)
+        .set({ isActive: false })
+        .where(eq(adminUsers.id, adminId));
+
+      console.log(`[ADMIN_MGMT] Admin user '${adminToDelete.username}' deactivated by '${deletedBy}'`);
+      return true;
+    } catch (error) {
+      console.error('Error deleting admin user:', error);
+      throw error;
+    }
+  }
+
+  async toggleAdminStatus(adminId: string, newStatus: boolean, changedBy: string): Promise<any> {
+    try {
+      const { adminUsers } = await import('@shared/schema');
+
+      // Check if admin exists
+      const [admin] = await db
+        .select()
+        .from(adminUsers)
+        .where(eq(adminUsers.id, adminId));
+
+      if (!admin) {
+        throw new Error('Admin user not found');
+      }
+
+      // Prevent deactivation of chatualladmin
+      if (admin.username === 'chatualladmin' && !newStatus) {
+        throw new Error('Cannot deactivate the primary admin account');
+      }
+
+      // Update status
+      const [updatedAdmin] = await db
+        .update(adminUsers)
+        .set({ isActive: newStatus })
+        .where(eq(adminUsers.id, adminId))
+        .returning({
+          id: adminUsers.id,
+          username: adminUsers.username,
+          role: adminUsers.role,
+          isActive: adminUsers.isActive,
+          createdAt: adminUsers.createdAt,
+          lastLogin: adminUsers.lastLogin
+        });
+
+      const action = newStatus ? 'activated' : 'deactivated';
+      console.log(`[ADMIN_MGMT] Admin user '${admin.username}' ${action} by '${changedBy}'`);
+      return updatedAdmin;
+    } catch (error) {
+      console.error('Error toggling admin status:', error);
+      throw error;
+    }
+  }
+
   // Admin user management methods
   async getBannedUsers(): Promise<User[]> {
     try {

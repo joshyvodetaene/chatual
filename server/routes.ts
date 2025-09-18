@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { insertUserSchema, insertRoomSchema, insertMessageSchema, registerUserSchema, loginSchema, insertUserPhotoSchema, updateUserProfileSchema, insertBlockedUserSchema, insertReportSchema, reportSchema, updateReportStatusSchema, warnUserSchema, banUserSchema, updateNotificationSettingsSchema, insertFriendRequestSchema, friendRequestActionSchema, updatePrivacySettingsSchema } from "@shared/schema";
+import { insertUserSchema, insertRoomSchema, insertMessageSchema, registerUserSchema, loginSchema, insertUserPhotoSchema, updateUserProfileSchema, insertBlockedUserSchema, insertReportSchema, reportSchema, updateReportStatusSchema, warnUserSchema, banUserSchema, updateNotificationSettingsSchema, insertFriendRequestSchema, friendRequestActionSchema, updatePrivacySettingsSchema, createAdminUserSchema, updateAdminUserSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { NotificationService } from "./notification-service";
 import { validateCityWithGoogle } from "./lib/geocoding";
@@ -2880,6 +2880,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Get moderation stats error:', error);
       res.status(500).json({ error: 'Failed to fetch moderation statistics' });
+    }
+  });
+
+  // Admin User Management Endpoints - SUPER_ADMIN Only
+  app.get('/api/admin/manage/users', requireAdminAuth, requirePermission(PERMISSIONS.MANAGE_ADMINS), async (req: AuthenticatedRequest, res) => {
+    try {
+      const adminUsers = await storage.getAllAdminUsers();
+      res.json({ admins: adminUsers });
+    } catch (error) {
+      console.error('Get all admin users error:', error);
+      res.status(500).json({ error: 'Failed to fetch admin users' });
+    }
+  });
+
+  app.post('/api/admin/manage/users', requireAdminAuth, requirePermission(PERMISSIONS.MANAGE_ADMINS), async (req: AuthenticatedRequest, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const validatedData = createAdminUserSchema.parse(req.body);
+      
+      const newAdmin = await storage.createAdminUser(validatedData, adminUser.username);
+      res.status(201).json({ admin: newAdmin });
+    } catch (error: any) {
+      console.error('Create admin user error:', error);
+      if (error.message === 'Admin username already exists') {
+        res.status(409).json({ error: error.message });
+      } else if (error.issues) {
+        res.status(400).json({ error: 'Invalid data', details: error.issues });
+      } else {
+        res.status(500).json({ error: 'Failed to create admin user' });
+      }
+    }
+  });
+
+  app.put('/api/admin/manage/users/:adminId', requireAdminAuth, requirePermission(PERMISSIONS.MANAGE_ADMINS), async (req: AuthenticatedRequest, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const { adminId } = req.params;
+      const validatedData = updateAdminUserSchema.parse(req.body);
+      
+      // Prevent self-modification in certain scenarios
+      if (adminId === adminUser.id && validatedData.role) {
+        return res.status(403).json({ error: 'Cannot change your own role' });
+      }
+      
+      const updatedAdmin = await storage.updateAdminUser(adminId, validatedData, adminUser.username);
+      res.json({ admin: updatedAdmin });
+    } catch (error: any) {
+      console.error('Update admin user error:', error);
+      if (error.message === 'Admin user not found') {
+        res.status(404).json({ error: error.message });
+      } else if (error.message === 'Username already exists') {
+        res.status(409).json({ error: error.message });
+      } else if (error.issues) {
+        res.status(400).json({ error: 'Invalid data', details: error.issues });
+      } else {
+        res.status(500).json({ error: 'Failed to update admin user' });
+      }
+    }
+  });
+
+  app.delete('/api/admin/manage/users/:adminId', requireAdminAuth, requirePermission(PERMISSIONS.MANAGE_ADMINS), async (req: AuthenticatedRequest, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const { adminId } = req.params;
+      
+      // Prevent self-deletion
+      if (adminId === adminUser.id) {
+        return res.status(403).json({ error: 'Cannot delete your own account' });
+      }
+      
+      const success = await storage.deleteAdminUser(adminId, adminUser.username);
+      res.json({ success });
+    } catch (error: any) {
+      console.error('Delete admin user error:', error);
+      if (error.message === 'Admin user not found') {
+        res.status(404).json({ error: error.message });
+      } else if (error.message === 'Cannot delete the primary admin account') {
+        res.status(403).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: 'Failed to delete admin user' });
+      }
+    }
+  });
+
+  app.put('/api/admin/manage/users/:adminId/status', requireAdminAuth, requirePermission(PERMISSIONS.MANAGE_ADMINS), async (req: AuthenticatedRequest, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const { adminId } = req.params;
+      const { isActive } = req.body;
+      
+      if (typeof isActive !== 'boolean') {
+        return res.status(400).json({ error: 'isActive must be a boolean' });
+      }
+      
+      // Prevent self-deactivation
+      if (adminId === adminUser.id && !isActive) {
+        return res.status(403).json({ error: 'Cannot deactivate your own account' });
+      }
+      
+      const updatedAdmin = await storage.toggleAdminStatus(adminId, isActive, adminUser.username);
+      res.json({ admin: updatedAdmin });
+    } catch (error: any) {
+      console.error('Toggle admin status error:', error);
+      if (error.message === 'Admin user not found') {
+        res.status(404).json({ error: error.message });
+      } else if (error.message === 'Cannot deactivate the primary admin account') {
+        res.status(403).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: 'Failed to toggle admin status' });
+      }
     }
   });
 

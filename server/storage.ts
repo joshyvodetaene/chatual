@@ -214,6 +214,13 @@ export interface IStorage {
   
   // System statistics for moderation
   getSystemModerationStats(): Promise<SystemModerationStats>;
+
+  // Admin user management methods
+  getAllAdminUsers(): Promise<any[]>;
+  createAdminUser(adminData: { username: string; password: string; role: any }, createdBy: string): Promise<any>;
+  updateAdminUser(adminId: string, updateData: { username?: string; password?: string; role?: any }, updatedBy: string): Promise<any>;
+  deleteAdminUser(adminId: string, deletedBy: string): Promise<boolean>;
+  toggleAdminStatus(adminId: string, newStatus: boolean, changedBy: string): Promise<any>;
 }
 
 export const storage = new DatabaseStorage();

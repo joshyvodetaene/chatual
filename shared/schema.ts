@@ -469,6 +469,7 @@ export const adminSendMessageSchema = z.object({
   messageType: z.string().default("admin_notification"),
 });
 
+
 export const adminCreateRoomSchema = z.object({
   name: z.string().min(1, "Room name is required").max(100, "Room name must be less than 100 characters"),
   description: z.string().max(500, "Description must be less than 500 characters").optional(),
@@ -757,3 +758,20 @@ export type PermissionCheck = {
   requiredPermission: Permission;
   hasAccess: boolean;
 };
+
+// Admin user management schemas
+export const createAdminUserSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters").max(50, "Username must be less than 50 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters").max(100, "Password must be less than 100 characters"),
+  role: z.enum([USER_ROLES.MODERATOR, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]).default(USER_ROLES.ADMIN),
+});
+
+export const updateAdminUserSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters").max(50, "Username must be less than 50 characters").optional(),
+  password: z.string().min(8, "Password must be at least 8 characters").max(100, "Password must be less than 100 characters").optional(),
+  role: z.enum([USER_ROLES.MODERATOR, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]).optional(),
+});
+
+// Type exports for admin management
+export type CreateAdminUser = z.infer<typeof createAdminUserSchema>;
+export type UpdateAdminUser = z.infer<typeof updateAdminUserSchema>;
