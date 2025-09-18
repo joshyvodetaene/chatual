@@ -6,10 +6,33 @@ import path from "path";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { cleanupScheduler } from "./cleanup-scheduler";
+import { validateProductionEnvironment, logEnvironmentStatus } from "./production-config";
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+
+// Validate environment configuration
+const envValidation = validateProductionEnvironment();
+if (!envValidation.isValid && process.env.NODE_ENV === 'production') {
+  console.error('[STARTUP] Critical environment configuration errors detected in production!');
+  envValidation.errors.forEach(error => console.error(`[STARTUP] ❌ ${error}`));
+  process.exit(1);
+}
+
+// Security headers middleware
+app.use((req, res, next) => {
+  // Security headers for production
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  }
+  next();
+});
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
 // Configure session store based on environment
 const createSessionStore = () => {
@@ -109,6 +132,9 @@ app.use((req, res, next) => {
     reusePort: true,
   }, async () => {
     log(`serving on port ${port}`);
+    
+    // Log environment configuration status
+    logEnvironmentStatus();
     
     // Log cleanup scheduler status
     const status = cleanupScheduler.getStatus();
