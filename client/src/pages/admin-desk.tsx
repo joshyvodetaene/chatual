@@ -15,12 +15,14 @@ import {
   LogOut, 
   Database,
   AlertTriangle,
-  Activity
+  Activity,
+  UserCog
 } from 'lucide-react';
 
 interface AdminUser {
   id: string;
   username: string;
+  role?: string;
   isActive: boolean;
   createdAt: string;
   lastLogin: string | null;
@@ -104,6 +106,14 @@ export default function AdminDesk() {
       action: () => setLocation('/admin/users'),
       testId: 'card-user-management'
     },
+    ...(adminUser?.role === 'SUPER_ADMIN' ? [{
+      title: 'Admin Account Management',
+      description: 'Create, edit, and manage admin user accounts',
+      icon: UserCog,
+      color: 'bg-yellow-500',
+      action: () => setLocation('/admin/accounts'),
+      testId: 'card-admin-management'
+    }] : []),
     {
       title: 'Chatroom Management',
       description: 'Create and manage public chatrooms',
