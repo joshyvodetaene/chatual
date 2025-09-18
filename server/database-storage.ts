@@ -324,7 +324,8 @@ export class DatabaseStorage implements IStorage {
         .from(users)
         .where(and(
           eq(users.isOnline, true),
-          ne(users.role, 'admin') // Exclude admin users for security
+          ne(users.role, 'admin'), // Exclude admin users for security
+          ne(users.role, 'system') // Exclude system users for security
         ));
       console.log(`[DB] Found ${onlineUsers.length} online users (admin users excluded)`);
       return onlineUsers;
@@ -340,7 +341,7 @@ export class DatabaseStorage implements IStorage {
       const allUsers = await db
         .select()
         .from(users)
-        .where(ne(users.role, 'admin')); // Exclude admin users for security
+        .where(and(ne(users.role, 'admin'), ne(users.role, 'system'))); // Exclude admin and system users for security
       console.log(`[DB] Found ${allUsers.length} total users (admin users excluded)`);
       return allUsers;
     } catch (error) {
@@ -403,7 +404,8 @@ export class DatabaseStorage implements IStorage {
         .where(and(
           ne(users.id, currentUserId),
           eq(users.isBanned, false),
-          ne(users.role, 'admin') // Exclude admin users for security
+          ne(users.role, 'admin'), // Exclude admin users for security
+          ne(users.role, 'system') // Exclude system users for security
         ));
 
       // Prepare destinations for batch distance calculation
@@ -875,6 +877,7 @@ export class DatabaseStorage implements IStorage {
     
     // Exclude admin users for security
     whereConditions.push(ne(users.role, 'admin'));
+    whereConditions.push(ne(users.role, 'system'));
 
     const searchResults = await db
       .select()
@@ -1252,12 +1255,77 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  // Get or create a secure system user for admin actions
+  private async getOrCreateSystemUser(): Promise<User> {
+    // Try to find existing system user by role
+    const existingSystemUsers = await db.select().from(users).where(eq(users.role, 'system')).limit(1);
+    if (existingSystemUsers.length > 0) {
+      return existingSystemUsers[0];
+    }
+
+    // Create a secure system user
+    const randomPassword = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const hashedPassword = await bcrypt.hash(randomPassword, 12);
+    
+    const systemUserData = {
+      username: `system_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      displayName: 'System Administrator',
+      password: hashedPassword,
+      age: 25,
+      gender: 'other' as const,
+      location: 'System',
+      role: 'system'
+    };
+    
+    const [createdUser] = await this.retryDatabaseOperation(async () => {
+      const [user] = await db.insert(users).values(systemUserData).returning();
+      return [user];
+    });
+    return createdUser;
+  }
+
   // Blocked users methods
   async blockUser(blockData: InsertBlockedUser): Promise<BlockedUser> {
     // Protect administrator user from being blocked
     const targetUser = await this.getUser(blockData.blockedId);
     if (targetUser && targetUser.username === 'administrator') {
       throw new Error('Cannot block the administrator user. This account is protected.');
+    }
+
+    // Check if blocker is an admin (admin users are in separate table)
+    const isAdminBlocker = await this.getAdminUser(blockData.blockerId);
+    if (isAdminBlocker) {
+      // For admin blocks, use secure system user to satisfy foreign key constraint
+      const systemUser = await this.getOrCreateSystemUser();
+      
+      const systemUserBlockData = {
+        ...blockData,
+        blockerId: systemUser.id
+      };
+      
+      const [blockedUser] = await this.retryDatabaseOperation(async () => {
+        const [user] = await db.insert(blockedUsers).values(systemUserBlockData).returning();
+        return [user];
+      });
+
+      // Create audit trail for admin block action
+      const moderationAction: InsertModerationAction = {
+        userId: blockData.blockedId,
+        actionType: 'block',
+        reason: blockData.reason || 'User blocked by admin',
+        performedBy: systemUser.id,
+        metadata: { 
+          adminUserId: blockData.blockerId, 
+          adminUsername: isAdminBlocker.username,
+          actionType: 'admin_block'
+        }
+      };
+
+      await this.retryDatabaseOperation(async () => {
+        await db.insert(userModerationActions).values({ ...moderationAction, id: randomUUID() });
+      });
+
+      return blockedUser;
     }
 
     const [blockedUser] = await this.retryDatabaseOperation(async () => {
@@ -1270,12 +1338,21 @@ export class DatabaseStorage implements IStorage {
   async unblockUser(blockerId: string, blockedId: string): Promise<boolean> {
     console.log(`[DB] Unblocking user: ${blockedId} by ${blockerId}`);
     try {
+      // Check if blocker is an admin (admin users are in separate table)
+      let actualBlockerId = blockerId;
+      const isAdminBlocker = await this.getAdminUser(blockerId);
+      if (isAdminBlocker) {
+        // For admin unblocks, use system user ID
+        const systemUser = await this.getOrCreateSystemUser();
+        actualBlockerId = systemUser.id;
+      }
+
       // First check if the block relationship exists
       const existingBlock = await db
         .select()
         .from(blockedUsers)
         .where(and(
-          eq(blockedUsers.blockerId, blockerId),
+          eq(blockedUsers.blockerId, actualBlockerId),
           eq(blockedUsers.blockedId, blockedId)
         ))
         .limit(1);
@@ -1288,10 +1365,30 @@ export class DatabaseStorage implements IStorage {
       await this.retryDatabaseOperation(async () => {
         await db.delete(blockedUsers)
           .where(and(
-            eq(blockedUsers.blockerId, blockerId),
+            eq(blockedUsers.blockerId, actualBlockerId),
             eq(blockedUsers.blockedId, blockedId)
           ));
       });
+
+      // Create audit trail for admin unblock action if performed by admin
+      if (isAdminBlocker) {
+        const systemUser = await this.getOrCreateSystemUser();
+        const moderationAction: InsertModerationAction = {
+          userId: blockedId,
+          actionType: 'unblock',
+          reason: 'User unblocked by admin',
+          performedBy: systemUser.id,
+          metadata: { 
+            adminUserId: blockerId, 
+            adminUsername: isAdminBlocker.username,
+            actionType: 'admin_unblock'
+          }
+        };
+
+        await this.retryDatabaseOperation(async () => {
+          await db.insert(userModerationActions).values({ ...moderationAction, id: randomUUID() });
+        });
+      }
 
       console.log(`[DB] Successfully unblocked user ${blockedId}`);
       return true;
@@ -1492,18 +1589,22 @@ export class DatabaseStorage implements IStorage {
 
   // User Moderation Methods
   async warnUser(warnData: WarnUser, adminUserId: string): Promise<UserModerationAction> {
-    // Check if user is admin
-    const admin = await this.getUser(adminUserId);
-    if (!admin || admin.role !== 'admin') {
+    // Check if user is admin using the admin_users table
+    const admin = await this.getAdminUser(adminUserId);
+    if (!admin || !admin.isActive) {
       throw new Error('Access denied: Admin privileges required');
     }
+
+    // Use system user for performedBy to satisfy foreign key constraint
+    const systemUser = await this.getOrCreateSystemUser();
 
     const moderationAction: InsertModerationAction = {
       userId: warnData.userId,
       actionType: 'warning',
       reason: warnData.reason,
       notes: warnData.notes,
-      performedBy: adminUserId,
+      performedBy: systemUser.id,
+      metadata: { adminUserId, adminUsername: admin.username } // Store real admin info
     };
 
     const [action] = await this.retryDatabaseOperation(async () => {
@@ -1514,9 +1615,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async banUser(banData: BanUser, adminUserId: string): Promise<{ user: User; action: UserModerationAction }> {
-    // Check if user is admin
-    const admin = await this.getUser(adminUserId);
-    if (!admin || admin.role !== 'admin') {
+    // Check if user is admin using the admin_users table
+    const admin = await this.getAdminUser(adminUserId);
+    if (!admin || !admin.isActive) {
       throw new Error('Access denied: Admin privileges required');
     }
 
@@ -1532,6 +1633,9 @@ export class DatabaseStorage implements IStorage {
       expiresAt = new Date(Date.now() + banData.duration * 60 * 60 * 1000); // Convert hours to milliseconds
     }
 
+    // Use system user for bannedBy to satisfy foreign key constraint
+    const systemUser = await this.getOrCreateSystemUser();
+
     // Update user ban status
     const [bannedUser] = await this.retryDatabaseOperation(async () => {
       const [user] = await db
@@ -1539,7 +1643,7 @@ export class DatabaseStorage implements IStorage {
         .set({
           isBanned: true,
           bannedAt: new Date(),
-          bannedBy: adminUserId,
+          bannedBy: systemUser.id,
           banReason: banData.reason
         })
         .where(eq(users.id, banData.userId))
@@ -1553,8 +1657,9 @@ export class DatabaseStorage implements IStorage {
       actionType: 'ban',
       reason: banData.reason,
       notes: banData.notes,
-      performedBy: adminUserId,
-      expiresAt
+      performedBy: systemUser.id,
+      expiresAt,
+      metadata: { adminUserId, adminUsername: admin.username } // Store real admin info
     };
 
     const [action] = await this.retryDatabaseOperation(async () => {
