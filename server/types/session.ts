@@ -1,3 +1,5 @@
+import type { Request } from "express";
+import type { Session } from "express-session";
 import type { User } from "@shared/schema";
 
 // Extend the express-session module to include our custom session data
@@ -14,8 +16,8 @@ declare module "express-session" {
 }
 
 // Request interface with session typing
-export interface AuthenticatedRequest extends Express.Request {
-  session: Express.Session & {
+export interface AuthenticatedRequest extends Request {
+  session: Session & {
     admin?: {
       id: string;
       username: string;
@@ -23,6 +25,12 @@ export interface AuthenticatedRequest extends Express.Request {
       loginTime: number;
     };
     isAuthenticated?: boolean;
+  };
+  adminUser?: {
+    id: string;
+    username: string;
+    role: string;
+    loginTime: number;
   };
 }
 

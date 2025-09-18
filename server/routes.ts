@@ -187,14 +187,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (process.env.DEBUG_WS) console.log(`[WS_CLEANUP] Removing stale connection ${client.connectionId} for user ${userId}`);
 
         // Check if user has other connections in this room before removing
-        const userLeavingRoom = client.roomId && !hasOtherRoomConnections(client.userId, client.roomId, client.connectionId);
+        const userLeavingRoom = client.roomId && client.userId && !hasOtherRoomConnections(client.userId, client.roomId, client.connectionId);
 
         // Remove the specific connection first
         removeUserConnection(userId, client.connectionId);
         cleanedConnections++;
 
         // Only remove from room if no other connections in that room
-        if (userLeavingRoom) {
+        if (userLeavingRoom && client.roomId && client.userId) {
           removeUserFromRoom(client.roomId, client.userId);
           cleanedRoomEntries++;
           if (process.env.DEBUG_WS) console.log(`[WS_CLEANUP] User ${userId} removed from room ${client.roomId} (no other connections)`);
@@ -723,13 +723,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[WS_CLOSE] Cleaning up connection ${ws.connectionId} for user ${ws.userId}`);
 
         // Check if user has other connections in this room BEFORE removing this connection
-        const userLeftRoom = ws.roomId && !hasOtherRoomConnections(ws.userId, ws.roomId, ws.connectionId);
+        const userLeftRoom = ws.roomId && ws.userId && !hasOtherRoomConnections(ws.userId, ws.roomId, ws.connectionId);
 
         // Remove this specific connection from the user's connection set
         removeUserConnection(ws.userId, ws.connectionId);
 
         // Remove user from room only if they have no other connections in the room
-        if (userLeftRoom) {
+        if (userLeftRoom && ws.roomId && ws.userId) {
           console.log(`[WS_CLOSE] User ${ws.userId} has no more connections in room ${ws.roomId}, removing from room`);
           removeUserFromRoom(ws.roomId, ws.userId);
           
@@ -755,7 +755,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Synchronize room users to ensure accuracy after disconnect
-        synchronizeRoomUsers(ws.roomId);
+        if (ws.roomId) {
+          synchronizeRoomUsers(ws.roomId);
+        }
       } else if (ws.userId) {
         // User connected but not in a room, still need to clean up connection
         console.log(`[WS_CLOSE] Cleaning up user ${ws.userId} (not in room)`);
@@ -2533,7 +2535,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: userId,
         type: type || 'admin_message',
         title: 'Message from Admin',
-        message: message,
+        body: message,
         data: JSON.stringify({ fromAdmin: true, adminId: adminUser.id })
       };
 
@@ -2621,6 +2623,262 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching moderation history:', error);
       res.status(500).json({ error: 'Failed to fetch moderation history' });
+    }
+  });
+
+  // Enhanced Moderation API Endpoints
+
+  // Action Logging Endpoints
+  app.get('/api/admin/moderation/actions', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { limit = 50, before, after } = req.query;
+      const pagination = { 
+        limit: parseInt(limit as string), 
+        before: before as string, 
+        after: after as string 
+      };
+      
+      const actions = await storage.getModerationActions(pagination);
+      res.json({ actions });
+    } catch (error) {
+      console.error('Get moderation actions error:', error);
+      res.status(500).json({ error: 'Failed to fetch moderation actions' });
+    }
+  });
+
+  app.get('/api/admin/moderation/actions/user/:userId', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { userId } = req.params;
+      const actions = await storage.getModerationActionsByUser(userId);
+      res.json({ actions });
+    } catch (error) {
+      console.error('Get user moderation actions error:', error);
+      res.status(500).json({ error: 'Failed to fetch user moderation actions' });
+    }
+  });
+
+  app.get('/api/admin/moderation/actions/admin/:adminId', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { adminId } = req.params;
+      const actions = await storage.getModerationActionsByAdmin(adminId);
+      res.json({ actions });
+    } catch (error) {
+      console.error('Get admin moderation actions error:', error);
+      res.status(500).json({ error: 'Failed to fetch admin moderation actions' });
+    }
+  });
+
+  // User Behavior Tracking Endpoints
+  app.get('/api/admin/users/behavior-scores', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { limit = 50, before, after } = req.query;
+      const pagination = { 
+        limit: parseInt(limit as string), 
+        before: before as string, 
+        after: after as string 
+      };
+      
+      const users = await storage.getUsersWithBehaviorScores(pagination);
+      res.json({ users });
+    } catch (error) {
+      console.error('Get users with behavior scores error:', error);
+      res.status(500).json({ error: 'Failed to fetch users with behavior scores' });
+    }
+  });
+
+  app.get('/api/admin/users/:userId/behavior-score', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { userId } = req.params;
+      const behaviorScore = await storage.getUserBehaviorScore(userId);
+      const calculatedScore = await storage.calculateBehaviorScore(userId);
+      
+      res.json({ 
+        behaviorScore, 
+        calculatedScore,
+        hasScore: !!behaviorScore
+      });
+    } catch (error) {
+      console.error('Get user behavior score error:', error);
+      res.status(500).json({ error: 'Failed to fetch user behavior score' });
+    }
+  });
+
+  app.post('/api/admin/users/:userId/escalate-warning', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { userId } = req.params;
+      const { reason, severity, autoEscalate = false } = req.body;
+      
+      if (!reason) {
+        return res.status(400).json({ error: 'Reason is required' });
+      }
+
+      const result = await storage.escalateUserWarning({
+        userId,
+        reason,
+        severity: severity || 1,
+        autoEscalate
+      });
+      
+      res.json({ result });
+    } catch (error) {
+      console.error('Escalate user warning error:', error);
+      res.status(500).json({ error: 'Failed to escalate user warning' });
+    }
+  });
+
+  // System Configuration Endpoints
+  app.get('/api/admin/system/config', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const configs = await storage.getAllSystemConfigs();
+      res.json({ configs });
+    } catch (error) {
+      console.error('Get system configs error:', error);
+      res.status(500).json({ error: 'Failed to fetch system configurations' });
+    }
+  });
+
+  app.get('/api/admin/system/config/:key', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { key } = req.params;
+      const config = await storage.getSystemConfig(key);
+      
+      if (!config) {
+        return res.status(404).json({ error: 'Configuration not found' });
+      }
+      
+      res.json({ config });
+    } catch (error) {
+      console.error('Get system config error:', error);
+      res.status(500).json({ error: 'Failed to fetch system configuration' });
+    }
+  });
+
+  app.post('/api/admin/system/config', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { configKey, configValue, description } = req.body;
+      
+      if (!configKey || configValue === undefined) {
+        return res.status(400).json({ error: 'Config key and value are required' });
+      }
+
+      const config = await storage.setSystemConfig({
+        configKey,
+        configValue,
+        description: description || `Configuration for ${configKey}`
+      });
+      
+      res.json({ config });
+    } catch (error) {
+      console.error('Set system config error:', error);
+      res.status(500).json({ error: 'Failed to set system configuration' });
+    }
+  });
+
+  app.put('/api/admin/system/config/:key', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { key } = req.params;
+      const { configValue, description } = req.body;
+      
+      if (configValue === undefined) {
+        return res.status(400).json({ error: 'Config value is required' });
+      }
+
+      const config = await storage.updateSystemConfig({
+        configKey: key,
+        configValue,
+        description
+      });
+      
+      res.json({ config });
+    } catch (error) {
+      console.error('Update system config error:', error);
+      res.status(500).json({ error: 'Failed to update system configuration' });
+    }
+  });
+
+  // Bulk Operations Endpoints
+  app.post('/api/admin/bulk/user-action', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const { userIds, actionType, reason, notes, severity } = req.body;
+      
+      if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+        return res.status(400).json({ error: 'User IDs array is required' });
+      }
+      
+      if (!actionType || !reason) {
+        return res.status(400).json({ error: 'Action type and reason are required' });
+      }
+
+      const validActions = ['ban', 'unban', 'block', 'warn'];
+      if (!validActions.includes(actionType)) {
+        return res.status(400).json({ error: `Invalid action type. Must be one of: ${validActions.join(', ')}` });
+      }
+
+      const result = await storage.bulkUserAction({
+        userIds,
+        actionType,
+        reason,
+        notes,
+        severity
+      }, adminUser.id);
+      
+      res.json({ result });
+    } catch (error) {
+      console.error('Bulk user action error:', error);
+      res.status(500).json({ error: 'Failed to perform bulk user action' });
+    }
+  });
+
+  // Enhanced Cleanup Configuration Endpoints
+  app.get('/api/admin/cleanup/configuration', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const config = await storage.getCleanupConfiguration();
+      res.json({ config });
+    } catch (error) {
+      console.error('Get cleanup configuration error:', error);
+      res.status(500).json({ error: 'Failed to fetch cleanup configuration' });
+    }
+  });
+
+  app.put('/api/admin/cleanup/configuration', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { messageRetentionDays, messagesPerRoom, autoCleanup } = req.body;
+      
+      const config = {
+        ...(messageRetentionDays !== undefined && { messageRetentionDays: parseInt(messageRetentionDays) }),
+        ...(messagesPerRoom !== undefined && { messagesPerRoom: parseInt(messagesPerRoom) }),
+        ...(autoCleanup !== undefined && { autoCleanup: Boolean(autoCleanup) })
+      };
+
+      await storage.setCleanupConfiguration(config);
+      const updatedConfig = await storage.getCleanupConfiguration();
+      
+      res.json({ config: updatedConfig });
+    } catch (error) {
+      console.error('Update cleanup configuration error:', error);
+      res.status(500).json({ error: 'Failed to update cleanup configuration' });
+    }
+  });
+
+  app.post('/api/admin/cleanup/run', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const result = await storage.performConfiguredCleanup();
+      res.json({ result });
+    } catch (error) {
+      console.error('Run cleanup error:', error);
+      res.status(500).json({ error: 'Failed to run cleanup operation' });
+    }
+  });
+
+  // System Moderation Statistics Endpoint
+  app.get('/api/admin/moderation/stats', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const stats = await storage.getSystemModerationStats();
+      res.json({ stats });
+    } catch (error) {
+      console.error('Get moderation stats error:', error);
+      res.status(500).json({ error: 'Failed to fetch moderation statistics' });
     }
   });
 
