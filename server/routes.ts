@@ -2411,5 +2411,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Database statistics endpoint for admins
+  app.get('/api/admin/database-stats', requireAdminAuth, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      // Admin privileges already verified by middleware
+      const { db } = await import('./db');
+      const { users, rooms, messages, reports } = await import('@shared/schema');
+      const { count, sql } = await import('drizzle-orm');
+
+      // Get counts for each table
+      const [totalMessages] = await db.select({ count: sql<number>`count(*)` }).from(messages);
+      const [totalRooms] = await db.select({ count: sql<number>`count(*)` }).from(rooms);
+      const [totalUsers] = await db.select({ count: sql<number>`count(*)` }).from(users);
+      const [totalReports] = await db.select({ count: sql<number>`count(*)` }).from(reports);
+
+      res.json({
+        success: true,
+        stats: {
+          totalMessages: totalMessages.count || 0,
+          totalRooms: totalRooms.count || 0,
+          totalUsers: totalUsers.count || 0,
+          totalReports: totalReports.count || 0
+        }
+      });
+    } catch (error: any) {
+      console.error('Database stats error:', error);
+      res.status(500).json({ error: error.message || 'Failed to get database statistics' });
+    }
+  });
+
   return httpServer;
 }

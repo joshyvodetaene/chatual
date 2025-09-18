@@ -116,7 +116,7 @@ export default function AdminDesk() {
       description: 'Database operations and maintenance',
       icon: Database,
       color: 'bg-orange-500',
-      action: () => toast({ title: 'Feature coming soon', description: 'Database management panel' }),
+      action: () => setLocation('/admin/database'),
       testId: 'card-database-management'
     },
     {
