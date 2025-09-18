@@ -316,11 +316,6 @@ export const updateReportStatusSchema = z.object({
   adminNotes: z.string().optional(),
 });
 
-export const insertModerationActionSchema = createInsertSchema(userModerationActions).omit({
-  id: true,
-  performedAt: true,
-});
-
 // Notification settings schemas
 export const insertNotificationSettingsSchema = createInsertSchema(userNotificationSettings).omit({
   id: true,
@@ -434,7 +429,6 @@ export type CreateReport = z.infer<typeof reportSchema>;
 export type UpdateReportStatus = z.infer<typeof updateReportStatusSchema>;
 export type UpdateUserProfile = z.infer<typeof updateUserProfileSchema>;
 export type UserModerationAction = typeof userModerationActions.$inferSelect;
-export type InsertModerationAction = z.infer<typeof insertModerationActionSchema>;
 export type WarnUser = z.infer<typeof warnUserSchema>;
 export type BanUser = z.infer<typeof banUserSchema>;
 export type UserNotificationSettings = typeof userNotificationSettings.$inferSelect;

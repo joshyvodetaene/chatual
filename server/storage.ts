@@ -44,6 +44,19 @@ import {
   type UserPrivacySettings,
   type InsertPrivacySettings,
   type UpdatePrivacySettings,
+  // New moderation types
+  type ModerationAction,
+  type InsertModerationAction,
+  type ModerationActionWithDetails,
+  type UserBehaviorScore,
+  type InsertUserBehaviorScore,
+  type UserWithBehaviorScore,
+  type SystemConfig,
+  type InsertSystemConfig,
+  type SystemConfigUpdate,
+  type BulkUserAction,
+  type WarningEscalation,
+  type SystemModerationStats,
 } from "@shared/schema";
 import { DatabaseStorage } from "./database-storage";
 import { randomUUID } from "crypto";
@@ -149,6 +162,58 @@ export interface IStorage {
   
   // GDPR compliance methods
   exportUserData(userId: string): Promise<any>;
+
+  // Enhanced moderation methods
+  // Action logging
+  logModerationAction(action: InsertModerationAction): Promise<ModerationAction>;
+  getModerationActions(pagination?: PaginationParams): Promise<PaginatedResponse<ModerationActionWithDetails>>;
+  getModerationActionsByUser(userId: string): Promise<ModerationActionWithDetails[]>;
+  getModerationActionsByAdmin(adminId: string): Promise<ModerationActionWithDetails[]>;
+
+  // User behavior tracking
+  getUserBehaviorScore(userId: string): Promise<UserBehaviorScore | undefined>;
+  updateUserBehaviorScore(userId: string, updates: Partial<InsertUserBehaviorScore>): Promise<UserBehaviorScore>;
+  escalateUserWarning(warning: WarningEscalation): Promise<{ action: ModerationAction; escalated: boolean; nextLevel: number }>;
+  getUsersWithBehaviorScores(pagination?: PaginationParams): Promise<PaginatedResponse<UserWithBehaviorScore>>;
+  calculateBehaviorScore(userId: string): Promise<number>;
+
+  // System configuration
+  getSystemConfig(key: string): Promise<SystemConfig | undefined>;
+  setSystemConfig(config: InsertSystemConfig): Promise<SystemConfig>;
+  updateSystemConfig(updates: SystemConfigUpdate): Promise<SystemConfig>;
+  getAllSystemConfigs(): Promise<SystemConfig[]>;
+
+  // Bulk operations
+  bulkUserAction(action: BulkUserAction, adminId: string): Promise<{ 
+    success: number; 
+    failed: number; 
+    actions: ModerationAction[];
+    errors: string[];
+  }>;
+  getBannedUsers(): Promise<User[]>;
+  getAllBlockedUsers(): Promise<User[]>;
+
+  // Enhanced cleanup with configuration
+  getCleanupConfiguration(): Promise<{ 
+    messageRetentionDays: number; 
+    messagesPerRoom: number; 
+    autoCleanup: boolean;
+    lastCleanup: Date | null;
+  }>;
+  setCleanupConfiguration(config: { 
+    messageRetentionDays?: number; 
+    messagesPerRoom?: number; 
+    autoCleanup?: boolean;
+  }): Promise<void>;
+  performConfiguredCleanup(): Promise<{ 
+    messagesDeleted: number; 
+    roomsCleaned: number;
+    oldestMessage: Date | null;
+    cleanupDuration: number;
+  }>;
+  
+  // System statistics for moderation
+  getSystemModerationStats(): Promise<SystemModerationStats>;
 }
 
 export const storage = new DatabaseStorage();

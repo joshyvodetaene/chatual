@@ -2767,4 +2767,528 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+
+  // Enhanced moderation methods implementation
+  async logModerationAction(action: InsertModerationAction): Promise<ModerationAction> {
+    const { userModerationActions } = await import('@shared/schema');
+    
+    const [result] = await db
+      .insert(userModerationActions)
+      .values(action)
+      .returning();
+    
+    console.log(`[MODERATION] Action logged: ${action.actionType} for user ${action.userId} by ${action.performedBy}`);
+    return result;
+  }
+
+  async getModerationActions(pagination?: PaginationParams): Promise<PaginatedResponse<ModerationActionWithDetails>> {
+    const { userModerationActions, users } = await import('@shared/schema');
+    const { limit = 50, before, after } = pagination || {};
+    
+    const result = await db
+      .select({
+        action: userModerationActions,
+        user: users,
+        performedByUser: {
+          id: userModerationActions.performedBy,
+          username: users.username
+        }
+      })
+      .from(userModerationActions)
+      .innerJoin(users, eq(userModerationActions.userId, users.id))
+      .orderBy(desc(userModerationActions.performedAt))
+      .limit(limit + 1);
+
+    const hasMore = result.length > limit;
+    const items = hasMore ? result.slice(0, -1) : result;
+
+    return {
+      items: items.map(({ action, user, performedByUser }) => ({
+        ...action,
+        user,
+        performedByUser
+      })),
+      hasMore,
+      nextCursor: hasMore ? items[items.length - 1]?.action.id : undefined
+    };
+  }
+
+  async getModerationActionsByUser(userId: string): Promise<ModerationActionWithDetails[]> {
+    const { userModerationActions, users } = await import('@shared/schema');
+    
+    const result = await db
+      .select({
+        action: userModerationActions,
+        user: users,
+        performedByUser: {
+          id: userModerationActions.performedBy,
+          username: users.username
+        }
+      })
+      .from(userModerationActions)
+      .innerJoin(users, eq(userModerationActions.userId, users.id))
+      .where(eq(userModerationActions.userId, userId))
+      .orderBy(desc(userModerationActions.performedAt));
+
+    return result.map(({ action, user, performedByUser }) => ({
+      ...action,
+      user,
+      performedByUser
+    }));
+  }
+
+  async getModerationActionsByAdmin(adminId: string): Promise<ModerationActionWithDetails[]> {
+    const { userModerationActions, users } = await import('@shared/schema');
+    
+    const result = await db
+      .select({
+        action: userModerationActions,
+        user: users,
+        performedByUser: {
+          id: userModerationActions.performedBy,
+          username: users.username
+        }
+      })
+      .from(userModerationActions)
+      .innerJoin(users, eq(userModerationActions.userId, users.id))
+      .where(eq(userModerationActions.performedBy, adminId))
+      .orderBy(desc(userModerationActions.performedAt));
+
+    return result.map(({ action, user, performedByUser }) => ({
+      ...action,
+      user,
+      performedByUser
+    }));
+  }
+
+  async getUserBehaviorScore(userId: string): Promise<UserBehaviorScore | undefined> {
+    const { userBehaviorScores } = await import('@shared/schema');
+    
+    const [result] = await db
+      .select()
+      .from(userBehaviorScores)
+      .where(eq(userBehaviorScores.userId, userId));
+
+    return result;
+  }
+
+  async updateUserBehaviorScore(userId: string, updates: Partial<InsertUserBehaviorScore>): Promise<UserBehaviorScore> {
+    const { userBehaviorScores } = await import('@shared/schema');
+    
+    const existingScore = await this.getUserBehaviorScore(userId);
+    
+    if (existingScore) {
+      const [result] = await db
+        .update(userBehaviorScores)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(userBehaviorScores.userId, userId))
+        .returning();
+      return result;
+    } else {
+      const [result] = await db
+        .insert(userBehaviorScores)
+        .values({ userId, ...updates })
+        .returning();
+      return result;
+    }
+  }
+
+  async escalateUserWarning(warning: WarningEscalation): Promise<{ action: ModerationAction; escalated: boolean; nextLevel: number }> {
+    const { userId, reason, severity, autoEscalate } = warning;
+    
+    const behaviorScore = await this.getUserBehaviorScore(userId);
+    const currentLevel = behaviorScore?.nextEscalationLevel || 1;
+    
+    // Log the warning action
+    const action = await this.logModerationAction({
+      userId,
+      actionType: 'warning',
+      reason,
+      severity: severity || currentLevel,
+      performedBy: 'system', // Auto-escalation system
+      notes: `Warning level ${currentLevel}${autoEscalate ? ' (auto-escalated)' : ''}`
+    });
+
+    // Update behavior score
+    const newWarningCount = (behaviorScore?.warningCount || 0) + 1;
+    const newViolationCount = (behaviorScore?.violationCount || 0) + 1;
+    const newBehaviorScore = Math.max(0, (behaviorScore?.behaviorScore || 100) - (severity || currentLevel) * 10);
+    const nextLevel = Math.min(5, currentLevel + 1);
+
+    await this.updateUserBehaviorScore(userId, {
+      warningCount: newWarningCount,
+      violationCount: newViolationCount,
+      behaviorScore: newBehaviorScore,
+      lastWarningAt: new Date(),
+      nextEscalationLevel: nextLevel
+    });
+
+    // Auto-escalate to ban if needed
+    let escalated = false;
+    if (autoEscalate && (newWarningCount >= 5 || newBehaviorScore <= 20)) {
+      await this.banUser({
+        userId,
+        reason: `Auto-escalation: ${newWarningCount} warnings, behavior score: ${newBehaviorScore}`,
+        performedBy: 'system'
+      });
+      escalated = true;
+    }
+
+    return { action, escalated, nextLevel };
+  }
+
+  async getUsersWithBehaviorScores(pagination?: PaginationParams): Promise<PaginatedResponse<UserWithBehaviorScore>> {
+    const { users, userBehaviorScores } = await import('@shared/schema');
+    const { limit = 50 } = pagination || {};
+    
+    const result = await db
+      .select({
+        user: users,
+        behaviorScore: userBehaviorScores
+      })
+      .from(users)
+      .leftJoin(userBehaviorScores, eq(users.id, userBehaviorScores.userId))
+      .orderBy(desc(userBehaviorScores.behaviorScore))
+      .limit(limit + 1);
+
+    const hasMore = result.length > limit;
+    const items = hasMore ? result.slice(0, -1) : result;
+
+    return {
+      items: items.map(({ user, behaviorScore }) => ({
+        ...user,
+        behaviorScore,
+        warningCount: behaviorScore?.warningCount || 0,
+        violationCount: behaviorScore?.violationCount || 0
+      })),
+      hasMore,
+      nextCursor: hasMore ? items[items.length - 1]?.user.id : undefined
+    };
+  }
+
+  async calculateBehaviorScore(userId: string): Promise<number> {
+    const { userModerationActions } = await import('@shared/schema');
+    
+    const actions = await db
+      .select()
+      .from(userModerationActions)
+      .where(eq(userModerationActions.userId, userId))
+      .orderBy(desc(userModerationActions.performedAt));
+
+    let score = 100;
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    for (const action of actions) {
+      if (action.performedAt && action.performedAt > thirtyDaysAgo) {
+        const severity = action.severity || 1;
+        switch (action.actionType) {
+          case 'warning':
+            score -= severity * 5;
+            break;
+          case 'ban':
+            score -= severity * 20;
+            break;
+          case 'block':
+            score -= severity * 10;
+            break;
+        }
+      }
+    }
+
+    return Math.max(0, Math.min(100, score));
+  }
+
+  async getSystemConfig(key: string): Promise<SystemConfig | undefined> {
+    const { systemConfig } = await import('@shared/schema');
+    
+    const [result] = await db
+      .select()
+      .from(systemConfig)
+      .where(eq(systemConfig.configKey, key));
+
+    return result;
+  }
+
+  async setSystemConfig(config: InsertSystemConfig): Promise<SystemConfig> {
+    const { systemConfig } = await import('@shared/schema');
+    
+    const [result] = await db
+      .insert(systemConfig)
+      .values(config)
+      .returning();
+
+    return result;
+  }
+
+  async updateSystemConfig(updates: SystemConfigUpdate): Promise<SystemConfig> {
+    const { systemConfig } = await import('@shared/schema');
+    
+    const [result] = await db
+      .update(systemConfig)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(systemConfig.configKey, updates.configKey))
+      .returning();
+
+    return result;
+  }
+
+  async getAllSystemConfigs(): Promise<SystemConfig[]> {
+    const { systemConfig } = await import('@shared/schema');
+    
+    return await db
+      .select()
+      .from(systemConfig)
+      .orderBy(systemConfig.configKey);
+  }
+
+  async bulkUserAction(action: BulkUserAction, adminId: string): Promise<{ 
+    success: number; 
+    failed: number; 
+    actions: ModerationAction[];
+    errors: string[];
+  }> {
+    const { userIds, actionType, reason, notes, severity } = action;
+    let success = 0;
+    let failed = 0;
+    const actions: ModerationAction[] = [];
+    const errors: string[] = [];
+
+    for (const userId of userIds) {
+      try {
+        let moderationAction: ModerationAction;
+        
+        switch (actionType) {
+          case 'ban':
+            await this.banUser({ userId, reason, performedBy: adminId });
+            moderationAction = await this.logModerationAction({
+              userId,
+              actionType: 'bulk_action',
+              reason: `Bulk ban: ${reason}`,
+              notes: notes || 'Bulk operation',
+              performedBy: adminId,
+              severity,
+              affectedUsers: [userId]
+            });
+            break;
+            
+          case 'unban':
+            await this.unbanUser(userId, adminId);
+            moderationAction = await this.logModerationAction({
+              userId,
+              actionType: 'bulk_action',
+              reason: `Bulk unban: ${reason}`,
+              notes: notes || 'Bulk operation',
+              performedBy: adminId,
+              affectedUsers: [userId]
+            });
+            break;
+            
+          case 'block':
+            await this.blockUser(adminId, userId, reason);
+            moderationAction = await this.logModerationAction({
+              userId,
+              actionType: 'bulk_action',
+              reason: `Bulk block: ${reason}`,
+              notes: notes || 'Bulk operation',
+              performedBy: adminId,
+              affectedUsers: [userId]
+            });
+            break;
+            
+          case 'warn':
+            const escalation = await this.escalateUserWarning({
+              userId,
+              reason: `Bulk warning: ${reason}`,
+              severity: severity || 1,
+              autoEscalate: false
+            });
+            moderationAction = escalation.action;
+            break;
+            
+          default:
+            throw new Error(`Unsupported bulk action: ${actionType}`);
+        }
+        
+        actions.push(moderationAction);
+        success++;
+      } catch (error) {
+        failed++;
+        errors.push(`Failed to ${actionType} user ${userId}: ${error.message}`);
+      }
+    }
+
+    console.log(`[BULK_MODERATION] ${actionType} completed: ${success} success, ${failed} failed`);
+    return { success, failed, actions, errors };
+  }
+
+  async getBannedUsers(): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .where(eq(users.isBanned, true))
+      .orderBy(desc(users.bannedAt));
+  }
+
+  async getAllBlockedUsers(): Promise<User[]> {
+    const { blockedUsers } = await import('@shared/schema');
+    
+    const result = await db
+      .select({
+        user: users
+      })
+      .from(blockedUsers)
+      .innerJoin(users, eq(blockedUsers.blockedId, users.id))
+      .orderBy(desc(blockedUsers.blockedAt));
+
+    return result.map(({ user }) => user);
+  }
+
+  async getCleanupConfiguration(): Promise<{ 
+    messageRetentionDays: number; 
+    messagesPerRoom: number; 
+    autoCleanup: boolean;
+    lastCleanup: Date | null;
+  }> {
+    const retentionConfig = await this.getSystemConfig('message_retention_days');
+    const perRoomConfig = await this.getSystemConfig('messages_per_room');
+    const autoCleanupConfig = await this.getSystemConfig('auto_cleanup');
+    const lastCleanupConfig = await this.getSystemConfig('last_cleanup');
+
+    return {
+      messageRetentionDays: retentionConfig?.configValue as number || 30,
+      messagesPerRoom: perRoomConfig?.configValue as number || 40,
+      autoCleanup: autoCleanupConfig?.configValue as boolean || true,
+      lastCleanup: lastCleanupConfig?.configValue ? new Date(lastCleanupConfig.configValue as string) : null
+    };
+  }
+
+  async setCleanupConfiguration(config: { 
+    messageRetentionDays?: number; 
+    messagesPerRoom?: number; 
+    autoCleanup?: boolean;
+  }): Promise<void> {
+    for (const [key, value] of Object.entries(config)) {
+      if (value !== undefined) {
+        const configKey = key === 'messagesPerRoom' ? 'messages_per_room' : 
+                         key === 'messageRetentionDays' ? 'message_retention_days' :
+                         key === 'autoCleanup' ? 'auto_cleanup' : key;
+        
+        const existing = await this.getSystemConfig(configKey);
+        if (existing) {
+          await this.updateSystemConfig({
+            configKey,
+            configValue: value,
+            description: `Cleanup configuration: ${key}`
+          });
+        } else {
+          await this.setSystemConfig({
+            configKey,
+            configValue: value,
+            description: `Cleanup configuration: ${key}`
+          });
+        }
+      }
+    }
+  }
+
+  async performConfiguredCleanup(): Promise<{ 
+    messagesDeleted: number; 
+    roomsCleaned: number;
+    oldestMessage: Date | null;
+    cleanupDuration: number;
+  }> {
+    const startTime = Date.now();
+    const config = await this.getCleanupConfiguration();
+    
+    console.log(`[CONFIGURED_CLEANUP] Starting with config: ${JSON.stringify(config)}`);
+    
+    // Perform cleanup based on configuration
+    const result = await this.cleanupOldMessages(config.messagesPerRoom);
+    
+    // Update last cleanup timestamp
+    await this.setCleanupConfiguration({ });
+    await this.updateSystemConfig({
+      configKey: 'last_cleanup',
+      configValue: new Date().toISOString(),
+      description: 'Last cleanup timestamp'
+    });
+
+    // Log the cleanup action
+    await this.logModerationAction({
+      userId: 'system',
+      actionType: 'bulk_action',
+      reason: 'Automated message cleanup',
+      notes: `Deleted ${result.totalDeleted} messages from ${result.roomsCleaned} rooms`,
+      performedBy: 'system',
+      metadata: { 
+        messagesDeleted: result.totalDeleted,
+        roomsCleaned: result.roomsCleaned,
+        duration: Date.now() - startTime
+      }
+    });
+
+    const duration = Date.now() - startTime;
+    
+    return {
+      messagesDeleted: result.totalDeleted,
+      roomsCleaned: result.roomsCleaned,
+      oldestMessage: null, // Could be enhanced to track oldest remaining message
+      cleanupDuration: duration
+    };
+  }
+
+  async getSystemModerationStats(): Promise<SystemModerationStats> {
+    const { userModerationActions, userBehaviorScores } = await import('@shared/schema');
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    
+    // Count total actions
+    const [totalActionsResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(userModerationActions);
+    
+    // Get recent actions
+    const recentActions = await this.getModerationActions({ limit: 10 });
+    
+    // Count warning escalations in last 30 days
+    const [warningEscalationsResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(userModerationActions)
+      .where(
+        and(
+          eq(userModerationActions.actionType, 'warning'),
+          gte(userModerationActions.performedAt, thirtyDaysAgo)
+        )
+      );
+
+    // Calculate average behavior score
+    const [avgBehaviorScoreResult] = await db
+      .select({ avg: sql<number>`avg(${userBehaviorScores.behaviorScore})` })
+      .from(userBehaviorScores);
+
+    // Count auto-moderation events
+    const [autoModerationResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(userModerationActions)
+      .where(eq(userModerationActions.performedBy, 'system'));
+
+    // Count cleanup operations
+    const [cleanupOperationsResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(userModerationActions)
+      .where(
+        and(
+          eq(userModerationActions.actionType, 'bulk_action'),
+          ilike(userModerationActions.reason, '%cleanup%')
+        )
+      );
+
+    return {
+      totalActions: totalActionsResult.count || 0,
+      recentActions: recentActions.items,
+      warningEscalations: warningEscalationsResult.count || 0,
+      behaviorScoreAverage: Math.round(avgBehaviorScoreResult.avg || 100),
+      autoModerationEvents: autoModerationResult.count || 0,
+      cleanupOperations: cleanupOperationsResult.count || 0
+    };
+  }
 }
