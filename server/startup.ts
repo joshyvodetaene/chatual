@@ -3,7 +3,7 @@ import { DatabaseStorage } from './database-storage';
 interface AdminBootstrapOptions {
   username: string;
   password: string;
-  role: 'SUPER_ADMIN' | 'ADMIN' | 'MODERATOR';
+  role: 'super_admin' | 'admin' | 'moderator';
 }
 
 export async function bootstrapDefaultAdmin(
@@ -65,7 +65,7 @@ export async function initializeSystemAdmins(): Promise<void> {
       await bootstrapDefaultAdmin(storage, {
         username: 'chatadmin',
         password: 'Hardcore123!',
-        role: 'SUPER_ADMIN'
+        role: 'super_admin'
       });
       
       console.log('[ADMIN_BOOTSTRAP] Development admin initialization complete');
@@ -84,7 +84,7 @@ export async function initializeSystemAdmins(): Promise<void> {
       await bootstrapDefaultAdmin(storage, {
         username: 'chatadmin',
         password: bootstrapPassword,
-        role: 'SUPER_ADMIN'
+        role: 'super_admin'
       });
       
       console.log('[ADMIN_BOOTSTRAP] Production admin initialization complete');
