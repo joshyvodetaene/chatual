@@ -143,6 +143,14 @@ export default function AdminDesk() {
       color: 'bg-teal-500',
       action: () => toast({ title: 'Feature coming soon', description: 'System health panel' }),
       testId: 'card-system-health'
+    },
+    {
+      title: 'Moderation Tools',
+      description: 'Advanced moderation system with action logging and behavior tracking',
+      icon: Shield,
+      color: 'bg-purple-600',
+      action: () => setLocation('/admin/moderation-tools'),
+      testId: 'card-moderation-tools'
     }
   ];
 
