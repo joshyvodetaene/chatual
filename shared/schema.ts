@@ -83,12 +83,17 @@ export const blockedUsers = pgTable("blocked_users", {
 export const userModerationActions = pgTable("user_moderation_actions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id),
-  actionType: varchar("action_type", { enum: ["warning", "ban", "unban", "block", "unblock"] }).notNull(),
+  actionType: varchar("action_type", { 
+    enum: ["warning", "ban", "unban", "block", "unblock", "delete", "message", "bulk_action"] 
+  }).notNull(),
   reason: text("reason").notNull(),
   notes: text("notes"),
   performedBy: varchar("performed_by").notNull().references(() => users.id),
   performedAt: timestamp("performed_at").defaultNow(),
   expiresAt: timestamp("expires_at"), // For temporary bans
+  severity: integer("severity").default(1), // 1-5 for warning escalation
+  affectedUsers: varchar("affected_users").array(), // For bulk operations
+  metadata: jsonb("metadata"), // Additional action data
 });
 
 // Reports table for user reporting system
@@ -186,6 +191,28 @@ export const adminUsers = pgTable("admin_users", {
   isActive: boolean("is_active").default(true).notNull(),
 });
 
+// System configuration for moderation settings
+export const systemConfig = pgTable("system_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  configKey: varchar("config_key").notNull().unique(),
+  configValue: jsonb("config_value").notNull(),
+  description: text("description"),
+  updatedBy: varchar("updated_by").references(() => adminUsers.id),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// User behavior tracking for warning escalation
+export const userBehaviorScores = pgTable("user_behavior_scores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id).unique(),
+  warningCount: integer("warning_count").default(0),
+  violationCount: integer("violation_count").default(0),
+  lastWarningAt: timestamp("last_warning_at"),
+  nextEscalationLevel: integer("next_escalation_level").default(1),
+  behaviorScore: integer("behavior_score").default(100), // 0-100, lower is worse
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   isOnline: true,
@@ -245,6 +272,43 @@ export const reportSchema = z.object({
   reportedUserId: z.string().min(1, "User ID is required"),
   reason: z.enum(["harassment", "spam", "inappropriate_content", "fake_profile", "other"]),
   description: z.string().min(1, "Description is required").max(500, "Description must be less than 500 characters"),
+});
+
+// New moderation schemas
+export const insertModerationActionSchema = createInsertSchema(userModerationActions).omit({
+  id: true,
+  performedAt: true,
+});
+
+export const insertSystemConfigSchema = createInsertSchema(systemConfig).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export const insertUserBehaviorScoreSchema = createInsertSchema(userBehaviorScores).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export const bulkUserActionSchema = z.object({
+  userIds: z.array(z.string()).min(1, "At least one user must be selected"),
+  actionType: z.enum(["ban", "unban", "block", "unblock", "delete", "warn"]),
+  reason: z.string().min(1, "Reason is required").max(500, "Reason must be less than 500 characters"),
+  notes: z.string().optional(),
+  severity: z.number().min(1).max(5).optional(),
+});
+
+export const warningEscalationSchema = z.object({
+  userId: z.string().min(1, "User ID is required"),
+  reason: z.string().min(1, "Reason is required").max(500, "Reason must be less than 500 characters"),
+  severity: z.number().min(1).max(5).default(1),
+  autoEscalate: z.boolean().default(true),
+});
+
+export const systemConfigUpdateSchema = z.object({
+  configKey: z.string().min(1, "Config key is required"),
+  configValue: z.any(),
+  description: z.string().optional(),
 });
 
 export const updateReportStatusSchema = z.object({
@@ -521,4 +585,35 @@ export type PaginatedResponse<T> = {
   nextCursor?: string;
   prevCursor?: string;
   totalCount?: number;
+};
+
+// New moderation types
+export type InsertModerationAction = z.infer<typeof insertModerationActionSchema>;
+export type ModerationAction = typeof userModerationActions.$inferSelect;
+export type InsertSystemConfig = z.infer<typeof insertSystemConfigSchema>;
+export type SystemConfig = typeof systemConfig.$inferSelect;
+export type InsertUserBehaviorScore = z.infer<typeof insertUserBehaviorScoreSchema>;
+export type UserBehaviorScore = typeof userBehaviorScores.$inferSelect;
+export type BulkUserAction = z.infer<typeof bulkUserActionSchema>;
+export type WarningEscalation = z.infer<typeof warningEscalationSchema>;
+export type SystemConfigUpdate = z.infer<typeof systemConfigUpdateSchema>;
+
+export type ModerationActionWithDetails = ModerationAction & {
+  user: User;
+  performedByUser: User;
+};
+
+export type UserWithBehaviorScore = User & {
+  behaviorScore?: UserBehaviorScore;
+  warningCount: number;
+  violationCount: number;
+};
+
+export type SystemModerationStats = {
+  totalActions: number;
+  recentActions: ModerationActionWithDetails[];
+  warningEscalations: number;
+  behaviorScoreAverage: number;
+  autoModerationEvents: number;
+  cleanupOperations: number;
 };
