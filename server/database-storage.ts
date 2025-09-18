@@ -75,8 +75,11 @@ import { eq, and, or, desc, ne, sql, gt, lt, gte, like, ilike, inArray, isNull }
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 import type { IStorage } from "./storage";
+import { createTaggedLogger } from './logger';
 
 export class DatabaseStorage implements IStorage {
+  private logger = createTaggedLogger('DB');
+
   constructor() {
     // Database is already initialized in db.ts
     this.setupConnectionErrorHandling();
@@ -123,11 +126,11 @@ export class DatabaseStorage implements IStorage {
             memberIds: [],
             createdBy: null,
           });
-          console.log(`Created persistent room: ${roomData.name}`);
+          this.logger.info(`Created persistent room: ${roomData.name}`);
         }
       }
     } catch (error) {
-      console.error('Error ensuring default rooms:', error);
+      this.logger.error('Error ensuring default rooms:', error);
     }
   }
 
@@ -143,7 +146,7 @@ export class DatabaseStorage implements IStorage {
           // For development only - require explicit environment variable
           const devPassword = process.env.DEV_ADMIN_PASSWORD;
           if (!devPassword || devPassword.length < 12) {
-            console.warn('[SECURITY] DEV_ADMIN_PASSWORD environment variable required (min 12 chars) for development admin creation');
+            this.logger.warn('[SECURITY] DEV_ADMIN_PASSWORD environment variable required (min 12 chars) for development admin creation');
             return;
           }
 
@@ -176,25 +179,25 @@ export class DatabaseStorage implements IStorage {
           };
 
           await db.insert(users).values([masterAdmin]);
-          console.log('[DEV] Development admin user created with environment password');
+          this.logger.info('[DEV] Development admin user created with environment password');
         }
       } else {
-        console.log('[SECURITY] Admin user creation disabled outside development environment');
+        this.logger.info('[SECURITY] Admin user creation disabled outside development environment');
       }
     } catch (error) {
-      console.error('Error ensuring administrator user:', error);
+      this.logger.error('Error ensuring administrator user:', error);
     }
   }
 
   private setupConnectionErrorHandling() {
     // Add connection error handling
     process.on('SIGTERM', async () => {
-      console.log('SIGTERM received, closing database connections...');
+      this.logger.system('SIGTERM received, closing database connections...');
       await this.closeConnections();
     });
 
     process.on('SIGINT', async () => {
-      console.log('SIGINT received, closing database connections...');
+      this.logger.system('SIGINT received, closing database connections...');
       await this.closeConnections();
     });
   }
@@ -202,9 +205,9 @@ export class DatabaseStorage implements IStorage {
   private async closeConnections() {
     try {
       // Close database connections gracefully
-      console.log('Database connections closed successfully');
+      this.logger.system('Database connections closed successfully');
     } catch (error) {
-      console.error('Error closing database connections:', error);
+      this.logger.error('Error closing database connections:', error);
     }
   }
 

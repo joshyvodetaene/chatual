@@ -9,6 +9,7 @@ import { validateCityWithGoogle } from "./lib/geocoding";
 import { requireAdminAuth, requirePermission } from "./middleware/admin-auth";
 import { PERMISSIONS } from "@shared/schema";
 import type { AuthenticatedRequest } from "./types/session";
+import { createTaggedLogger } from './logger';
 
 interface WebSocketClient extends WebSocket {
   userId?: string;
@@ -21,6 +22,7 @@ interface WebSocketClient extends WebSocket {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
+  const wsLogger = createTaggedLogger('WS');
 
   // Add CORS middleware
   app.use((req, res, next) => {
@@ -53,7 +55,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     (userId: string, message: any) => broadcastToUser(userId, message)
   );
 
-  console.log('WebSocket server initialized on path /ws');
+  wsLogger.info('WebSocket server initialized on path /ws');
 
   // Connection health tracking constants - more lenient settings
   const HEARTBEAT_INTERVAL = 30000; // 30 seconds
@@ -75,7 +77,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Add to connection map for quick lookup
     connectionMap.set(client.connectionId, client);
     
-    console.log(`[MULTI_DEVICE] User ${userId} now has ${userConnections.get(userId)!.size} active connections`);
+    wsLogger.debug(`User ${userId} now has ${userConnections.get(userId)!.size} active connections`);
   }
 
   function removeUserConnection(userId: string, connectionId: string): void {
@@ -86,7 +88,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (conn.connectionId === connectionId) {
           userConns.delete(conn);
           connectionMap.delete(connectionId);
-          console.log(`[MULTI_DEVICE] Removed connection ${connectionId} for user ${userId}. Remaining: ${userConns.size}`);
+          wsLogger.debug(`Removed connection ${connectionId} for user ${userId}. Remaining: ${userConns.size}`);
           break;
         }
       }
@@ -94,7 +96,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Clean up empty user entry
       if (userConns.size === 0) {
         userConnections.delete(userId);
-        console.log(`[MULTI_DEVICE] User ${userId} has no more active connections`);
+        wsLogger.debug(`User ${userId} has no more active connections`);
       }
     }
   }
@@ -313,7 +315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Cleanup intervals on server shutdown
   const cleanup = () => {
-    console.log('[WS_SHUTDOWN] Cleaning up WebSocket intervals and connections');
+    wsLogger.info('Cleaning up WebSocket intervals and connections');
     clearInterval(heartbeatInterval);
     clearInterval(cleanupInterval);
 
@@ -347,7 +349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       totalConnections += connections.size;
     }
     
-    console.log(`[BROADCAST] Broadcasting to room ${roomId}, found ${totalConnections} total connections, message type: ${message.type}`);
+    wsLogger.trace(`Broadcasting to room ${roomId}, found ${totalConnections} total connections, message type: ${message.type}`);
     
     // Iterate through all users and their connections
     for (const [userId, connectionSet] of userConnections.entries()) {
@@ -357,13 +359,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const roomMatch = client.roomId === roomId;
         const isOpen = client.readyState === WebSocket.OPEN;
         
-        console.log(`[BROADCAST] ${message.type}: userId=${client.userId}, roomId=${client.roomId}, readyState=${client.readyState}, excluded=${userId === excludeUserId}`);
+        wsLogger.trace(`${message.type}: userId=${client.userId}, roomId=${client.roomId}, readyState=${client.readyState}, excluded=${userId === excludeUserId}`);
         
         if (roomMatch && isOpen) {
           try {
             client.send(JSON.stringify(message));
             sentCount++;
-            console.log(`[BROADCAST] Message sent to user ${client.userId} (connection ${client.connectionId})`);
+            wsLogger.trace(`Message sent to user ${client.userId} (connection ${client.connectionId})`);
           } catch (error) {
             console.error(`Failed to send message to user ${client.userId} (connection ${client.connectionId}):`, error);
             // Mark client as potentially problematic for cleanup
@@ -373,11 +375,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
     
-    console.log(`[BROADCAST] Successfully sent to ${sentCount} connections in room ${roomId}`);
+    wsLogger.trace(`Successfully sent to ${sentCount} connections in room ${roomId}`);
 
     // Log only for important messages when no clients were reached
     if (message.type === 'new_message' && sentCount === 0) {
-      console.log(`[BROADCAST] Warning: No connections received message in room ${roomId}`);
+      wsLogger.debug(`Warning: No connections received message in room ${roomId}`);
     }
   }
 
@@ -391,7 +393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           client.send(JSON.stringify(message));
           sentCount++;
-          console.log(`[BROADCAST] Message sent to user ${userId} (connection ${client.connectionId})`);
+          wsLogger.trace(`Message sent to user ${userId} (connection ${client.connectionId})`);
         } catch (error) {
           console.error(`Failed to send message to user ${userId} (connection ${client.connectionId}):`, error);
           client.isAlive = false;
@@ -399,7 +401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
     
-    console.log(`[BROADCAST] Sent to ${sentCount} connections for user ${userId}`);
+    wsLogger.trace(`Sent to ${sentCount} connections for user ${userId}`);
     return sentCount > 0;
   }
 
@@ -407,7 +409,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   function addUserToRoom(roomId: string, userId: string) {
     // Validate that the user has at least one active connection
     if (!isUserOnline(userId)) {
-      console.log(`[WS_ROOM] Cannot add user ${userId} to room ${roomId}: no active connections`);
+      wsLogger.debug(`Cannot add user ${userId} to room ${roomId}: no active connections`);
       return;
     }
 
@@ -416,7 +418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     roomUsers.get(roomId)!.add(userId);
 
-    console.log(`[WS_ROOM] User ${userId} added to room ${roomId}. Room now has ${roomUsers.get(roomId)!.size} users`);
+    wsLogger.debug(`User ${userId} added to room ${roomId}. Room now has ${roomUsers.get(roomId)!.size} users`);
 
     // Broadcast updated online users for this room
     const onlineUsers = Array.from(roomUsers.get(roomId) || []);
@@ -488,7 +490,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // WebSocket connection handling
   wss.on('connection', (ws: WebSocketClient) => {
-    console.log('[WS_CONNECTION] New WebSocket connection established');
+    wsLogger.debug('New WebSocket connection established');
 
     // Generate unique connection ID for multi-device support
     ws.connectionId = generateConnectionId();
@@ -523,7 +525,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             break;
 
           case 'join':
-            console.log(`[WS_JOIN] Join request from userId=${message.userId}, roomId=${message.roomId}`);
+            wsLogger.debug(`Join request from userId=${message.userId}, roomId=${message.roomId}`);
 
             // Store previous room for cleanup
             const previousRoomId = ws.roomId;
@@ -545,7 +547,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
 
             // Multi-device support: Allow multiple connections per user
-            console.log(`[MULTI_DEVICE] User ${message.userId} connecting to room ${message.roomId} (connection ${ws.connectionId})`);
+            wsLogger.debug(`User ${message.userId} connecting to room ${message.roomId} (connection ${ws.connectionId})`);
 
             ws.userId = message.userId;
             ws.roomId = message.roomId;
@@ -557,7 +559,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Add this connection to the user's connection set
             addUserConnection(message.userId, ws);
 
-            console.log(`[WS_JOIN] User ${message.userId} joining room ${message.roomId}`);
+            wsLogger.debug(`User ${message.userId} joining room ${message.roomId}`);
 
             // Update user online status
             await storage.updateUserOnlineStatus(message.userId, true);
@@ -574,13 +576,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             // Only broadcast user joined if this is their first connection in the room
             if (isFirstConnectionInRoom) {
-              console.log(`[WS_JOIN] Broadcasting user_joined for ${message.userId} (first connection in room)`);
+              wsLogger.debug(`Broadcasting user_joined for ${message.userId} (first connection in room)`);
               broadcastToRoom(message.roomId, {
                 type: 'user_joined',
                 userId: message.userId,
               });
             } else {
-              console.log(`[WS_JOIN] User ${message.userId} already in room ${message.roomId}, not broadcasting user_joined`);
+              wsLogger.debug(`User ${message.userId} already in room ${message.roomId}, not broadcasting user_joined`);
             }
             break;
 
@@ -718,10 +720,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     ws.on('close', async (code, reason) => {
-      console.log(`[WS_CLOSE] Connection ${ws.connectionId} closed for user ${ws.userId}, code: ${code}, reason: ${reason}`);
+      wsLogger.debug(`Connection ${ws.connectionId} closed for user ${ws.userId}, code: ${code}, reason: ${reason}`);
 
       if (ws.userId && ws.connectionId) {
-        console.log(`[WS_CLOSE] Cleaning up connection ${ws.connectionId} for user ${ws.userId}`);
+        wsLogger.debug(`Cleaning up connection ${ws.connectionId} for user ${ws.userId}`);
 
         // Check if user has other connections in this room BEFORE removing this connection
         const userLeftRoom = ws.roomId && ws.userId && !hasOtherRoomConnections(ws.userId, ws.roomId, ws.connectionId);
@@ -731,7 +733,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Remove user from room only if they have no other connections in the room
         if (userLeftRoom && ws.roomId && ws.userId) {
-          console.log(`[WS_CLOSE] User ${ws.userId} has no more connections in room ${ws.roomId}, removing from room`);
+          wsLogger.debug(`User ${ws.userId} has no more connections in room ${ws.roomId}, removing from room`);
           removeUserFromRoom(ws.roomId, ws.userId);
           
           // Broadcast user left only when actually leaving the room
@@ -745,7 +747,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Only mark user offline if they have NO remaining connections
         if (!isUserOnline(ws.userId)) {
-          console.log(`[WS_CLOSE] User ${ws.userId} has no more active connections, marking offline`);
+          wsLogger.debug(`User ${ws.userId} has no more active connections, marking offline`);
           try {
             await storage.updateUserOnlineStatus(ws.userId, false);
           } catch (error) {

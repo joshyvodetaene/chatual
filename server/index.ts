@@ -7,14 +7,16 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { cleanupScheduler } from "./cleanup-scheduler";
 import { validateProductionEnvironment, logEnvironmentStatus } from "./production-config";
+import { createTaggedLogger } from './logger';
 
 const app = express();
+const logger = createTaggedLogger('SERVER');
 
 // Validate environment configuration
 const envValidation = validateProductionEnvironment();
 if (!envValidation.isValid && process.env.NODE_ENV === 'production') {
-  console.error('[STARTUP] Critical environment configuration errors detected in production!');
-  envValidation.errors.forEach(error => console.error(`[STARTUP] ❌ ${error}`));
+  logger.error('Critical environment configuration errors detected in production!');
+  envValidation.errors.forEach(error => logger.error(`❌ ${error}`));
   process.exit(1);
 }
 
