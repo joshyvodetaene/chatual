@@ -1036,7 +1036,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User action endpoints
-  app.post('/api/admin/users/:userId/ban', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/admin/users/:userId/ban', requireAdminAuth, requirePermission(PERMISSIONS.BAN_USERS), async (req: AuthenticatedRequest, res) => {
     try {
       const adminUser = (req as any).adminUser; // Set by requireAdminAuth middleware
       const { userId } = req.params;
@@ -1056,7 +1056,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/users/:userId/unban', requireAdminAuth, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/admin/users/:userId/unban', requireAdminAuth, requirePermission(PERMISSIONS.UNBAN_USERS), async (req: AuthenticatedRequest, res) => {
     try {
       const adminUser = (req as any).adminUser; // Set by requireAdminAuth middleware
       const { userId } = req.params;
