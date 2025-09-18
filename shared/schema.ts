@@ -611,3 +611,129 @@ export type SystemModerationStats = {
   autoModerationEvents: number;
   cleanupOperations: number;
 };
+
+// Role-based Access Control (RBAC) System
+export const USER_ROLES = {
+  USER: 'user',
+  MODERATOR: 'moderator', 
+  ADMIN: 'admin',
+  SUPER_ADMIN: 'super_admin'
+} as const;
+
+export type UserRole = typeof USER_ROLES[keyof typeof USER_ROLES];
+
+export const PERMISSIONS = {
+  // User management permissions
+  VIEW_USERS: 'view_users',
+  MANAGE_USERS: 'manage_users',
+  BAN_USERS: 'ban_users',
+  UNBAN_USERS: 'unban_users',
+  
+  // Chat moderation permissions
+  VIEW_REPORTS: 'view_reports',
+  MANAGE_REPORTS: 'manage_reports',
+  MODERATE_MESSAGES: 'moderate_messages',
+  DELETE_MESSAGES: 'delete_messages',
+  
+  // Room management permissions
+  VIEW_ROOMS: 'view_rooms',
+  MANAGE_ROOMS: 'manage_rooms',
+  CREATE_ROOMS: 'create_rooms',
+  DELETE_ROOMS: 'delete_rooms',
+  
+  // System administration permissions
+  VIEW_ADMIN_DASHBOARD: 'view_admin_dashboard',
+  MANAGE_SYSTEM_CONFIG: 'manage_system_config',
+  VIEW_SYSTEM_LOGS: 'view_system_logs',
+  MANAGE_DATABASE: 'manage_database',
+  
+  // Advanced moderation permissions
+  VIEW_MODERATION_ACTIONS: 'view_moderation_actions',
+  PERFORM_BULK_ACTIONS: 'perform_bulk_actions',
+  MANAGE_USER_BEHAVIOR: 'manage_user_behavior',
+  CONFIGURE_AUTO_MODERATION: 'configure_auto_moderation',
+  
+  // Super admin permissions
+  MANAGE_ADMINS: 'manage_admins',
+  SYSTEM_MAINTENANCE: 'system_maintenance',
+  FULL_DATABASE_ACCESS: 'full_database_access'
+} as const;
+
+export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS];
+
+// Role permissions mapping
+export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
+  [USER_ROLES.USER]: [
+    // Users have no admin permissions by default
+  ],
+  [USER_ROLES.MODERATOR]: [
+    PERMISSIONS.VIEW_USERS,
+    PERMISSIONS.VIEW_REPORTS,
+    PERMISSIONS.MANAGE_REPORTS,
+    PERMISSIONS.MODERATE_MESSAGES,
+    PERMISSIONS.VIEW_ROOMS,
+    PERMISSIONS.VIEW_MODERATION_ACTIONS
+  ],
+  [USER_ROLES.ADMIN]: [
+    // Admin has full access to all permissions
+    ...Object.values(PERMISSIONS) as Permission[]
+  ],
+  [USER_ROLES.SUPER_ADMIN]: [
+    // Super admin has all permissions (same as admin for now)
+    ...Object.values(PERMISSIONS) as Permission[]
+  ]
+};
+
+// Helper functions for role-based access control
+export const hasPermission = (userRole: UserRole, permission: Permission): boolean => {
+  return ROLE_PERMISSIONS[userRole]?.includes(permission) || false;
+};
+
+export const hasAnyPermission = (userRole: UserRole, permissions: Permission[]): boolean => {
+  return permissions.some(permission => hasPermission(userRole, permission));
+};
+
+export const hasAllPermissions = (userRole: UserRole, permissions: Permission[]): boolean => {
+  return permissions.every(permission => hasPermission(userRole, permission));
+};
+
+// Role hierarchy helper (higher roles inherit lower role permissions)
+export const getRoleLevel = (role: UserRole): number => {
+  switch (role) {
+    case USER_ROLES.USER: return 1;
+    case USER_ROLES.MODERATOR: return 2;
+    case USER_ROLES.ADMIN: return 3;
+    case USER_ROLES.SUPER_ADMIN: return 4;
+    default: return 0;
+  }
+};
+
+export const hasMinimumRole = (userRole: UserRole, minimumRole: UserRole): boolean => {
+  return getRoleLevel(userRole) >= getRoleLevel(minimumRole);
+};
+
+// RBAC validation schemas
+export const roleValidationSchema = z.enum([
+  USER_ROLES.USER,
+  USER_ROLES.MODERATOR, 
+  USER_ROLES.ADMIN,
+  USER_ROLES.SUPER_ADMIN
+]);
+
+export const permissionValidationSchema = z.enum(Object.values(PERMISSIONS) as [Permission, ...Permission[]]);
+
+// Role assignment and management types
+export type RoleAssignment = {
+  userId: string;
+  role: UserRole;
+  assignedBy: string;
+  assignedAt: Date;
+  reason?: string;
+};
+
+export type PermissionCheck = {
+  userId: string;
+  userRole: UserRole;
+  requiredPermission: Permission;
+  hasAccess: boolean;
+};
