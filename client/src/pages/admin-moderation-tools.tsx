@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
-import ModerationTools from '@/components/admin/moderation-tools';
+import ModerationTools from '../components/admin/moderation-tools';
 
 interface AdminUser {
   id: string;
